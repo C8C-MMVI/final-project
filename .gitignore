@@ -1,0 +1,1 @@
+echo ".env" >> ~/docker_fin/.gitignore

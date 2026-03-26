@@ -1,0 +1,44 @@
+services:
+
+  # ── PostgreSQL Database ──
+  db:
+    image: postgres:15-alpine
+    container_name: php_sys_db
+    environment:
+      POSTGRES_DB: technologs_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: 1234
+    ports:
+      - "5434:5432"           # Host 5434 → Container 5432
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d technologs_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    volumes:
+      - postgres_data:/var/lib/postgresql/data       # Persist database
+      - ./postgres:/docker-entrypoint-initdb.d      # Mount folder with SQL scripts
+
+  # ── PHP Application ──
+  php:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: php_sys_app
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_NAME: technologs_db
+      DB_USER: postgres
+      DB_PASSWORD: 1234
+    volumes:
+      - ./php:/var/www/html   # Live reload — changes reflect immediately
+    ports:
+      - "8080:8000"           # Access via http://localhost:8080
+    command: php -S 0.0.0.0:8000 -t /var/www/html
+
+volumes:
+  postgres_data:              # Persists DB data between container restarts

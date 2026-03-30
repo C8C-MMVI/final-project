@@ -1,0 +1,91 @@
+@import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=KoHo:ital,wght@0,200;0,300;0,400;0,500;0,600;0,700&family=Inter:wght@300;400;500;600&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-inter: 'Inter', sans-serif;
+  --font-koho: 'KoHo', sans-serif;
+  --font-rajdhani: 'Rajdhani', sans-serif;
+
+  --color-teal: #1abc9c;
+  --color-teal-dark: #149878;
+  --color-teal-glow: rgba(26,188,156,0.25);
+  --color-navy: #0a1628;
+  --color-navy-card: rgba(10,22,44,0.85);
+  --color-navy-border: rgba(26,188,156,0.18);
+  --color-muted: rgba(255,255,255,0.55);
+  --color-input-bg: rgba(255,255,255,0.06);
+  --color-input-border: rgba(255,255,255,0.15);
+  --color-error: #ff4f4f;
+
+  --animate-scan: scanShift 10s linear infinite;
+  --animate-blob: blobPulse 6s ease-in-out infinite;
+  --animate-blob-slow: blobPulse 9s ease-in-out 2s infinite;
+  --animate-fade-up: fadeUp 0.7s cubic-bezier(.22,.68,0,1.2) both;
+  --animate-fade-up-fast: fadeUp 0.5s ease both;
+  --animate-spin-loader: spin 0.7s linear infinite;
+  --animate-ripple: ripple 0.55s linear;
+}
+
+@keyframes scanShift {
+  from { background-position-y: 0; }
+  to   { background-position-y: 100px; }
+}
+@keyframes blobPulse {
+  0%, 100% { transform: scale(1);   opacity: 0.8; }
+  50%       { transform: scale(1.1); opacity: 1; }
+}
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(30px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes spin {
+  to { transform: translate(-50%, -50%) rotate(360deg); }
+}
+@keyframes ripple {
+  to { transform: scale(4); opacity: 0; }
+}
+
+/* Ripple span — dynamically injected, hard to do purely in Tailwind */
+.ripple {
+  position: absolute;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.28);
+  transform: scale(0);
+  animation: ripple 0.55s linear;
+  pointer-events: none;
+}
+
+/* Spinner — absolute centered, only shown when loading */
+.spinner {
+  position: absolute;
+  top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  width: 22px; height: 22px;
+  border: 2.5px solid rgba(255,255,255,0.3);
+  border-top-color: white;
+  border-radius: 50%;
+  display: none;
+  animation: spin 0.7s linear infinite;
+}
+.btn-loading .spinner { display: block; }
+.btn-loading .btn-text { opacity: 0; }
+
+/* Custom checkbox tick */
+.check-box {
+  width: 16px; height: 16px;
+  border-radius: 4px;
+  border: 1.5px solid rgba(255,255,255,0.15);
+  display: flex; align-items: center; justify-content: center;
+  transition: background 0.2s, border-color 0.2s;
+  flex-shrink: 0;
+}
+.check-box::after {
+  content: '✓';
+  font-size: 11px; color: white;
+  opacity: 0; transition: opacity 0.2s;
+}
+.remember input:checked ~ .check-box {
+  background: #1abc9c;
+  border-color: #1abc9c;
+}
+.remember input:checked ~ .check-box::after { opacity: 1; }

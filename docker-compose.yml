@@ -3,7 +3,7 @@ services:
   # ── PostgreSQL Database ──
   db:
     image: postgres:15-alpine
-    container_name: php_sys_db
+    container_name: technologs_db
     environment:
       POSTGRES_DB: technologs_db
       POSTGRES_USER: postgres
@@ -24,7 +24,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: php_sys_app
+    container_name: technologs_app
     depends_on:
       db:
         condition: service_healthy
@@ -43,7 +43,7 @@ services:
   # ── React Frontend ──
   react:
     image: node:20-alpine
-    container_name: php_sys_react
+    container_name: technologs_react
     working_dir: /app
     volumes:
       - ./react:/app        # mount your React project

@@ -11,20 +11,17 @@ export default function Toast({ toast }) {
     'transition-all duration-300',
   ].join(' ');
 
-  const shown   = 'translate-y-0 opacity-100';
-  const hidden  = 'translate-y-20 opacity-0';
-  const errorBorder = 'border-l-[#ff4f4f]';
-  const tealBorder  = 'border-l-teal';
+  const shown  = 'translate-y-0 opacity-100';
+  const hidden = 'translate-y-20 opacity-0';
+
+  function borderColor() {
+    if (toast?.type === 'error' || toast?.isError) return 'border-l-[#ff4f4f]';
+    if (toast?.type === 'success') return 'border-l-teal';
+    return 'border-l-teal';
+  }
 
   return (
-    <div
-      id="toast"
-      className={`
-        ${base}
-        ${toast?.show ? shown : hidden}
-        ${toast?.isError ? errorBorder : tealBorder}
-      `}
-    >
+    <div id="toast" className={`${base} ${toast?.show ? shown : hidden} ${borderColor()}`}>
       {toast?.message ?? ''}
     </div>
   );

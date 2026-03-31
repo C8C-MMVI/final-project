@@ -6,11 +6,14 @@ export default defineConfig({
   plugins: [react(), tailwindcss()],
   server: {
     host: true,
+    watch: {
+      usePolling: true,   // ← fixes WSL2 file watching
+      interval: 500,      // check every 500ms
+    },
     proxy: {
-      '/php_sys': {
+      '/api': {
         target: 'http://php:8000',
         changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/php_sys/, ''), // strips /php_sys prefix
       },
       '/images': {
         target: 'http://php:8000',

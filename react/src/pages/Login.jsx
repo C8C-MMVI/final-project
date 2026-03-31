@@ -45,7 +45,7 @@ export default function Login() {
               Welcome Back
             </div>
             <div className="text-[0.87rem] text-[rgba(255,255,255,0.55)] mb-[clamp(18px,3vh,34px)]">
-              Sign in to continue to your dashboard
+              Sign in to continue 
             </div>
 
             <form className="flex flex-col gap-5" onSubmit={handleSubmit} noValidate autoComplete="off">

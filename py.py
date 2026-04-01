@@ -34,6 +34,17 @@ def sql_value(val):
         return "'" + val.strftime("%Y-%m-%d %H:%M:%S") + "'"
     return str(val)
 
+def ph_phone():
+    prefixes = ["0905", "0906", "0907", "0908", "0909",
+                "0910", "0915", "0916", "0917", "0918",
+                "0919", "0920", "0921", "0922", "0923",
+                "0924", "0925", "0926", "0927", "0928",
+                "0929", "0930", "0935", "0936", "0939",
+                "0945", "0955", "0956", "0961", "0966",
+                "0967", "0975", "0976", "0977", "0978",
+                "0979", "0985", "0995", "0996", "0997"]
+    return random.choice(prefixes) + str(random.randint(1000000, 9999999))
+
 # -----------------------------
 # USERS
 # -----------------------------
@@ -43,7 +54,7 @@ for user_id in range(1, NUM_USERS + 1):
         "user_id": user_id,
         "username": fake.user_name()[:50],
         "email": fake.unique.email()[:100],
-        "phone": fake.phone_number()[:15],
+        "phone": ph_phone(),
         "password": fake.password(length=12),
         "role": random.choice(roles),
         "status": random.choice(statuses),
@@ -71,7 +82,7 @@ for shop_id in range(1, NUM_SHOPS + 1):
         "shop_id": shop_id,
         "shop_name": fake.company()[:100],
         "address": fake.address()[:255],
-        "contact_number": fake.phone_number()[:20],
+        "contact_number": ph_phone(),
         "owner_id": owner["user_id"],
         "created_at": fake.date_time_this_year()
     })
@@ -150,7 +161,7 @@ for sales_item_id in range(1, NUM_SALES_ITEMS + 1):
     transaction = random.choice(sales_transactions)
     valid_items = [i for i in inventory_items if i["shop_id"] == transaction["shop_id"]]
     if not valid_items:
-        continue  # Skip if somehow no items
+        continue
     item = random.choice(valid_items)
     quantity = random.randint(1, 5)
     price = round(item["price"] * quantity, 2)
@@ -173,7 +184,7 @@ for transaction in sales_transactions:
 # -----------------------------
 # SQL EXPORT
 # -----------------------------
-with open("./postgres/02_seed_data.sql", "w", encoding="utf-8") as f:
+with open("./springboot/src/main/resources/db/migration/V2__seed_data.sql", "w", encoding="utf-8") as f:
 
     f.write("BEGIN;\n\n")
 
@@ -226,4 +237,4 @@ with open("./postgres/02_seed_data.sql", "w", encoding="utf-8") as f:
 
     f.write("COMMIT;\n")
 
-print("✅ SQL file generated at ./postgres/02_seed_data.sql")
+print("✅ SQL file generated at ./springboot/src/main/resources/db/migration/V2__seed_data.sql")

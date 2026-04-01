@@ -17,7 +17,23 @@ services:
       retries: 5
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./postgres:/docker-entrypoint-initdb.d
+      # ← postgres/ init mount removed
+
+  # ── Spring Boot (Inventory API) ──  ← NEW SERVICE
+  springboot:
+    build:
+      context: ./springboot
+      dockerfile: Dockerfile
+    container_name: technologs_spring
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/technologs_db
+      SPRING_DATASOURCE_USERNAME: postgres
+      SPRING_DATASOURCE_PASSWORD: 1234
+    ports:
+      - "8081:8080"
 
   # ── PHP Application ──
   php:
@@ -28,6 +44,8 @@ services:
     depends_on:
       db:
         condition: service_healthy
+      springboot:
+        condition: service_started
     environment:
       DB_HOST: db
       DB_PORT: 5432
@@ -46,7 +64,7 @@ services:
     container_name: technologs_react
     working_dir: /app
     volumes:
-      - ./react:/app        # mount your React project
+      - ./react:/app
     ports:
       - "5173:5173"
     depends_on:

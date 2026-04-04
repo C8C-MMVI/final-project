@@ -7,7 +7,7 @@ import LoginSubmitButton from '../components/login/LoginSubmitButton';
 import LoginFooter from '../components/login/LoginFooter';
 import { useLogin } from '../assets/js/useLogin';
 
-export default function Login() {
+export default function Login({ onLogin }) {
   const {
     username, setUsername,
     password, setPassword,
@@ -18,7 +18,7 @@ export default function Login() {
     handleSubmit,
     handleForgot,
     toast,
-  } = useLogin();
+  } = useLogin({ onLogin });
 
   return (
     <>
@@ -45,7 +45,7 @@ export default function Login() {
               Welcome Back
             </div>
             <div className="text-[0.87rem] text-[rgba(255,255,255,0.55)] mb-[clamp(18px,3vh,34px)]">
-              Sign in to continue 
+              Sign in to continue
             </div>
 
             <form className="flex flex-col gap-5" onSubmit={handleSubmit} noValidate autoComplete="off">

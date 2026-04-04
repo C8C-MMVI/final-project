@@ -1,0 +1,44 @@
+.app {
+  display: flex;
+  height: 100vh;
+  overflow: hidden;
+  background: var(--color-bg-page);
+}
+.main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  min-width: 0;
+}
+
+/* Dev role switcher */
+.roleSwitcher {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 24px;
+  background: var(--color-bg-secondary);
+  border-bottom: 0.5px solid var(--color-border);
+  flex-shrink: 0;
+}
+.roleSwitcherLabel {
+  font-size: 11px;
+  color: var(--color-text-tertiary);
+  margin-right: 4px;
+}
+.roleBtn {
+  padding: 3px 12px;
+  border-radius: 14px;
+  border: 0.5px solid var(--color-border-strong);
+  background: transparent;
+  font-size: 11px;
+  cursor: pointer;
+  color: var(--color-text-secondary);
+  font-family: inherit;
+  transition: all 0.12s;
+}
+.roleBtn:hover { background: var(--color-bg-primary); }
+.active_owner    { background: var(--color-orange-light); color: var(--color-amber);  border-color: var(--color-amber);  font-weight: 500; }
+.active_admin    { background: var(--color-purple-light); color: var(--color-purple); border-color: var(--color-purple); font-weight: 500; }
+.active_customer { background: var(--color-blue-light);   color: var(--color-blue);   border-color: var(--color-blue);   font-weight: 500; }

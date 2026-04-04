@@ -14,10 +14,12 @@ export default defineConfig({
       '/api': {
         target: 'http://php:8000',
         changeOrigin: true,
+        cookieDomainRewrite: 'localhost',             // ← FIXED: forward session cookie correctly
       },
       '/images': {
         target: 'http://php:8000',
         changeOrigin: true,
+        cookieDomainRewrite: 'localhost',             // ← FIXED: consistent cookie handling
       },
     },
   },

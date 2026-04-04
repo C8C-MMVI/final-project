@@ -1,1 +1,93 @@
 @import "tailwindcss";
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  /* Brand */
+  --color-teal:         #1D9E75;
+  --color-teal-dark:    #0F6E56;
+  --color-teal-light:   #E1F5EE;
+  --color-amber:        #BA7517;
+  --color-orange-light: #FAEEDA;
+  --color-purple:       #7F77DD;
+  --color-purple-light: #EEEDFE;
+  --color-blue:         #378ADD;
+  --color-blue-light:   #E6F1FB;
+  --color-red:          #E24B4A;
+  --color-red-light:    #FCEBEB;
+  --color-amber-light:  #FAEEDA;
+  --color-green:        #639922;
+  --color-green-light:  #EAF3DE;
+
+  /* Backgrounds */
+  --color-bg-primary:   #ffffff;
+  --color-bg-secondary: #f5f5f3;
+  --color-bg-page:      #f0eeea;
+
+  /* Text */
+  --color-text-primary:   #1a1a18;
+  --color-text-secondary: #6b6b67;
+  --color-text-tertiary:  #9e9e9a;
+
+  /* Borders */
+  --color-border:        rgba(0,0,0,0.10);
+  --color-border-strong: rgba(0,0,0,0.18);
+
+  /* Radii */
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 10px;
+  --radius-xl: 14px;
+}
+
+/* Dark mode */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --color-teal-light:   #0a3d2c;
+    --color-orange-light: #3a2800;
+    --color-purple-light: #1e1c40;
+    --color-blue-light:   #0d2540;
+    --color-red-light:    #3a0f0f;
+    --color-amber-light:  #3a2800;
+    --color-green-light:  #1a2e08;
+
+    --color-bg-primary:    #1a1a18;
+    --color-bg-secondary:  #222220;
+    --color-bg-page:       #141412;
+
+    --color-text-primary:   #f0eeea;
+    --color-text-secondary: #8e8e8a;
+    --color-text-tertiary:  #5e5e5a;
+
+    --color-border:        rgba(255,255,255,0.10);
+    --color-border-strong: rgba(255,255,255,0.18);
+
+    --color-teal:      #25c48f;
+    --color-teal-dark: #1a9e72;
+    --color-amber:     #e8951a;
+    --color-purple:    #9b94f0;
+    --color-blue:      #5ba3f5;
+    --color-red:       #f06060;
+    --color-green:     #82c42e;
+  }
+}
+
+html, body, #root {
+  height: 100%;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  background: var(--color-bg-page);
+  color: var(--color-text-primary);
+  font-size: 13px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+a { color: inherit; text-decoration: none; }
+button { font-family: inherit; }
+input, select, textarea { font-family: inherit; }
+
+/* Scrollbar styling */
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--color-border-strong); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--color-text-tertiary); }

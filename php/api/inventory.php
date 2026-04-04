@@ -1,18 +1,9 @@
 <?php
-/**
- * api/inventory.php
- * Shop owner inventory CRUD.
- * GET    → fetch all items
- * POST   → add new item
- * PUT    → update item
- * DELETE → delete item
- */
-
 session_start();
 header('Content-Type: application/json');
 
-if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'owner') {
-    http_response_code(403);
+if (!isset($_SESSION['user_id'])) {
+    http_response_code(401);
     echo json_encode(['success' => false, 'message' => 'Unauthorized.']);
     exit;
 }
@@ -20,16 +11,45 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'owner') {
 require_once __DIR__ . '/../db_config.php';
 
 $method = $_SERVER['REQUEST_METHOD'];
+$role   = $_SESSION['role'];
+$userId = (int) $_SESSION['user_id'];
 
 if ($method === 'GET') {
-    $stmt  = $pdo->query('SELECT * FROM inventory_items ORDER BY item_name ASC');
-    $items = $stmt->fetchAll();
-    echo json_encode(['success' => true, 'items' => $items]);
+    if (!in_array($role, ['owner', 'admin', 'technician'])) {
+        http_response_code(403);
+        echo json_encode(['success' => false, 'message' => 'Forbidden.']);
+        exit;
+    }
+
+    if ($role === 'owner') {
+        $stmt = $pdo->prepare("
+            SELECT i.item_id, i.item_name, i.category, i.quantity, i.price, s.shop_name
+            FROM inventory_items i
+            JOIN shops s ON s.shop_id = i.shop_id
+            WHERE s.owner_id = ?
+            ORDER BY i.item_name ASC
+        ");
+        $stmt->execute([$userId]);
+    } else {
+        $stmt = $pdo->query("
+            SELECT i.item_id, i.item_name, i.category, i.quantity, i.price, s.shop_name
+            FROM inventory_items i
+            JOIN shops s ON s.shop_id = i.shop_id
+            ORDER BY i.item_name ASC
+        ");
+    }
+
+    echo json_encode(['success' => true, 'items' => $stmt->fetchAll()]);
+    exit;
+}
+
+if (!in_array($role, ['owner', 'admin'])) {
+    http_response_code(403);
+    echo json_encode(['success' => false, 'message' => 'Forbidden.']);
     exit;
 }
 
 $data = json_decode(file_get_contents('php://input'), true);
-
 if (!$data) {
     http_response_code(400);
     echo json_encode(['success' => false, 'message' => 'Invalid request body.']);
@@ -41,16 +61,20 @@ if ($method === 'POST') {
     $category = trim($data['category'] ?? '');
     $quantity = (int)   ($data['quantity'] ?? 0);
     $price    = (float) ($data['price']    ?? 0);
+    $shopId   = (int)   ($data['shop_id']  ?? 0);
 
-    if (empty($name) || empty($category)) {
+    if (empty($name) || empty($category) || !$shopId) {
         http_response_code(422);
-        echo json_encode(['success' => false, 'message' => 'All fields are required.']);
+        echo json_encode(['success' => false, 'message' => 'name, category, and shop_id are required.']);
         exit;
     }
 
-    $stmt = $pdo->prepare('INSERT INTO inventory_items (item_name, category, quantity, price) VALUES (?, ?, ?, ?)');
-    $stmt->execute([$name, $category, $quantity, $price]);
-    echo json_encode(['success' => true, 'message' => 'Item added successfully.', 'item_id' => $pdo->lastInsertId()]);
+    $stmt = $pdo->prepare("
+        INSERT INTO inventory_items (shop_id, item_name, category, quantity, price)
+        VALUES (?, ?, ?, ?, ?)
+    ");
+    $stmt->execute([$shopId, $name, $category, $quantity, $price]);
+    echo json_encode(['success' => true, 'message' => 'Item added.']);
     exit;
 }
 
@@ -63,13 +87,17 @@ if ($method === 'PUT') {
 
     if (!$itemId || empty($name) || empty($category)) {
         http_response_code(422);
-        echo json_encode(['success' => false, 'message' => 'All fields are required.']);
+        echo json_encode(['success' => false, 'message' => 'item_id, name, and category are required.']);
         exit;
     }
 
-    $stmt = $pdo->prepare('UPDATE inventory_items SET item_name = ?, category = ?, quantity = ?, price = ? WHERE item_id = ?');
+    $stmt = $pdo->prepare("
+        UPDATE inventory_items
+        SET item_name = ?, category = ?, quantity = ?, price = ?
+        WHERE item_id = ?
+    ");
     $stmt->execute([$name, $category, $quantity, $price, $itemId]);
-    echo json_encode(['success' => true, 'message' => 'Item updated successfully.']);
+    echo json_encode(['success' => true, 'message' => 'Item updated.']);
     exit;
 }
 
@@ -77,12 +105,13 @@ if ($method === 'DELETE') {
     $itemId = (int) ($data['item_id'] ?? 0);
     if (!$itemId) {
         http_response_code(422);
-        echo json_encode(['success' => false, 'message' => 'Invalid item ID.']);
+        echo json_encode(['success' => false, 'message' => 'item_id is required.']);
         exit;
     }
-    $stmt = $pdo->prepare('DELETE FROM inventory_items WHERE item_id = ?');
+
+    $stmt = $pdo->prepare("DELETE FROM inventory_items WHERE item_id = ?");
     $stmt->execute([$itemId]);
-    echo json_encode(['success' => true, 'message' => 'Item deleted successfully.']);
+    echo json_encode(['success' => true, 'message' => 'Item deleted.']);
     exit;
 }
 

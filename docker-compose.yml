@@ -60,9 +60,10 @@ services:
 
   # ── React Frontend ──
   react:
-    image: node:20-alpine
+    image: node:20          # ← remove -alpine
     container_name: technologs_react
     working_dir: /app
+    shm_size: '256m'
     volumes:
       - ./react:/app
     ports:

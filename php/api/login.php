@@ -1,10 +1,6 @@
 <?php
-/**
- * api/login.php
- * Handles login authentication.
- * Receives JSON: { username, password }
- * Returns JSON:  { success, message, userId, username, role, redirect }
- */
+ini_set('display_errors', 0);
+error_reporting(E_ALL);
 
 session_start();
 header('Content-Type: application/json');
@@ -18,7 +14,6 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 require_once __DIR__ . '/../db_config.php';
 
 $data = json_decode(file_get_contents('php://input'), true);
-
 if (!$data) {
     http_response_code(400);
     echo json_encode(['success' => false, 'message' => 'Invalid request body.']);
@@ -34,11 +29,30 @@ if (empty($username) || empty($password)) {
     exit;
 }
 
-$stmt = $pdo->prepare('SELECT user_id, username, password, role FROM users WHERE username = ? LIMIT 1');
-$stmt->execute([$username]);
-$user = $stmt->fetch();
+try {
+    $stmt = $pdo->prepare('SELECT user_id, username, password, role, status FROM users WHERE username = ? LIMIT 1');
+    $stmt->execute([$username]);
+    $user = $stmt->fetch();
+} catch (PDOException $e) {
+    error_log('Query failed: ' . $e->getMessage());
+    http_response_code(500);
+    echo json_encode(['success' => false, 'message' => 'A server error occurred.']);
+    exit;
+}
 
-if (!$user || !password_verify($password, $user['password'])) {
+if (!$user) {
+    http_response_code(401);
+    echo json_encode(['success' => false, 'message' => 'Invalid username or password.']);
+    exit;
+}
+
+if ($user['status'] !== 'active') {
+    http_response_code(403);
+    echo json_encode(['success' => false, 'message' => 'Your account is inactive. Please contact admin.']);
+    exit;
+}
+
+if (!password_verify($password, $user['password'])) {
     http_response_code(401);
     echo json_encode(['success' => false, 'message' => 'Invalid username or password.']);
     exit;
@@ -48,14 +62,6 @@ $_SESSION['user_id']  = $user['user_id'];
 $_SESSION['username'] = $user['username'];
 $_SESSION['role']     = $user['role'];
 
-$redirect = match($user['role']) {
-    'admin'      => '/pages/admin_dashboard.php',
-    'owner'      => '/pages/owner_dashboard.php',
-    'technician' => '/pages/dashboard.php',
-    'customer'   => '/pages/customer_dashboard.php',
-    default      => '/pages/dashboard.php',
-};
-
 http_response_code(200);
 echo json_encode([
     'success'  => true,
@@ -63,5 +69,4 @@ echo json_encode([
     'userId'   => $user['user_id'],
     'username' => $user['username'],
     'role'     => $user['role'],
-    'redirect' => $redirect,
 ]);

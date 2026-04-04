@@ -2,8 +2,11 @@
 /**
  * api/register.php
  * Handles user registration.
- * Receives JSON: { username, phone, password, confirm_password }
+ * Receives JSON: { username, password, confirm_password }
  * Returns JSON:  { success, message }
+ *
+ * Note: users table only has id, username, password, date_created.
+ * Role is stored in user_roles table (role_id 4 = customer by default).
  */
 
 session_start();
@@ -26,7 +29,6 @@ if (!$data) {
 }
 
 $username         = trim($data['username']         ?? '');
-$phone            = trim($data['phone']            ?? '');
 $password         = $data['password']              ?? '';
 $confirm_password = $data['confirm_password']      ?? '';
 
@@ -38,12 +40,6 @@ if (empty($username)) {
     $errors[] = 'Username must be between 3 and 30 characters.';
 } elseif (preg_match('/\s/', $username)) {
     $errors[] = 'Username must not contain spaces.';
-}
-
-if (empty($phone)) {
-    $errors[] = 'Phone number is required.';
-} elseif (!preg_match('/^[0-9+\-\s()]{7,15}$/', $phone)) {
-    $errors[] = 'Enter a valid phone number.';
 }
 
 if (empty($password)) {
@@ -62,18 +58,24 @@ if (!empty($errors)) {
     exit;
 }
 
-$stmt = $pdo->prepare('SELECT user_id FROM users WHERE username = ? LIMIT 1');
+// Check username taken
+$stmt = $pdo->prepare('SELECT id FROM users WHERE username = ? LIMIT 1');
 $stmt->execute([$username]);
-
 if ($stmt->fetch()) {
     http_response_code(409);
     echo json_encode(['success' => false, 'message' => 'Username is already taken.']);
     exit;
 }
 
+// Insert user
 $hashedPassword = password_hash($password, PASSWORD_BCRYPT);
-$stmt = $pdo->prepare('INSERT INTO users (username, phone, password) VALUES (?, ?, ?)');
-$stmt->execute([$username, $phone, $hashedPassword]);
+$stmt = $pdo->prepare('INSERT INTO users (username, password) VALUES (?, ?) RETURNING id');
+$stmt->execute([$username, $hashedPassword]);
+$newUser = $stmt->fetch();
+
+// Assign default role: customer (role_id = 4)
+$roleStmt = $pdo->prepare('INSERT INTO user_roles (user_id, role_id) VALUES (?, 4)');
+$roleStmt->execute([$newUser['id']]);
 
 http_response_code(201);
 echo json_encode(['success' => true, 'message' => 'Account created successfully.']);

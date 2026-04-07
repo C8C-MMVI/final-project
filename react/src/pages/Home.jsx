@@ -9,7 +9,7 @@ export default function Home() {
   return (
     <>
       <Background />
-      <div className="relative z-[2] min-h-screen overflow-y-auto text-white">
+      <div className="relative z-2 min-h-screen overflow-y-auto text-white">
         <Navbar />
         <Hero />
         <Services />

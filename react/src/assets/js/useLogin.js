@@ -1,6 +1,7 @@
 'use strict';
 
 import { useState, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 
 export function useLogin() {
   const [username, setUsername]       = useState('');
@@ -11,18 +12,20 @@ export function useLogin() {
   const [loading, setLoading]         = useState(false);
   const [toast, setToast]             = useState(null);
 
-  // Toast
+  const navigate = useNavigate(); // use React Router navigate
+
+  // Toast helper
   const showToast = useCallback((message, isError = false) => {
     setToast({ message, isError, show: true });
     setTimeout(() => setToast(t => t ? { ...t, show: false } : null), 3300);
   }, []);
 
-  // Password toggle
+  // Toggle password visibility
   const togglePassword = useCallback(() => {
     setShowPassword(v => !v);
   }, []);
 
-  // Clear field error on input (handled via controlled inputs + errors state)
+  // Clear input error on change
   const clearError = useCallback((field) => {
     setErrors(e => ({ ...e, [field]: false }));
   }, []);
@@ -37,7 +40,7 @@ export function useLogin() {
     clearError('password');
   }, [clearError]);
 
-  // Validation
+  // Validate required fields
   function validateAll() {
     const newErrors = {
       username: !username.trim(),
@@ -47,14 +50,14 @@ export function useLogin() {
     return !newErrors.username && !newErrors.password;
   }
 
-  // Forgot password
+  // Forgot password handler
   const handleForgot = useCallback((e) => {
     e.preventDefault();
     showToast('📧 A password reset link will be sent to your email.');
   }, [showToast]);
 
-  // Submit
-  async function handleSubmit(e) {
+  // Submit login
+  const handleSubmit = useCallback(async (e) => {
     e.preventDefault();
 
     if (!validateAll()) {
@@ -65,18 +68,29 @@ export function useLogin() {
     setLoading(true);
 
     try {
-      const res  = await fetch('/php_sys/api/login.php', {
-        method:  'POST',
+      const res = await fetch('/api/login.php', {
+        method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify({ username: username.trim(), password: password.trim() }),
+        body: JSON.stringify({ username: username.trim(), password: password.trim() }),
       });
-      const data = await res.json();
+
+      const text = await res.text(); // read raw text first
+      let data;
+
+      try {
+        data = JSON.parse(text); // parse JSON safely
+      } catch (err) {
+        console.error('Invalid JSON response:', text);
+        throw new Error('Server returned invalid JSON.');
+      }
 
       setLoading(false);
 
       if (res.ok && data.success) {
         showToast('✓ Login successful! Redirecting…');
-        setTimeout(() => { window.location.href = data.redirect; }, 1200);
+
+        // SPA-friendly navigation
+        navigate('/dashboard', { replace: true });
       } else {
         setErrors(e => ({ ...e, password: true }));
         showToast('⚠ ' + (data.message || 'Invalid username or password.'), true);
@@ -86,7 +100,7 @@ export function useLogin() {
       console.error('Login error:', err);
       showToast('⚠ Cannot connect to server. Please try again.', true);
     }
-  }
+  }, [username, password, navigate, showToast]);
 
   return {
     username,    setUsername: wrappedSetUsername,

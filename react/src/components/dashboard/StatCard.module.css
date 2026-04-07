@@ -1,0 +1,30 @@
+.card {
+  background: var(--color-bg-primary);
+  border: 0.5px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: 14px 16px;
+}
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+.label {
+  font-size: 12px;
+  color: var(--color-text-secondary);
+}
+.icon {
+  width: 32px; height: 32px;
+  border-radius: var(--radius-md);
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+.orange { background: var(--color-orange-light); color: var(--color-amber);      }
+.teal   { background: var(--color-teal-light);   color: var(--color-teal);       }
+.blue   { background: var(--color-blue-light);   color: var(--color-blue);       }
+.purple { background: var(--color-purple-light); color: var(--color-purple);     }
+
+.value { font-size: 22px; font-weight: 500; margin-bottom: 4px; color: var(--color-text-primary); }
+.sub   { font-size: 11px; color: var(--color-text-secondary); }
+.highlight { color: var(--color-teal); font-weight: 500; }

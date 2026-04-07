@@ -1,0 +1,21 @@
+.item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 10px;
+  border-radius: var(--radius-md);
+  background: var(--color-bg-secondary);
+}
+.icon {
+  width: 28px; height: 28px;
+  border-radius: var(--radius-md);
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+.danger { background: var(--color-red-light);    color: var(--color-red);    }
+.warn   { background: var(--color-amber-light);  color: var(--color-amber);  }
+.info   { background: var(--color-blue-light);   color: var(--color-blue);   }
+.text   { flex: 1; min-width: 0; }
+.title  { font-size: 12px; font-weight: 500; color: var(--color-text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sub    { font-size: 11px; color: var(--color-text-secondary); }
+.time   { font-size: 11px; color: var(--color-text-tertiary); white-space: nowrap; flex-shrink: 0; }

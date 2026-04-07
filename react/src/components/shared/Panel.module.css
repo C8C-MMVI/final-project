@@ -1,0 +1,28 @@
+.panel {
+  background: var(--color-bg-primary);
+  border: 0.5px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px 0;
+  margin-bottom: 12px;
+}
+.title {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--color-text-primary);
+}
+.link {
+  font-size: 11px;
+  color: var(--color-teal);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  font-family: inherit;
+}
+.link:hover { text-decoration: underline; }

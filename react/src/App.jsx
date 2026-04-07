@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 
 import './assets/css/login.css';
@@ -62,13 +62,19 @@ function AppRoutes() {
 
   const handleLogin = (userData) => {
     setUser(userData);
-    navigate('/', { replace: true });
   };
 
   const handleLogout = () => {
     setUser(null);
-    navigate('/login', { replace: true });
   };
+
+  useEffect(() => {
+    if (user) {
+      navigate('/', { replace: true });
+    } else {
+      navigate('/login', { replace: true });
+    }
+  }, [user]);
 
   return (
     <Routes>

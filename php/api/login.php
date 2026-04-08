@@ -49,11 +49,11 @@ $_SESSION['username'] = $user['username'];
 $_SESSION['role']     = $user['role'];
 
 $redirect = match($user['role']) {
-    'admin'      => '/pages/admin_dashboard.php',
-    'owner'      => '/pages/owner_dashboard.php',
-    'technician' => '/pages/dashboard.php',
-    'customer'   => '/pages/customer_dashboard.php',
-    default      => '/pages/dashboard.php',
+    'admin'      => '/admin',
+    'owner'      => '/owner',
+    'technician' => '/technician',
+    'customer'   => '/customer',
+    default      => '/',
 };
 
 http_response_code(200);

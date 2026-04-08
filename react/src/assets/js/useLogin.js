@@ -1,15 +1,18 @@
 'use strict';
 
 import { useState, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 
 export function useLogin() {
-  const [username, setUsername]       = useState('');
-  const [password, setPassword]       = useState('');
+  const navigate = useNavigate();
+
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [remember, setRemember]       = useState(true);
-  const [errors, setErrors]           = useState({ username: false, password: false });
-  const [loading, setLoading]         = useState(false);
-  const [toast, setToast]             = useState(null);
+  const [remember, setRemember] = useState(true);
+  const [errors, setErrors] = useState({ username: false, password: false });
+  const [loading, setLoading] = useState(false);
+  const [toast, setToast] = useState(null);
 
   // Toast
   const showToast = useCallback((message, isError = false) => {
@@ -22,7 +25,7 @@ export function useLogin() {
     setShowPassword(v => !v);
   }, []);
 
-  // Clear field error on input (handled via controlled inputs + errors state)
+  // Clear field error
   const clearError = useCallback((field) => {
     setErrors(e => ({ ...e, [field]: false }));
   }, []);
@@ -65,18 +68,22 @@ export function useLogin() {
     setLoading(true);
 
     try {
-      const res  = await fetch('/php_sys/api/login.php', {
-        method:  'POST',
+      const res = await fetch('/api/login.php', {
+        method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify({ username: username.trim(), password: password.trim() }),
+        body: JSON.stringify({ username: username.trim(), password: password.trim() }),
       });
-      const data = await res.json();
 
+      const data = await res.json();
       setLoading(false);
 
       if (res.ok && data.success) {
         showToast('✓ Login successful! Redirecting…');
-        setTimeout(() => { window.location.href = data.redirect; }, 1200);
+
+        // Navigate to the SPA route returned by PHP
+        if (data.redirect) {
+          setTimeout(() => navigate(data.redirect, { replace: true }), 1200);
+        }
       } else {
         setErrors(e => ({ ...e, password: true }));
         showToast('⚠ ' + (data.message || 'Invalid username or password.'), true);
@@ -89,10 +96,10 @@ export function useLogin() {
   }
 
   return {
-    username,    setUsername: wrappedSetUsername,
-    password,    setPassword: wrappedSetPassword,
+    username, setUsername: wrappedSetUsername,
+    password, setPassword: wrappedSetPassword,
     showPassword, togglePassword,
-    remember,    setRemember,
+    remember, setRemember,
     errors,
     loading,
     handleSubmit,

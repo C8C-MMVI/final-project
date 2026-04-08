@@ -111,7 +111,7 @@ export function useRegister() {
     setLoading(true);
 
     try {
-      const res  = await fetch('/php_sys/api/register.php', {
+      const res  = await fetch('/api/register.php', {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
         body:    JSON.stringify({

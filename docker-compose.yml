@@ -1,25 +1,24 @@
+version: "3.9"
+
 services:
 
   # ── PostgreSQL Database ──
   db:
     image: postgres:15-alpine
     container_name: technologs_db
-    environment:
-      POSTGRES_DB: technologs_db
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: 1234
+    env_file:
+      - .env
     ports:
       - "5434:5432"
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d technologs_db"]
+      test: ["CMD-SHELL", "pg_isready -U $DB_USER -d $DB_NAME"]
       interval: 5s
       timeout: 5s
       retries: 5
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      # ← postgres/ init mount removed
 
-  # ── Spring Boot (Inventory API) ──  ← NEW SERVICE
+  # ── Spring Boot (Inventory API / Core Backend) ──
   springboot:
     build:
       context: ./springboot
@@ -28,14 +27,12 @@ services:
     depends_on:
       db:
         condition: service_healthy
-    environment:
-      SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/technologs_db
-      SPRING_DATASOURCE_USERNAME: postgres
-      SPRING_DATASOURCE_PASSWORD: 1234
+    env_file:
+      - .env
     ports:
       - "8081:8080"
 
-  # ── PHP Application ──
+  # ── PHP (Authentication) ──
   php:
     build:
       context: .
@@ -46,18 +43,32 @@ services:
         condition: service_healthy
       springboot:
         condition: service_started
-    environment:
-      DB_HOST: db
-      DB_PORT: 5432
-      DB_NAME: technologs_db
-      DB_USER: postgres
-      DB_PASSWORD: 1234
+    env_file:
+      - .env
     volumes:
       - ./php:/var/www/html
     ports:
       - "8080:8000"
     command: php -S 0.0.0.0:8000 -t /var/www/html
 
+    # ── Django (Analytics + POS) ──
+  django:
+    build:
+      context: ./django_backend      # point to the folder with manage.py
+      dockerfile: Dockerfile
+    container_name: technologs_django
+    depends_on:
+      db:
+        condition: service_healthy
+    env_file:
+      - .env
+    volumes:
+      - ./django_backend:/app       # map the folder with manage.py to /app
+    ports:
+      - "8000:8000"
+    command: python manage.py runserver 0.0.0.0:8000
+    environment:
+    - DJANGO_SETTINGS_MODULE=technologs.settings
   # ── React Frontend ──
   react:
     image: node:20-alpine

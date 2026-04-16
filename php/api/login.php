@@ -21,7 +21,7 @@ if (!$data) {
 }
 
 $username = trim($data['username'] ?? '');
-$password = $data['password']      ?? '';
+$password = $data['password'] ?? '';
 
 if (empty($username) || empty($password)) {
     http_response_code(422);

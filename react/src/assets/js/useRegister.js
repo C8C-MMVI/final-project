@@ -3,6 +3,7 @@
 import { useState, useCallback } from 'react';
 
 const PHONE_RE = /^[0-9+\-\s()]{7,15}$/;
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 function scorePassword(val) {
   if (val.length < 6) return 0;
@@ -16,6 +17,7 @@ function scorePassword(val) {
 
 export function useRegister() {
   const [username,        setUsernameRaw]        = useState('');
+  const [email,           setEmailRaw]           = useState('');
   const [phone,           setPhoneRaw]           = useState('');
   const [password,        setPasswordRaw]        = useState('');
   const [confirmPassword, setConfirmPasswordRaw] = useState('');
@@ -23,7 +25,7 @@ export function useRegister() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [strength, setStrength] = useState(null);
   const [errors,   setErrors]   = useState({
-    username: '', phone: '', password: '', confirmPassword: '',
+    username: '', email: '', phone: '', password: '', confirmPassword: '',
   });
   const [loading, setLoading] = useState(false);
   const [toast,   setToast]   = useState(null);
@@ -44,6 +46,11 @@ export function useRegister() {
     if (val.length < 3)  return 'At least 3 characters required.';
     if (val.length > 30) return 'Maximum 30 characters allowed.';
     if (/\s/.test(val))  return 'No spaces allowed.';
+    return '';
+  }
+  function validateEmail(val) {
+    if (!val)                return 'Email address is required.';
+    if (!EMAIL_RE.test(val)) return 'Enter a valid email address.';
     return '';
   }
   function validatePhone(val) {
@@ -68,6 +75,11 @@ export function useRegister() {
     setErrors(e => ({ ...e, username: validateUsername(val.trim()) }));
   }, []);
 
+  const setEmail = useCallback((val) => {
+    setEmailRaw(val);
+    setErrors(e => ({ ...e, email: validateEmail(val.trim()) }));
+  }, []);
+
   const setPhone = useCallback((val) => {
     setPhoneRaw(val);
     setErrors(e => ({ ...e, phone: validatePhone(val.trim()) }));
@@ -79,10 +91,9 @@ export function useRegister() {
     setErrors(e => ({
       ...e,
       password: validatePassword(val),
-      // re-validate confirm if already filled
-      confirmPassword: e.confirmPassword ? validateConfirm(e._confirmVal ?? '', val) : e.confirmPassword,
+      confirmPassword: confirmPassword ? validateConfirm(confirmPassword, val) : e.confirmPassword,
     }));
-  }, []);
+  }, [confirmPassword]);
 
   const setConfirmPassword = useCallback((val) => {
     setConfirmPasswordRaw(val);
@@ -92,11 +103,12 @@ export function useRegister() {
   // Full validation on submit
   function validateAll() {
     const u = validateUsername(username.trim());
+    const em = validateEmail(email.trim());
     const p = validatePhone(phone.trim());
     const w = validatePassword(password);
     const c = validateConfirm(confirmPassword, password);
-    setErrors({ username: u, phone: p, password: w, confirmPassword: c });
-    return !u && !p && !w && !c;
+    setErrors({ username: u, email: em, phone: p, password: w, confirmPassword: c });
+    return !u && !em && !p && !w && !c;
   }
 
   // Submit
@@ -111,17 +123,28 @@ export function useRegister() {
     setLoading(true);
 
     try {
-      const res  = await fetch('/api/register.php', {   // ← fixed: was '/php_sys/api/register.php'
+      const res = await fetch('/api/register.php', {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
         body:    JSON.stringify({
           username:         username.trim(),
+          email:            email.trim(),
           phone:            phone.trim(),
           password,
           confirm_password: confirmPassword,
         }),
       });
-      const data = await res.json();
+
+      let data = {};
+      const text = await res.text();
+      try {
+        data = text ? JSON.parse(text) : {};
+      } catch (err) {
+        console.error('Server returned non-JSON response:', text);
+        showToast('⚠ Unexpected server response. Please contact support.', 'error');
+        setLoading(false);
+        return;
+      }
 
       setLoading(false);
 
@@ -140,6 +163,7 @@ export function useRegister() {
 
   return {
     username,        setUsername,
+    email,           setEmail,
     phone,           setPhone,
     password,        setPassword,
     confirmPassword, setConfirmPassword,

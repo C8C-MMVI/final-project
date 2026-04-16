@@ -1,0 +1,668 @@
+{
+    "info": {
+      "name": "Technologs Django API",
+      "_postman_id": "technologs-django-api-v1",
+      "description": "API Testing Collection for Technologs Django Backend\n\nModules:\n- Auth (Token)\n- Shop\n- Repair Request\n- Booking (Services, Availability, Bookings)\n\nSetup:\n1. Import this collection\n2. Set `base_url` variable to http://localhost:8000\n3. Run 'Login / Get Token' first — token auto-saves\n4. All other requests use {{token}} automatically",
+      "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+    },
+    "variable": [
+      { "key": "base_url", "value": "http://localhost:8000" },
+      { "key": "token", "value": "" },
+      { "key": "shop_id", "value": "1" },
+      { "key": "repair_id", "value": "1" },
+      { "key": "booking_id", "value": "1" },
+      { "key": "service_id", "value": "1" }
+    ],
+    "item": [
+      {
+        "name": "🔐 Auth",
+        "item": [
+          {
+            "name": "Get Auth Token",
+            "event": [
+              {
+                "listen": "test",
+                "script": {
+                  "exec": [
+                    "const res = pm.response.json();",
+                    "if (res.token) {",
+                    "  pm.collectionVariables.set('token', res.token);",
+                    "  pm.test('Token received and saved', () => pm.expect(res.token).to.be.a('string'));",
+                    "} else {",
+                    "  pm.test('Login failed', () => { throw new Error(JSON.stringify(res)); });",
+                    "}"
+                  ]
+                }
+              }
+            ],
+            "request": {
+              "method": "POST",
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": {
+                "mode": "raw",
+                "raw": "{\n  \"username\": \"admin\",\n  \"password\": \"admin123\"\n}"
+              },
+              "url": { "raw": "{{base_url}}/api/auth/token/", "host": ["{{base_url}}"], "path": ["api","auth","token",""] }
+            }
+          }
+        ]
+      },
+      {
+        "name": "🏪 Shop",
+        "item": [
+          {
+            "name": "List All Shops",
+            "event": [
+              {
+                "listen": "test",
+                "script": {
+                  "exec": [
+                    "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                    "pm.test('Response has results', () => {",
+                    "  const json = pm.response.json();",
+                    "  pm.expect(json).to.have.property('results');",
+                    "});"
+                  ]
+                }
+              }
+            ],
+            "request": {
+              "method": "GET",
+              "header": [{ "key": "Authorization", "value": "Token {{token}}" }],
+              "url": { "raw": "{{base_url}}/api/shop/shops/", "host": ["{{base_url}}"], "path": ["api","shop","shops",""] }
+            }
+          },
+          {
+            "name": "Create Shop",
+            "event": [
+              {
+                "listen": "test",
+                "script": {
+                  "exec": [
+                    "pm.test('Status 201 Created', () => pm.response.to.have.status(201));",
+                    "const json = pm.response.json();",
+                    "pm.collectionVariables.set('shop_id', json.id);",
+                    "pm.test('Shop has id', () => pm.expect(json.id).to.be.a('number'));"
+                  ]
+                }
+              }
+            ],
+            "request": {
+              "method": "POST",
+              "header": [
+                { "key": "Authorization", "value": "Token {{token}}" },
+                { "key": "Content-Type", "value": "application/json" }
+              ],
+              "body": {
+                "mode": "raw",
+                "raw": "{\n  \"name\": \"TechFix Manila\",\n  \"description\": \"Expert laptop and phone repairs in the metro.\",\n  \"address\": \"123 Rizal Ave, Quezon City\",\n  \"phone\": \"09171234567\",\n  \"email\": \"techfix@example.com\"\n}"
+              },
+              "url": { "raw": "{{base_url}}/api/shop/shops/", "host": ["{{base_url}}"], "path": ["api","shop","shops",""] }
+            }
+          },
+          {
+            "name": "Get Shop Detail",
+            "event": [
+              {
+                "listen": "test",
+                "script": {
+                  "exec": [
+                    "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                    "pm.test('Has owner field', () => {",
+                    "  pm.expect(pm.response.json()).to.have.property('owner');",
+                    "});"
+                  ]
+                }
+              }
+            ],
+            "request": {
+              "method": "GET",
+              "header": [{ "key": "Authorization", "value": "Token {{token}}" }],
+              "url": { "raw": "{{base_url}}/api/shop/shops/{{shop_id}}/", "host": ["{{base_url}}"], "path": ["api","shop","shops","{{shop_id}}",""] }
+            }
+          },
+          {
+            "name": "Update Shop (PATCH)",
+            "event": [
+              {
+                "listen": "test",
+                "script": {
+                  "exec": [
+                    "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                    "pm.test('Description updated', () => {",
+                    "  pm.expect(pm.response.json().description).to.include('updated');",
+                    "});"
+                  ]
+                }
+              }
+            ],
+            "request": {
+              "method": "PATCH",
+              "header": [
+                { "key": "Authorization", "value": "Token {{token}}" },
+                { "key": "Content-Type", "value": "application/json" }
+              ],
+              "body": {
+                "mode": "raw",
+                "raw": "{\n  \"description\": \"Updated: Best laptop repair in QC!\"\n}"
+              },
+              "url": { "raw": "{{base_url}}/api/shop/shops/{{shop_id}}/", "host": ["{{base_url}}"], "path": ["api","shop","shops","{{shop_id}}",""] }
+            }
+          },
+          {
+            "name": "My Shop",
+            "request": {
+              "method": "GET",
+              "header": [{ "key": "Authorization", "value": "Token {{token}}" }],
+              "url": { "raw": "{{base_url}}/api/shop/shops/my_shop/", "host": ["{{base_url}}"], "path": ["api","shop","shops","my_shop",""] }
+            }
+          },
+          {
+            "name": "Verify Shop (Admin only)",
+            "event": [
+              {
+                "listen": "test",
+                "script": {
+                  "exec": [
+                    "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                    "pm.test('Verified message', () => {",
+                    "  pm.expect(pm.response.json().detail).to.include('verified');",
+                    "});"
+                  ]
+                }
+              }
+            ],
+            "request": {
+              "method": "POST",
+              "header": [{ "key": "Authorization", "value": "Token {{token}}" }],
+              "url": { "raw": "{{base_url}}/api/shop/shops/{{shop_id}}/verify/", "host": ["{{base_url}}"], "path": ["api","shop","shops","{{shop_id}}","verify",""] }
+            }
+          },
+          {
+            "name": "Search Shops",
+            "request": {
+              "method": "GET",
+              "header": [{ "key": "Authorization", "value": "Token {{token}}" }],
+              "url": {
+                "raw": "{{base_url}}/api/shop/shops/?search=manila",
+                "host": ["{{base_url}}"],
+                "path": ["api","shop","shops",""],
+                "query": [{ "key": "search", "value": "manila" }]
+              }
+            }
+          },
+          {
+            "name": "Delete Shop",
+            "event": [
+              {
+                "listen": "test",
+                "script": {
+                  "exec": [
+                    "pm.test('Status 204 No Content', () => pm.response.to.have.status(204));"
+                  ]
+                }
+              }
+            ],
+            "request": {
+              "method": "DELETE",
+              "header": [{ "key": "Authorization", "value": "Token {{token}}" }],
+              "url": { "raw": "{{base_url}}/api/shop/shops/{{shop_id}}/", "host": ["{{base_url}}"], "path": ["api","shop","shops","{{shop_id}}",""] }
+            }
+          }
+        ]
+      },
+      {
+        "name": "🔧 Repair Requests",
+        "item": [
+          {
+            "name": "List Repair Requests",
+            "event": [
+              {
+                "listen": "test",
+                "script": {
+                  "exec": [
+                    "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                    "pm.test('Paginated results', () => {",
+                    "  pm.expect(pm.response.json()).to.have.property('results');",
+                    "});"
+                  ]
+                }
+              }
+            ],
+            "request": {
+              "method": "GET",
+              "header": [{ "key": "Authorization", "value": "Token {{token}}" }],
+              "url": { "raw": "{{base_url}}/api/repair/requests/", "host": ["{{base_url}}"], "path": ["api","repair","requests",""] }
+            }
+          },
+          {
+            "name": "Submit Repair Request",
+            "event": [
+              {
+                "listen": "test",
+                "script": {
+                  "exec": [
+                    "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                    "const json = pm.response.json();",
+                    "pm.collectionVariables.set('repair_id', json.id);",
+                    "pm.test('Status is pending', () => pm.expect(json.status).to.eql('pending'));"
+                  ]
+                }
+              }
+            ],
+            "request": {
+              "method": "POST",
+              "header": [
+                { "key": "Authorization", "value": "Token {{token}}" },
+                { "key": "Content-Type", "value": "application/json" }
+              ],
+              "body": {
+                "mode": "raw",
+                "raw": "{\n  \"shop\": {{shop_id}},\n  \"device_type\": \"laptop\",\n  \"device_brand\": \"Acer\",\n  \"device_model\": \"Aspire 5\",\n  \"serial_number\": \"SN-20241101\",\n  \"issue_description\": \"Screen flickering and random shutdowns.\",\n  \"priority\": \"high\",\n  \"customer_notes\": \"Please call before opening the device.\"\n}"
+              },
+              "url": { "raw": "{{base_url}}/api/repair/requests/", "host": ["{{base_url}}"], "path": ["api","repair","requests",""] }
+            }
+          },
+          {
+            "name": "Get Repair Detail",
+            "request": {
+              "method": "GET",
+              "header": [{ "key": "Authorization", "value": "Token {{token}}" }],
+              "url": { "raw": "{{base_url}}/api/repair/requests/{{repair_id}}/", "host": ["{{base_url}}"], "path": ["api","repair","requests","{{repair_id}}",""] }
+            }
+          },
+          {
+            "name": "Update Repair Status",
+            "event": [
+              {
+                "listen": "test",
+                "script": {
+                  "exec": [
+                    "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                    "pm.test('Status updated to in_progress', () => {",
+                    "  pm.expect(pm.response.json().status).to.eql('in_progress');",
+                    "});"
+                  ]
+                }
+              }
+            ],
+            "request": {
+              "method": "PATCH",
+              "header": [
+                { "key": "Authorization", "value": "Token {{token}}" },
+                { "key": "Content-Type", "value": "application/json" }
+              ],
+              "body": {
+                "mode": "raw",
+                "raw": "{\n  \"status\": \"in_progress\",\n  \"technician_notes\": \"Identified a faulty GPU. Ordered replacement part.\",\n  \"estimated_cost\": \"2500.00\"\n}"
+              },
+              "url": { "raw": "{{base_url}}/api/repair/requests/{{repair_id}}/update_status/", "host": ["{{base_url}}"], "path": ["api","repair","requests","{{repair_id}}","update_status",""] }
+            }
+          },
+          {
+            "name": "Mark Repair Completed",
+            "event": [
+              {
+                "listen": "test",
+                "script": {
+                  "exec": [
+                    "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                    "pm.test('completed_at is set', () => {",
+                    "  pm.expect(pm.response.json().completed_at).to.not.be.null;",
+                    "});"
+                  ]
+                }
+              }
+            ],
+            "request": {
+              "method": "PATCH",
+              "header": [
+                { "key": "Authorization", "value": "Token {{token}}" },
+                { "key": "Content-Type", "value": "application/json" }
+              ],
+              "body": {
+                "mode": "raw",
+                "raw": "{\n  \"status\": \"completed\",\n  \"technician_notes\": \"GPU replaced. Tested for 2 hours. No issues found.\",\n  \"final_cost\": \"2400.00\"\n}"
+              },
+              "url": { "raw": "{{base_url}}/api/repair/requests/{{repair_id}}/update_status/", "host": ["{{base_url}}"], "path": ["api","repair","requests","{{repair_id}}","update_status",""] }
+            }
+          },
+          {
+            "name": "My Repair Requests",
+            "request": {
+              "method": "GET",
+              "header": [{ "key": "Authorization", "value": "Token {{token}}" }],
+              "url": { "raw": "{{base_url}}/api/repair/requests/my_requests/", "host": ["{{base_url}}"], "path": ["api","repair","requests","my_requests",""] }
+            }
+          },
+          {
+            "name": "Shop's All Repair Requests",
+            "request": {
+              "method": "GET",
+              "header": [{ "key": "Authorization", "value": "Token {{token}}" }],
+              "url": { "raw": "{{base_url}}/api/repair/requests/shop_requests/", "host": ["{{base_url}}"], "path": ["api","repair","requests","shop_requests",""] }
+            }
+          },
+          {
+            "name": "Filter by Status",
+            "request": {
+              "method": "GET",
+              "header": [{ "key": "Authorization", "value": "Token {{token}}" }],
+              "url": {
+                "raw": "{{base_url}}/api/repair/requests/?search=in_progress",
+                "host": ["{{base_url}}"],
+                "path": ["api","repair","requests",""],
+                "query": [{ "key": "search", "value": "in_progress" }]
+              }
+            }
+          }
+        ]
+      },
+      {
+        "name": "📅 Booking",
+        "item": [
+          {
+            "name": "Services",
+            "item": [
+              {
+                "name": "List Services",
+                "event": [
+                  {
+                    "listen": "test",
+                    "script": {
+                      "exec": [
+                        "pm.test('Status 200', () => pm.response.to.have.status(200));"
+                      ]
+                    }
+                  }
+                ],
+                "request": {
+                  "method": "GET",
+                  "header": [{ "key": "Authorization", "value": "Token {{token}}" }],
+                  "url": { "raw": "{{base_url}}/api/booking/services/", "host": ["{{base_url}}"], "path": ["api","booking","services",""] }
+                }
+              },
+              {
+                "name": "Create Service",
+                "event": [
+                  {
+                    "listen": "test",
+                    "script": {
+                      "exec": [
+                        "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                        "pm.collectionVariables.set('service_id', pm.response.json().id);"
+                      ]
+                    }
+                  }
+                ],
+                "request": {
+                  "method": "POST",
+                  "header": [
+                    { "key": "Authorization", "value": "Token {{token}}" },
+                    { "key": "Content-Type", "value": "application/json" }
+                  ],
+                  "body": {
+                    "mode": "raw",
+                    "raw": "{\n  \"shop\": {{shop_id}},\n  \"name\": \"Screen Replacement\",\n  \"description\": \"Full LCD/OLED panel replacement with OEM parts.\",\n  \"duration_minutes\": 120,\n  \"price\": \"1800.00\"\n}"
+                  },
+                  "url": { "raw": "{{base_url}}/api/booking/services/", "host": ["{{base_url}}"], "path": ["api","booking","services",""] }
+                }
+              },
+              {
+                "name": "Services by Shop",
+                "request": {
+                  "method": "GET",
+                  "header": [{ "key": "Authorization", "value": "Token {{token}}" }],
+                  "url": {
+                    "raw": "{{base_url}}/api/booking/services/?shop={{shop_id}}",
+                    "host": ["{{base_url}}"],
+                    "path": ["api","booking","services",""],
+                    "query": [{ "key": "shop", "value": "{{shop_id}}" }]
+                  }
+                }
+              },
+              {
+                "name": "Update Service",
+                "request": {
+                  "method": "PATCH",
+                  "header": [
+                    { "key": "Authorization", "value": "Token {{token}}" },
+                    { "key": "Content-Type", "value": "application/json" }
+                  ],
+                  "body": {
+                    "mode": "raw",
+                    "raw": "{\n  \"price\": \"1950.00\",\n  \"duration_minutes\": 90\n}"
+                  },
+                  "url": { "raw": "{{base_url}}/api/booking/services/{{service_id}}/", "host": ["{{base_url}}"], "path": ["api","booking","services","{{service_id}}",""] }
+                }
+              },
+              {
+                "name": "Delete Service",
+                "event": [
+                  {
+                    "listen": "test",
+                    "script": {
+                      "exec": ["pm.test('Status 204', () => pm.response.to.have.status(204));"]
+                    }
+                  }
+                ],
+                "request": {
+                  "method": "DELETE",
+                  "header": [{ "key": "Authorization", "value": "Token {{token}}" }],
+                  "url": { "raw": "{{base_url}}/api/booking/services/{{service_id}}/", "host": ["{{base_url}}"], "path": ["api","booking","services","{{service_id}}",""] }
+                }
+              }
+            ]
+          },
+          {
+            "name": "Availability",
+            "item": [
+              {
+                "name": "List Availability",
+                "request": {
+                  "method": "GET",
+                  "header": [{ "key": "Authorization", "value": "Token {{token}}" }],
+                  "url": { "raw": "{{base_url}}/api/booking/availability/?shop={{shop_id}}", "host": ["{{base_url}}"], "path": ["api","booking","availability",""], "query": [{"key":"shop","value":"{{shop_id}}"}] }
+                }
+              },
+              {
+                "name": "Set Monday Hours",
+                "event": [
+                  {
+                    "listen": "test",
+                    "script": {
+                      "exec": [
+                        "pm.test('Status 201', () => pm.response.to.have.status(201));"
+                      ]
+                    }
+                  }
+                ],
+                "request": {
+                  "method": "POST",
+                  "header": [
+                    { "key": "Authorization", "value": "Token {{token}}" },
+                    { "key": "Content-Type", "value": "application/json" }
+                  ],
+                  "body": {
+                    "mode": "raw",
+                    "raw": "{\n  \"shop\": {{shop_id}},\n  \"day_of_week\": 0,\n  \"open_time\": \"08:00:00\",\n  \"close_time\": \"17:00:00\",\n  \"is_available\": true\n}"
+                  },
+                  "url": { "raw": "{{base_url}}/api/booking/availability/", "host": ["{{base_url}}"], "path": ["api","booking","availability",""] }
+                }
+              },
+              {
+                "name": "Set Saturday (Half-day)",
+                "request": {
+                  "method": "POST",
+                  "header": [
+                    { "key": "Authorization", "value": "Token {{token}}" },
+                    { "key": "Content-Type", "value": "application/json" }
+                  ],
+                  "body": {
+                    "mode": "raw",
+                    "raw": "{\n  \"shop\": {{shop_id}},\n  \"day_of_week\": 5,\n  \"open_time\": \"09:00:00\",\n  \"close_time\": \"13:00:00\",\n  \"is_available\": true\n}"
+                  },
+                  "url": { "raw": "{{base_url}}/api/booking/availability/", "host": ["{{base_url}}"], "path": ["api","booking","availability",""] }
+                }
+              },
+              {
+                "name": "Set Sunday (Closed)",
+                "request": {
+                  "method": "POST",
+                  "header": [
+                    { "key": "Authorization", "value": "Token {{token}}" },
+                    { "key": "Content-Type", "value": "application/json" }
+                  ],
+                  "body": {
+                    "mode": "raw",
+                    "raw": "{\n  \"shop\": {{shop_id}},\n  \"day_of_week\": 6,\n  \"open_time\": \"00:00:00\",\n  \"close_time\": \"00:00:00\",\n  \"is_available\": false\n}"
+                  },
+                  "url": { "raw": "{{base_url}}/api/booking/availability/", "host": ["{{base_url}}"], "path": ["api","booking","availability",""] }
+                }
+              }
+            ]
+          },
+          {
+            "name": "Bookings",
+            "item": [
+              {
+                "name": "List Bookings",
+                "event": [
+                  {
+                    "listen": "test",
+                    "script": {
+                      "exec": [
+                        "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                        "pm.test('Paginated', () => pm.expect(pm.response.json()).to.have.property('results'));"
+                      ]
+                    }
+                  }
+                ],
+                "request": {
+                  "method": "GET",
+                  "header": [{ "key": "Authorization", "value": "Token {{token}}" }],
+                  "url": { "raw": "{{base_url}}/api/booking/bookings/", "host": ["{{base_url}}"], "path": ["api","booking","bookings",""] }
+                }
+              },
+              {
+                "name": "Create Booking",
+                "event": [
+                  {
+                    "listen": "test",
+                    "script": {
+                      "exec": [
+                        "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                        "const json = pm.response.json();",
+                        "pm.collectionVariables.set('booking_id', json.id);",
+                        "pm.test('Status is pending', () => pm.expect(json.status).to.eql('pending'));",
+                        "pm.test('Price snapshotted', () => pm.expect(json.total_price).to.not.be.undefined);"
+                      ]
+                    }
+                  }
+                ],
+                "request": {
+                  "method": "POST",
+                  "header": [
+                    { "key": "Authorization", "value": "Token {{token}}" },
+                    { "key": "Content-Type", "value": "application/json" }
+                  ],
+                  "body": {
+                    "mode": "raw",
+                    "raw": "{\n  \"shop\": {{shop_id}},\n  \"service\": {{service_id}},\n  \"scheduled_date\": \"2026-05-15\",\n  \"scheduled_time\": \"10:00:00\",\n  \"customer_notes\": \"Please handle with care, has sentimental value.\"\n}"
+                  },
+                  "url": { "raw": "{{base_url}}/api/booking/bookings/", "host": ["{{base_url}}"], "path": ["api","booking","bookings",""] }
+                }
+              },
+              {
+                "name": "Get Booking Detail",
+                "request": {
+                  "method": "GET",
+                  "header": [{ "key": "Authorization", "value": "Token {{token}}" }],
+                  "url": { "raw": "{{base_url}}/api/booking/bookings/{{booking_id}}/", "host": ["{{base_url}}"], "path": ["api","booking","bookings","{{booking_id}}",""] }
+                }
+              },
+              {
+                "name": "Confirm Booking (Shop)",
+                "event": [
+                  {
+                    "listen": "test",
+                    "script": {
+                      "exec": [
+                        "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                        "pm.test('Confirmed', () => pm.expect(pm.response.json().status).to.eql('confirmed'));"
+                      ]
+                    }
+                  }
+                ],
+                "request": {
+                  "method": "PATCH",
+                  "header": [
+                    { "key": "Authorization", "value": "Token {{token}}" },
+                    { "key": "Content-Type", "value": "application/json" }
+                  ],
+                  "body": {
+                    "mode": "raw",
+                    "raw": "{\n  \"shop_notes\": \"Confirmed. Please arrive 10 minutes early.\"\n}"
+                  },
+                  "url": { "raw": "{{base_url}}/api/booking/bookings/{{booking_id}}/confirm/", "host": ["{{base_url}}"], "path": ["api","booking","bookings","{{booking_id}}","confirm",""] }
+                }
+              },
+              {
+                "name": "Cancel Booking",
+                "event": [
+                  {
+                    "listen": "test",
+                    "script": {
+                      "exec": [
+                        "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                        "pm.test('Cancelled message', () => pm.expect(pm.response.json().detail).to.include('cancelled'));"
+                      ]
+                    }
+                  }
+                ],
+                "request": {
+                  "method": "PATCH",
+                  "header": [{ "key": "Authorization", "value": "Token {{token}}" }],
+                  "url": { "raw": "{{base_url}}/api/booking/bookings/{{booking_id}}/cancel/", "host": ["{{base_url}}"], "path": ["api","booking","bookings","{{booking_id}}","cancel",""] }
+                }
+              },
+              {
+                "name": "My Bookings",
+                "request": {
+                  "method": "GET",
+                  "header": [{ "key": "Authorization", "value": "Token {{token}}" }],
+                  "url": { "raw": "{{base_url}}/api/booking/bookings/my_bookings/", "host": ["{{base_url}}"], "path": ["api","booking","bookings","my_bookings",""] }
+                }
+              },
+              {
+                "name": "Shop's All Bookings",
+                "request": {
+                  "method": "GET",
+                  "header": [{ "key": "Authorization", "value": "Token {{token}}" }],
+                  "url": { "raw": "{{base_url}}/api/booking/bookings/shop_bookings/", "host": ["{{base_url}}"], "path": ["api","booking","bookings","shop_bookings",""] }
+                }
+              },
+              {
+                "name": "Delete (Cancel) Booking",
+                "event": [
+                  {
+                    "listen": "test",
+                    "script": {
+                      "exec": [
+                        "pm.test('Status 200 (soft cancel)', () => pm.response.to.have.status(200));"
+                      ]
+                    }
+                  }
+                ],
+                "request": {
+                  "method": "DELETE",
+                  "header": [{ "key": "Authorization", "value": "Token {{token}}" }],
+                  "url": { "raw": "{{base_url}}/api/booking/bookings/{{booking_id}}/", "host": ["{{base_url}}"], "path": ["api","booking","bookings","{{booking_id}}",""] }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }

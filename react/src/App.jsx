@@ -17,6 +17,8 @@ import CustomerDashboard   from './pages/CustomerDashboard';
 import InventoryPage       from './pages/InventoryPage';
 import MembersPage         from './pages/MembersPage';
 import RepairsPage         from './pages/RepairsPage';
+import ResetPassword from "./pages/ResetPassword";
+import ForgotPassword from "./pages/ForgotPassword";
 
 import styles from './App.module.css';
 
@@ -74,6 +76,8 @@ function AppRoutes() {
     <Routes>
       <Route path="/login"    element={user ? <Navigate to="/" replace /> : <Login    onLogin={handleLogin} />} />
       <Route path="/register" element={user ? <Navigate to="/" replace /> : <Register onLogin={handleLogin} />} />
+      <Route path="/forgot-password" element={<ForgotPassword />} />
+      <Route path="/reset-password" element={<ResetPassword />} />
       <Route path="/" element={
         <PrivateRoute user={user}>
           <DashboardShell user={user} onLogout={handleLogout} />

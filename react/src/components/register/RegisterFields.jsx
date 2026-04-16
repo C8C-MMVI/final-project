@@ -70,6 +70,7 @@ function inputStateClass(error, success) {
 
 export default function RegisterFields({
   username, setUsername,
+  email, setEmail,
   phone, setPhone,
   password, setPassword,
   confirmPassword, setConfirmPassword,
@@ -94,6 +95,20 @@ export default function RegisterFields({
           />
         </div>
         <FieldError msg={errors.username} />
+      </div>
+
+      {/* Email */}
+      <div className="flex flex-col gap-[7px]">
+        <label htmlFor="email" className={labelClass}>Email Address</label>
+        <div className="relative">
+          <input
+            type="email" id="email" name="email"
+            placeholder="you@example.com…" autoComplete="off"
+            value={email} onChange={e => setEmail(e.target.value)}
+            className={`${inputBase} ${inputStateClass(errors.email, email && !errors.email)}`}
+          />
+        </div>
+        <FieldError msg={errors.email} />
       </div>
 
       {/* Phone */}

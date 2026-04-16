@@ -2,10 +2,10 @@
 ini_set('display_errors', 0);
 error_reporting(E_ALL);
 
-$host = getenv('DB_HOST')     ?: 'db';
-$port = getenv('DB_PORT')     ?: 5432;
-$db   = getenv('DB_NAME')     ?: 'technologs_db';
-$user = getenv('DB_USER')     ?: 'postgres';
+$host = getenv('DB_HOST') ?: 'db';
+$port = getenv('DB_PORT') ?: 5432;
+$db   = getenv('DB_NAME') ?: 'technologs_db';
+$user = getenv('DB_USER') ?: 'postgres';
 $pass = getenv('DB_PASSWORD') ?: '1234';
 $dsn  = "pgsql:host=$host;port=$port;dbname=$db";
 

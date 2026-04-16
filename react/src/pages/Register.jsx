@@ -8,6 +8,7 @@ import { useRegister } from '../assets/js/useRegister';
 export default function Register() {
   const {
     username, setUsername,
+    email, setEmail,                 // <-- added
     phone, setPhone,
     password, setPassword,
     confirmPassword, setConfirmPassword,
@@ -24,10 +25,7 @@ export default function Register() {
     <>
       <Background />
 
-      {/* Page wrapper */}
       <div className="relative z-[2] flex items-center justify-center min-h-screen p-6">
-
-        {/* Card */}
         <div
           className="grid grid-cols-2 w-full max-w-[1412px] overflow-hidden rounded-[22px] border border-[rgba(26,188,156,0.18)] backdrop-blur-[28px] shadow-[0_32px_80px_rgba(0,0,0,0.65),0_0_0_1px_rgba(26,188,156,0.06)_inset]"
           style={{
@@ -38,9 +36,7 @@ export default function Register() {
         >
           <RegisterLeftPanel logoSrc="/images/Logo.png" />
 
-          {/* Right — form */}
           <div className="flex flex-col justify-center overflow-y-auto px-[clamp(28px,4vw,50px)] py-[clamp(32px,6vh,60px)]">
-
             <div className="text-[clamp(1.4rem,2.5vw,2rem)] font-bold mb-[5px] text-white">
               Create an Account
             </div>
@@ -50,18 +46,18 @@ export default function Register() {
 
             <form className="flex flex-col gap-[18px]" onSubmit={handleSubmit} noValidate autoComplete="off">
               <RegisterFields
-                username={username}           setUsername={setUsername}
-                phone={phone}                 setPhone={setPhone}
-                password={password}           setPassword={setPassword}
+                username={username} setUsername={setUsername}
+                email={email} setEmail={setEmail}           // <-- added
+                phone={phone} setPhone={setPhone}
+                password={password} setPassword={setPassword}
                 confirmPassword={confirmPassword} setConfirmPassword={setConfirmPassword}
-                showPassword={showPassword}   togglePassword={togglePassword}
+                showPassword={showPassword} togglePassword={togglePassword}
                 showConfirmPassword={showConfirmPassword} toggleConfirmPassword={toggleConfirmPassword}
                 strength={strength}
                 errors={errors}
               />
               <RegisterSubmitButton loading={loading} />
             </form>
-
           </div>
         </div>
       </div>

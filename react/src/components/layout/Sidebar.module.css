@@ -1,217 +1,278 @@
-/* src/components/layout/Sidebar.module.css */
+/* ============================================================
+   Sidebar.module.css
+   TechnoLogs — matches PHP assets/css/dashboard.css sidebar
+   ============================================================ */
 
+/* ── Shell ───────────────────────────────────────────────── */
 .sidebar {
-  width: 220px;
-  flex-shrink: 0;
-  background: var(--color-bg-primary);
-  border-right: 0.5px solid var(--color-border);
+  width: 250px;                          /* --sidebar-w */
+  height: 100vh;
+  background: var(--navy-mid, #0d1f38);
+  border-right: 1px solid var(--navy-border, rgba(26,188,156,0.14));
   display: flex;
   flex-direction: column;
-  height: 100vh;
-  position: sticky;
-  top: 0;
-  transition: width 0.2s ease;
+  flex-shrink: 0;
+  transition: width 0.28s cubic-bezier(0.4,0,0.2,1);
+  position: relative;
+  z-index: 100;
   overflow: hidden;
 }
 
 .collapsed {
-  width: 56px;
+  width: 66px;                           /* --sidebar-col */
 }
 
-/* ── Logo ── */
-.logoRow {
+/* ── Header: logo + toggle ───────────────────────────────── */
+.header {
+  height: 62px;                          /* --topbar-h */
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  padding: 14px 16px;
-  border-bottom: 0.5px solid var(--color-border);
-  gap: 8px;
+  padding: 0 14px;
+  border-bottom: 1px solid var(--navy-border, rgba(26,188,156,0.14));
+  gap: 10px;
   flex-shrink: 0;
-  min-height: 56px; /* matches topbar height */
 }
 
-.logoText {
-  min-width: 0;
-  overflow: hidden;
+.logo {
+  height: 28px;
+  width: auto;
+  flex-shrink: 0;
+  opacity: 1;
+  transition: opacity 0.2s, transform 0.2s, width 0.2s;
+  filter: drop-shadow(0 0 6px rgba(26,188,156,0.3));
 }
 
-.logoMain {
-  font-size: 15px;
-  font-weight: 500;
-  color: var(--color-teal-dark);
-  letter-spacing: 0.4px;
-  white-space: nowrap;
-}
-
-.logoSub {
-  font-size: 10px;
-  color: var(--color-text-secondary);
-  white-space: nowrap;
+/* hide logo when collapsed */
+.collapsed .logo {
+  opacity: 0;
+  transform: scale(0.8);
+  pointer-events: none;
+  width: 0;
 }
 
 .toggleBtn {
-  width: 24px;
-  height: 24px;
-  border-radius: var(--radius-md);
-  border: none;
-  background: transparent;
+  margin-left: auto;
+  width: 30px;
+  height: 30px;
+  border: 1px solid var(--navy-border, rgba(26,188,156,0.14));
+  border-radius: 7px;
+  background: var(--teal-dim, rgba(26,188,156,0.12));
+  color: var(--teal, #1abc9c);
+  cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  cursor: pointer;
-  color: var(--color-text-secondary);
   flex-shrink: 0;
-  transition: background 0.12s;
+  transition: background 0.2s, transform 0.28s cubic-bezier(0.4,0,0.2,1);
 }
 
 .toggleBtn:hover {
-  background: var(--color-bg-secondary);
-  color: var(--color-text-primary);
+  background: var(--teal-glow, rgba(26,188,156,0.25));
 }
 
-/* collapsed: center the toggle button */
-.collapsed .logoRow {
-  justify-content: center;
-  padding: 14px 0;
+/* rotate arrow when collapsed */
+.collapsed .toggleBtn {
+  margin-left: 0;
+  transform: rotate(180deg);
 }
 
-/* ── Role badge ── */
+/* ── Role Badge ──────────────────────────────────────────── */
 .roleBadge {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  padding: 8px 16px;
-  border-bottom: 0.5px solid var(--color-border);
-  flex-shrink: 0;
-}
-
-.dot {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  flex-shrink: 0;
-}
-
-/* Role colors */
-.owner      { background: var(--color-amber);  }
-.admin      { background: var(--color-purple); }
-.customer   { background: var(--color-blue);   }
-.technician { background: var(--color-teal);   }
-
-.roleLabel {
-  font-size: 11px;
-  color: var(--color-text-secondary);
-  white-space: nowrap;
-}
-
-/* ── Nav ── */
-.nav {
-  flex: 1;
-  overflow-y: auto;
-  overflow-x: hidden;
-  padding: 8px 0;
-}
-
-.section {
-  padding: 10px 16px 3px;
-  font-size: 9px;
-  font-weight: 600;
-  color: var(--color-text-tertiary);
-  text-transform: uppercase;
-  letter-spacing: 0.9px;
-  white-space: nowrap;
-}
-
-/* Normal nav item */
-.item {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 8px 16px;
-  cursor: pointer;
-  color: var(--color-text-secondary);
-  border-left: 2px solid transparent;
-  font-size: 13px;
-  white-space: nowrap;
-  transition: background 0.12s, color 0.12s;
-  user-select: none;
-}
-
-.item:hover {
-  background: var(--color-bg-secondary);
-  color: var(--color-text-primary);
-}
-
-.active {
-  background: var(--color-teal-light);
-  color: var(--color-teal-dark);
-  border-left-color: var(--color-teal);
-  font-weight: 500;
-}
-
-.active:hover {
-  background: var(--color-teal-light);
-}
-
-/* Collapsed nav item — applied via JS className, not descendant selector */
-.itemCollapsed {
-  padding: 10px 0;
-  justify-content: center;
-  border-left: none;
-  border-radius: 0;
-}
-
-/* ── Footer ── */
-.footer {
-  padding: 10px 12px;
-  border-top: 0.5px solid var(--color-border);
-  flex-shrink: 0;
-}
-
-.userBadge {
+  margin: 14px 12px 6px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  background: var(--teal-dim, rgba(26,188,156,0.12));
+  border: 1px solid var(--navy-border, rgba(26,188,156,0.14));
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 6px 8px;
-  border-radius: var(--radius-md);
-  background: var(--color-bg-secondary);
   overflow: hidden;
+  flex-shrink: 0;
+  transition: padding 0.28s, justify-content 0.28s;
 }
 
-.userInfo {
-  min-width: 0;
-  overflow: hidden;
+.collapsed .roleBadge {
+  padding: 6px;
+  justify-content: center;
 }
 
-/* Avatar circle — role color applied via same dot classes above */
-.avatar {
-  width: 30px;
-  height: 30px;
+.roleDot {
+  width: 8px;
+  height: 8px;
   border-radius: 50%;
+  flex-shrink: 0;
+}
+
+/* dot colours — mirror PHP role-badge__dot-- classes */
+.dot_admin      { background: #f39c12; box-shadow: 0 0 8px rgba(243,156,18,0.6); }
+.dot_owner      { background: var(--teal, #1abc9c); box-shadow: 0 0 8px var(--teal-glow, rgba(26,188,156,0.25)); }
+.dot_technician { background: #3498db; box-shadow: 0 0 8px rgba(52,152,219,0.5); }
+.dot_customer   { background: #9b59b6; box-shadow: 0 0 8px rgba(155,89,182,0.5); }
+
+.roleLabel {
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  color: var(--muted, rgba(255,255,255,0.45));
+  white-space: nowrap;
+  transition: opacity 0.2s, width 0.2s;
+}
+
+.collapsed .roleLabel {
+  opacity: 0;
+  width: 0;
+  overflow: hidden;
+}
+
+/* ── Nav ─────────────────────────────────────────────────── */
+.nav {
+  flex: 1;
+  padding: 8px 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.nav::-webkit-scrollbar { width: 3px; }
+.nav::-webkit-scrollbar-thumb {
+  background: var(--navy-border, rgba(26,188,156,0.14));
+  border-radius: 99px;
+}
+
+/* Section label */
+.sectionLabel {
+  display: block;
+  font-size: 0.63rem;
+  font-weight: 700;
+  letter-spacing: 1.8px;
+  text-transform: uppercase;
+  color: var(--muted, rgba(255,255,255,0.45));
+  padding: 14px 18px 5px;
+  white-space: nowrap;
+  transition: opacity 0.2s;
+}
+
+.collapsed .sectionLabel {
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* Nav item */
+.navItem {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 18px;
+  cursor: pointer;
+  text-decoration: none;
+  color: var(--muted, rgba(255,255,255,0.45));
+  font-size: 0.855rem;
+  font-weight: 500;
+  white-space: nowrap;
+  border-left: 3px solid transparent;
+  transition: color 0.2s, background 0.2s, border-color 0.2s;
+  user-select: none;
+}
+
+.navItem:hover {
+  color: var(--white, #fff);
+  background: rgba(255,255,255,0.035);
+}
+
+.navItemActive {
+  color: var(--teal, #1abc9c);
+  background: var(--teal-dim, rgba(26,188,156,0.12));
+  border-left-color: var(--teal, #1abc9c);
+}
+
+.navItemActive:hover {
+  background: var(--teal-dim, rgba(26,188,156,0.12));
+}
+
+/* Icon wrapper */
+.navIcon {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 11px;
-  font-weight: 600;
-  flex-shrink: 0;
-  color: #fff;
 }
 
-.avatarCenter {
-  margin: 0 auto;
-}
+.navIcon svg { width: 17px; height: 17px; }
 
-.userName {
-  font-size: 12px;
-  font-weight: 500;
-  color: var(--color-text-primary);
+/* Label — hide when collapsed */
+.navLabel {
+  transition: opacity 0.2s, width 0.2s;
   white-space: nowrap;
+}
+
+.collapsed .navLabel {
+  opacity: 0;
+  width: 0;
   overflow: hidden;
-  text-overflow: ellipsis;
 }
 
-.userRole {
-  font-size: 10px;
-  color: var(--color-text-secondary);
+/* Collapsed tooltip (mirrors PHP sidebar ::after tooltip) */
+.collapsed .navItem {
+  padding: 10px 0;
+  justify-content: center;
+  border-left: none;
+}
+
+.collapsed .navItem::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  left: calc(66px + 10px);
+  top: 50%;
+  transform: translateY(-50%);
+  background: var(--navy-light, #112240);
+  border: 1px solid var(--navy-border, rgba(26,188,156,0.14));
+  color: var(--white, #fff);
+  font-size: 0.77rem;
+  padding: 5px 11px;
+  border-radius: 7px;
   white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s;
+  z-index: 300;
+}
+
+.collapsed .navItem:hover::after { opacity: 1; }
+
+/* ── Footer / Logout ─────────────────────────────────────── */
+.footer {
+  padding: 8px 0 10px;
+  flex-shrink: 0;
+}
+
+.divider {
+  height: 1px;
+  background: var(--navy-border, rgba(26,188,156,0.14));
+  margin: 6px 14px;
+}
+
+.navItemLogout {
+  color: rgba(255,79,79,0.65);
+}
+
+.navItemLogout:hover {
+  color: var(--danger, #ff4f4f);
+  background: var(--danger-dim, rgba(255,79,79,0.08));
+  border-left-color: transparent;
+}
+
+/* ── Responsive ──────────────────────────────────────────── */
+@media (max-width: 768px) {
+  .sidebar {
+    position: fixed;
+    top: 0; left: 0; bottom: 0;
+    z-index: 200;
+  }
+
+  .collapsed {
+    transform: translateX(-100%);
+    width: 250px;
+  }
 }

@@ -1,202 +1,502 @@
+/* ============================================================
+   Topbar.module.css
+   TechnoLogs — matches PHP assets/css/topbar.css (tb- prefix)
+   ============================================================ */
+
+/* ── Topbar shell (mirrors PHP dashboard.css .topbar) ────── */
 .topbar {
-  height: 56px;
-  background: var(--color-bg-primary);
-  border-bottom: 0.5px solid var(--color-border);
+  height: 62px;                          /* --topbar-h */
+  background: var(--navy-mid, #0d1f38);
+  border-bottom: 1px solid var(--navy-border, rgba(26,188,156,0.14));
   display: flex;
   align-items: center;
-  padding: 0 24px;
-  gap: 12px;
+  justify-content: space-between;
+  padding: 0 28px;
   flex-shrink: 0;
   position: sticky;
   top: 0;
   z-index: 100;
 }
-.left { flex: 1; min-width: 0; }
-.pageTitle  { font-size: 15px; font-weight: 500; color: var(--color-text-primary); }
-.breadcrumb { font-size: 11px; color: var(--color-text-tertiary); }
-.right { display: flex; align-items: center; gap: 6px; }
 
-/* Icon buttons */
-.iconBtn {
-  width: 34px; height: 34px;
-  border-radius: var(--radius-md);
-  border: none; background: transparent;
-  display: flex; align-items: center; justify-content: center;
-  cursor: pointer;
-  color: var(--color-text-secondary);
-  position: relative;
-  transition: background 0.12s;
+/* ── Left: page title + breadcrumb ─────────────────────────── */
+.left {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
 }
-.iconBtn:hover { background: var(--color-bg-secondary); color: var(--color-text-primary); }
 
-/* Badge (notification count) */
+.pageTitle {
+  font-family: 'Rajdhani', sans-serif;
+  font-size: 1.05rem;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--white, #ffffff);
+}
+
+.breadcrumb {
+  font-size: 0.7rem;
+  color: var(--muted, rgba(255,255,255,0.45));
+  letter-spacing: 0.4px;
+}
+
+/* ── Right: actions row ─────────────────────────────────────── */
+.right {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+/* ── Dropdown wrapper ───────────────────────────────────────── */
+.dropdownWrapper {
+  position: relative;
+}
+
+/* ── Icon button (tb-icon-btn) ──────────────────────────────── */
+.iconBtn {
+  width: 36px;
+  height: 36px;
+  border: 1px solid var(--navy-border, rgba(26,188,156,0.14));
+  border-radius: 8px;
+  background: transparent;
+  color: var(--muted, rgba(255,255,255,0.45));
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.18s, border-color 0.18s, color 0.18s;
+  outline: none;
+  position: relative;
+}
+
+.iconBtn svg { width: 17px; height: 17px; }
+
+.iconBtn:hover,
+.iconBtnActive {
+  background: rgba(255,255,255,0.06);
+  border-color: rgba(255,255,255,0.14);
+  color: var(--white, #ffffff);
+}
+
+/* ── Notification badge (tb-badge) ─────────────────────────── */
 .badge {
   position: absolute;
-  top: 4px; right: 4px;
-  min-width: 16px; height: 16px;
-  background: var(--color-red);
-  color: #fff;
-  border-radius: 8px;
-  font-size: 10px;
-  font-weight: 600;
-  display: flex; align-items: center; justify-content: center;
-  padding: 0 4px;
+  top: 6px;
+  right: 6px;
+  min-width: 15px;
+  height: 15px;
+  background: var(--teal, #1abc9c);
+  border-radius: 99px;
+  font-size: 9px;
+  font-weight: 700;
+  color: var(--navy, #0a1628);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 3px;
+  border: 2px solid var(--navy-mid, #0d1f38);
   line-height: 1;
 }
 
-/* Profile button */
+/* ── Profile button (tb-profile-btn) ───────────────────────── */
 .profileBtn {
-  display: flex; align-items: center; gap: 8px;
-  padding: 4px 10px 4px 4px;
-  border-radius: var(--radius-md);
-  border: 0.5px solid var(--color-border);
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 0 10px 0 4px;
+  height: 36px;
+  border: 1px solid var(--navy-border, rgba(26,188,156,0.14));
+  border-radius: 8px;
   background: transparent;
   cursor: pointer;
-  color: var(--color-text-primary);
-  transition: background 0.12s;
+  transition: background 0.18s, border-color 0.18s;
+  outline: none;
+  color: var(--muted, rgba(255,255,255,0.45));
 }
-.profileBtn:hover { background: var(--color-bg-secondary); }
+
+.profileBtn:hover,
+.profileBtnActive {
+  background: rgba(255,255,255,0.06);
+  border-color: rgba(255,255,255,0.14);
+}
+
+.profileMeta {
+  display: flex;
+  flex-direction: column;
+  text-align: left;
+  line-height: 1.25;
+}
+
+.profileName {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--white, #ffffff);
+}
+
+.profileRole {
+  font-size: 0.65rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  color: var(--teal, #1abc9c);
+}
+
+.profileChevron {
+  display: flex;
+  align-items: center;
+  color: var(--muted, rgba(255,255,255,0.45));
+  transition: transform 0.2s;
+}
+
+.profileChevronOpen {
+  transform: rotate(180deg);
+}
+
+/* ── Avatar (tb-avatar) ─────────────────────────────────────── */
 .avatar {
-  width: 28px; height: 28px;
+  width: 28px;
+  height: 28px;
   border-radius: 50%;
-  display: flex; align-items: center; justify-content: center;
-  font-size: 11px; font-weight: 500; flex-shrink: 0;
+  background: linear-gradient(135deg, var(--teal-dark, #149878), var(--teal, #1abc9c));
+  color: var(--navy, #0a1628);
+  font-size: 0.7rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  letter-spacing: 0.03em;
+  flex-shrink: 0;
+  font-family: 'Rajdhani', sans-serif;
+  box-shadow: 0 0 0 2px rgba(26,188,156,0.28);
 }
-.owner    { background: var(--color-orange-light); color: var(--color-amber);  }
-.admin    { background: var(--color-purple-light); color: var(--color-purple); }
-.customer { background: var(--color-blue-light);   color: var(--color-blue);   }
-.profileMeta { display: flex; flex-direction: column; text-align: left; }
-.profileName { font-size: 12px; font-weight: 500; color: var(--color-text-primary); white-space: nowrap; }
-.profileRole { font-size: 10px; color: var(--color-text-secondary); }
 
-/* Dropdown wrapper */
-.dropdownWrapper { position: relative; }
+.avatarLg {
+  width: 38px;
+  height: 38px;
+  font-size: 0.78rem;
+}
 
-/* Dropdown base */
+/* ════════════════════════════════════════
+   DROPDOWN BASE (tb-dropdown)
+   ════════════════════════════════════════ */
 .dropdown {
   position: absolute;
   top: calc(100% + 8px);
   right: 0;
-  background: var(--color-bg-primary);
-  border: 0.5px solid var(--color-border);
-  border-radius: var(--radius-lg);
-  box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+  background: var(--navy-mid, #0d1f38);
+  border: 1px solid var(--navy-border, rgba(26,188,156,0.14));
+  border-radius: 12px;
+  box-shadow: 0 16px 48px rgba(0,0,0,0.55),
+              0 0 0 1px rgba(255,255,255,0.04);
   z-index: 200;
-  min-width: 260px;
-  overflow: hidden;
-  animation: dropIn 0.12s ease;
+  animation: dropIn 0.18s cubic-bezier(0.16,1,0.3,1);
 }
+
 @keyframes dropIn {
-  from { opacity: 0; transform: translateY(-4px); }
-  to   { opacity: 1; transform: translateY(0); }
+  from { opacity: 0; transform: translateY(-6px) scale(0.98); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
 }
 
-/* Search dropdown */
-.searchInputWrap {
-  display: flex; align-items: center; gap: 8px;
-  padding: 10px 14px;
-  border-bottom: 0.5px solid var(--color-border);
-  color: var(--color-text-secondary);
-}
-.searchInput {
-  flex: 1; border: none; background: transparent;
-  font-size: 13px; font-family: inherit;
-  color: var(--color-text-primary); outline: none;
-}
-.dropdownLabel {
-  padding: 8px 14px 4px;
-  font-size: 10px; font-weight: 500;
-  color: var(--color-text-tertiary);
-  text-transform: uppercase; letter-spacing: 0.7px;
-}
-.searchItem {
-  display: flex; align-items: center; gap: 8px;
-  padding: 8px 14px;
-  font-size: 13px; color: var(--color-text-secondary);
-  background: none; border: none; width: 100%;
-  text-align: left; cursor: pointer; font-family: inherit;
-  transition: background 0.1s;
-}
-.searchItem:hover { background: var(--color-bg-secondary); color: var(--color-text-primary); }
-.noResults { padding: 12px 14px; font-size: 13px; color: var(--color-text-tertiary); }
-
-/* Notifications dropdown */
-.notifDropdown { min-width: 320px; }
+/* ── Shared dropdown parts ── */
 .dropdownHeader {
-  display: flex; align-items: center; justify-content: space-between;
-  padding: 12px 14px;
-  border-bottom: 0.5px solid var(--color-border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px 11px;
+  border-bottom: 1px solid var(--navy-border, rgba(26,188,156,0.14));
 }
-.dropdownTitle { font-size: 13px; font-weight: 500; color: var(--color-text-primary); }
-.markReadBtn {
-  font-size: 11px; color: var(--color-teal);
-  background: none; border: none; cursor: pointer;
-  font-family: inherit; padding: 0;
+
+.dropdownTitle {
+  font-size: 0.85rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  color: var(--white, #ffffff);
 }
-.markReadBtn:hover { text-decoration: underline; }
-.notifList { max-height: 280px; overflow-y: auto; }
-.notifItem {
-  display: flex; align-items: flex-start; gap: 10px;
-  padding: 10px 14px;
-  border-bottom: 0.5px solid var(--color-border);
-  transition: background 0.1s;
-}
-.notifItem:last-child { border-bottom: none; }
-.notifItem:hover { background: var(--color-bg-secondary); }
-.unread { background: var(--color-teal-light); }
-.unread:hover { background: #d1ede4; }
-.notifIcon {
-  width: 30px; height: 30px;
-  border-radius: var(--radius-md);
-  background: var(--color-bg-secondary);
-  display: flex; align-items: center; justify-content: center;
-  flex-shrink: 0;
-  color: var(--color-text-secondary);
-}
-.notifContent { flex: 1; min-width: 0; }
-.notifTitle { font-size: 12px; font-weight: 500; color: var(--color-text-primary); }
-.notifDesc  { font-size: 11px; color: var(--color-text-secondary); margin-top: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.notifTime  { font-size: 10px; color: var(--color-text-tertiary); white-space: nowrap; flex-shrink: 0; padding-top: 2px; }
+
 .dropdownFooter {
-  padding: 8px 14px;
-  border-top: 0.5px solid var(--color-border);
+  padding: 9px 16px;
+  border-top: 1px solid var(--navy-border, rgba(26,188,156,0.14));
   text-align: center;
 }
-.footerLink {
-  font-size: 12px; color: var(--color-teal);
-  background: none; border: none; cursor: pointer;
-  font-family: inherit; padding: 0;
-}
-.footerLink:hover { text-decoration: underline; }
 
-/* Profile dropdown */
-.profileDropdown { min-width: 220px; }
-.profileInfo {
-  display: flex; align-items: center; gap: 10px;
-  padding: 14px;
-  border-bottom: 0.5px solid var(--color-border);
+.footerLink {
+  font-size: 0.76rem;
+  color: var(--teal, #1abc9c);
+  text-decoration: none;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-family: inherit;
+  transition: opacity 0.18s;
 }
-.avatarLg {
-  width: 38px; height: 38px;
+
+.footerLink:hover { opacity: 0.7; }
+
+.menuDivider {
+  height: 1px;
+  background: var(--navy-border, rgba(26,188,156,0.14));
+  margin: 5px 8px;
+}
+
+/* ════════════════════════════════════════
+   SEARCH DROPDOWN (tb-search-dropdown)
+   ════════════════════════════════════════ */
+.searchDropdown {
+  width: 300px;
+  padding: 10px;
+}
+
+.searchInputWrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid var(--navy-border, rgba(26,188,156,0.14));
+  border-radius: 8px;
+  padding: 8px 11px;
+  transition: border-color 0.18s, box-shadow 0.18s;
+  margin-bottom: 4px;
+}
+
+.searchInputWrap:focus-within {
+  border-color: var(--teal, #1abc9c);
+  box-shadow: 0 0 0 3px var(--teal-dim, rgba(26,188,156,0.12));
+}
+
+.searchIcon {
+  display: flex;
+  align-items: center;
+  color: var(--muted, rgba(255,255,255,0.45));
+  flex-shrink: 0;
+}
+
+.searchIcon svg { width: 14px; height: 14px; }
+
+.searchInput {
+  flex: 1;
+  background: none;
+  border: none;
+  outline: none;
+  font-size: 0.83rem;
+  color: var(--white, #ffffff);
+  font-family: inherit;
+}
+
+.searchInput::placeholder { color: var(--muted, rgba(255,255,255,0.45)); }
+
+.dropdownLabel {
+  font-size: 0.67rem;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--muted, rgba(255,255,255,0.45));
+  padding: 8px 4px 5px;
+  display: block;
+}
+
+.searchItem {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 8px 9px;
+  border-radius: 7px;
+  font-size: 0.83rem;
+  color: var(--muted, rgba(255,255,255,0.45));
+  background: none;
+  border: none;
+  width: 100%;
+  text-align: left;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.14s, color 0.14s;
+}
+
+.searchItem:hover {
+  background: rgba(255,255,255,0.05);
+  color: var(--white, #ffffff);
+}
+
+.searchItemIcon {
+  display: flex;
+  align-items: center;
+  color: var(--muted, rgba(255,255,255,0.45));
+  flex-shrink: 0;
+}
+
+.searchItemIcon svg { width: 13px; height: 13px; }
+
+.noResults {
+  padding: 8px 9px;
+  font-size: 0.83rem;
+  color: var(--muted, rgba(255,255,255,0.45));
+}
+
+/* ════════════════════════════════════════
+   NOTIFICATIONS DROPDOWN (tb-notif-dropdown)
+   ════════════════════════════════════════ */
+.notifDropdown { width: 330px; }
+
+.markReadBtn {
+  font-size: 0.72rem;
+  color: var(--teal, #1abc9c);
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-family: inherit;
+  padding: 0;
+  transition: opacity 0.18s;
+}
+
+.markReadBtn:hover { opacity: 0.7; }
+
+.notifList {
+  padding: 7px;
+  max-height: 270px;
+  overflow-y: auto;
+}
+
+.notifList::-webkit-scrollbar { width: 3px; }
+.notifList::-webkit-scrollbar-thumb {
+  background: var(--navy-border, rgba(26,188,156,0.14));
+  border-radius: 99px;
+}
+
+.notifEmpty {
+  padding: 14px 9px;
+  font-size: 0.8rem;
+  color: var(--muted, rgba(255,255,255,0.45));
+  text-align: center;
+}
+
+.notifItem {
+  display: flex;
+  align-items: flex-start;
+  gap: 11px;
+  padding: 9px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.14s;
+  position: relative;
+}
+
+.notifItem:hover { background: rgba(255,255,255,0.04); }
+
+/* unread indicator dot */
+.unread::before {
+  content: '';
+  position: absolute;
+  left: 3px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 4px;
+  height: 4px;
+  background: var(--teal, #1abc9c);
   border-radius: 50%;
-  background: var(--color-teal-light);
-  color: var(--color-teal-dark);
-  display: flex; align-items: center; justify-content: center;
-  font-size: 14px; font-weight: 500; flex-shrink: 0;
 }
-.profileInfoName { font-size: 13px; font-weight: 500; color: var(--color-text-primary); }
-.profileInfoRole { font-size: 11px; color: var(--color-text-secondary); }
-.profileMenu { padding: 6px; }
+
+.notifIcon {
+  width: 32px;
+  height: 32px;
+  background: var(--teal-dim, rgba(26,188,156,0.12));
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  color: var(--teal, #1abc9c);
+}
+
+.notifIcon svg { width: 16px; height: 16px; }
+
+.notifContent { flex: 1; min-width: 0; }
+
+.notifTitle {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--white, #ffffff);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.notifDesc {
+  font-size: 0.72rem;
+  color: var(--muted, rgba(255,255,255,0.45));
+  margin-top: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.notifTime {
+  font-size: 0.68rem;
+  color: var(--muted, rgba(255,255,255,0.45));
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+/* ════════════════════════════════════════
+   PROFILE DROPDOWN (tb-profile-dropdown)
+   ════════════════════════════════════════ */
+.profileDropdown { width: 220px; }
+
+.profileInfo {
+  padding: 14px 16px 12px;
+  border-bottom: 1px solid var(--navy-border, rgba(26,188,156,0.14));
+  display: flex;
+  align-items: center;
+  gap: 11px;
+}
+
+.profileInfoName {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--white, #ffffff);
+}
+
+.profileInfoRole {
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  color: var(--teal, #1abc9c);
+  margin-top: 2px;
+}
+
+.profileMenu { padding: 7px; }
+
 .menuItem {
-  display: flex; align-items: center; gap: 8px;
-  padding: 8px 10px;
-  border-radius: var(--radius-md);
-  font-size: 13px; color: var(--color-text-secondary);
-  background: none; border: none; width: 100%;
-  text-align: left; cursor: pointer; font-family: inherit;
-  transition: background 0.1s;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 8px 9px;
+  border-radius: 7px;
+  font-size: 0.82rem;
+  color: var(--muted, rgba(255,255,255,0.45));
+  background: none;
+  border: none;
+  width: 100%;
+  text-align: left;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.14s, color 0.14s;
 }
-.menuItem:hover { background: var(--color-bg-secondary); color: var(--color-text-primary); }
-.menuDivider { height: 0.5px; background: var(--color-border); margin: 4px 0; }
-.menuDanger       { color: var(--color-red); }
-.menuDanger:hover { background: var(--color-red-light); color: var(--color-red); }
+
+.menuItem:hover {
+  background: rgba(255,255,255,0.05);
+  color: var(--white, #ffffff);
+}
+
+.menuIcon {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.menuIcon svg { width: 14px; height: 14px; }
+
+.menuDanger { color: var(--danger, #ff4f4f); }
+.menuDanger .menuIcon { color: var(--danger, #ff4f4f); }
+
+.menuDanger:hover {
+  background: var(--danger-dim, rgba(255,79,79,0.08)) !important;
+  color: var(--danger, #ff4f4f) !important;
+}

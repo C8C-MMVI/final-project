@@ -1,164 +1,252 @@
 // src/components/layout/Sidebar.jsx
 import { useState } from 'react';
-import Icon from '../shared/Icon';
-import { navItems } from '../../data/mockData';
 import styles from './Sidebar.module.css';
 
+// ── Role config (mirrors PHP $dotClass + $roleLabel) ──────────────────────
 const roleConfig = {
-  owner:      { label: 'Shop Owner',   dot: 'owner'      },
   admin:      { label: 'System Admin', dot: 'admin'      },
-  customer:   { label: 'Customer',     dot: 'customer'   },
+  owner:      { label: 'Shop Owner',   dot: 'owner'      },
   technician: { label: 'Technician',   dot: 'technician' },
+  customer:   { label: 'Customer',     dot: 'customer'   },
 };
 
-// Maps every nav label → page key used by DashboardLayout / AdminDashboard
-const labelToPage = {
-  // ── Admin ──────────────────────────────────────
-  'Dashboard':              'dashboard',
-  'User Management':        'userManagement',
-  'Shop Requests':          'shopRequests',
-  'System Logs':            'systemLogs',
-
-  // ── Owner ──────────────────────────────────────
-  'Repairs / Job Orders':   'repairs',
-  'Inventory':              'inventory',
-  'Customers':              'members',
-  'Reports / Analytics':    'reports',
-  'Member Management':      'members',
-
-  // ── Technician ─────────────────────────────────
-  'Repair Requests':        'repairs',
-  'My Jobs':                'repairs',
-  'Reviews':                'reviews',
-
-  // ── Customer ───────────────────────────────────
-  'My Dashboard':           'dashboard',
-  'My Repairs':             'repairs',
-  'My Transactions':        'transactions',
-  'Notifications':          'notifications',
-  'Help & FAQs':            'help',
-
-  // ── Shared ─────────────────────────────────────
-  'Settings':               'settings',
+// ── Nav structure (mirrors PHP sidebar.php nav sections) ─────────────────
+const NAV = {
+  admin: [
+    { section: 'Main' },
+    { label: 'Dashboard',       page: 'dashboard',     icon: <IconGrid /> },
+    { section: 'Platform' },
+    { label: 'User Management', page: 'userManagement', icon: <IconUserPlus /> },
+    { label: 'Shop Requests',   page: 'shopRequests',   icon: <IconHome /> },
+    { label: 'System Logs',     page: 'systemLogs',     icon: <IconDoc /> },
+  ],
+  owner: [
+    { section: 'Main' },
+    { label: 'Dashboard',            page: 'dashboard', icon: <IconGrid /> },
+    { section: 'Shop' },
+    { label: 'Repairs / Job Orders', page: 'repairs',   icon: <IconTool /> },
+    { label: 'Inventory',            page: 'inventory', icon: <IconBox /> },
+    { label: 'Customers',            page: 'members',   icon: <IconUsers /> },
+    { section: 'Insights' },
+    { label: 'Reports / Analytics',  page: 'reports',   icon: <IconChart /> },
+    { section: 'Team' },
+    { label: 'Member Management',    page: 'members',   icon: <IconUserPlus /> },
+  ],
+  technician: [
+    { section: 'Main' },
+    { label: 'Dashboard',       page: 'dashboard', icon: <IconGrid /> },
+    { section: 'Work' },
+    { label: 'Repair Requests', page: 'repairs',   icon: <IconDoc /> },
+    { label: 'My Jobs',         page: 'repairs',   icon: <IconTool /> },
+    { label: 'Reviews',         page: 'reviews',   icon: <IconStar /> },
+  ],
+  customer: [
+    { section: 'My Account' },
+    { label: 'My Dashboard',    page: 'dashboard',     icon: <IconGrid /> },
+    { label: 'My Repairs',      page: 'repairs',       icon: <IconTool /> },
+    { label: 'My Transactions', page: 'transactions',  icon: <IconPeso /> },
+  ],
 };
 
-// Default first active label per role
-const defaultActive = {
-  admin:      'Dashboard',
-  owner:      'Dashboard',
-  technician: 'Dashboard',
-  customer:   'My Dashboard',
+// Default active label per role
+const DEFAULT_ACTIVE = {
+  admin: 'Dashboard', owner: 'Dashboard',
+  technician: 'Dashboard', customer: 'My Dashboard',
 };
 
-export default function Sidebar({ role, username, onNavigate, activePage, onSectionChange }) {
-  const [collapsed,  setCollapsed]  = useState(false);
-  const [activeLabel, setActiveLabel] = useState(defaultActive[role] ?? 'Dashboard');
+// ── SVG Icons (inline, matches PHP sidebar SVGs) ──────────────────────────
+function IconGrid() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/>
+      <rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/>
+    </svg>
+  );
+}
+function IconTool() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>
+    </svg>
+  );
+}
+function IconUserPlus() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="8" r="4"/><path d="M6 20v-2a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v2"/>
+      <line x1="19" y1="8" x2="23" y2="8"/><line x1="21" y1="6" x2="21" y2="10"/>
+    </svg>
+  );
+}
+function IconHome() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+      <polyline points="9 22 9 12 15 12 15 22"/>
+    </svg>
+  );
+}
+function IconDoc() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+      <polyline points="14 2 14 8 20 8"/>
+      <line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/>
+      <polyline points="10 9 9 9 8 9"/>
+    </svg>
+  );
+}
+function IconBox() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
+      <polyline points="3.27 6.96 12 12.01 20.73 6.96"/>
+      <line x1="12" y1="22.08" x2="12" y2="12"/>
+    </svg>
+  );
+}
+function IconUsers() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+      <circle cx="9" cy="7" r="4"/>
+      <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+      <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+    </svg>
+  );
+}
+function IconChart() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <line x1="18" y1="20" x2="18" y2="10"/>
+      <line x1="12" y1="20" x2="12" y2="4"/>
+      <line x1="6"  y1="20" x2="6"  y2="14"/>
+    </svg>
+  );
+}
+function IconStar() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+    </svg>
+  );
+}
+function IconPeso() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <line x1="12" y1="1" x2="12" y2="23"/>
+      <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+    </svg>
+  );
+}
+function IconLogout() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+      <polyline points="16 17 21 12 16 7"/>
+      <line x1="21" y1="12" x2="9" y2="12"/>
+    </svg>
+  );
+}
+function IconChevronLeft() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+      stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M15 18l-6-6 6-6"/>
+    </svg>
+  );
+}
+
+// ── Sidebar ───────────────────────────────────────────────────────────────
+export default function Sidebar({ role, username, onNavigate, onLogout }) {
+  const [collapsed,    setCollapsed]    = useState(false);
+  const [activeLabel,  setActiveLabel]  = useState(DEFAULT_ACTIVE[role] ?? 'Dashboard');
 
   const { label, dot } = roleConfig[role] ?? roleConfig.admin;
-  const items = navItems[role] ?? navItems.admin;
+  const items           = NAV[role]        ?? NAV.admin;
 
   const handleItemClick = (item) => {
     setActiveLabel(item.label);
-    const page = labelToPage[item.label];
+    if (item.page && onNavigate) onNavigate(item.page);
+  };
 
-    // Admin uses in-page section switching via onSectionChange
-    if (role === 'admin' && onSectionChange) {
-      const sectionMap = {
-        'Dashboard':       'Dashboard',
-        'User Management': 'User Management',
-        'Shop Requests':   'Shop Requests',
-        'System Logs':     'System Logs',
-      };
-      const section = sectionMap[item.label];
-      if (section) { onSectionChange(section); return; }
-    }
-
-    // All other roles use page navigation
-    if (page && onNavigate) onNavigate(page);
+  const handleLogout = () => {
+    if (onLogout) { onLogout(); return; }
+    // fallback: hit PHP logout endpoint
+    window.location.href = '/api/logout.php';
   };
 
   return (
-    <aside className={`${styles.sidebar} ${collapsed ? styles.collapsed : ''}`}>
+    <aside className={`${styles.sidebar} ${collapsed ? styles.collapsed : ''}`} id="sidebar">
 
-      {/* ── Logo row ── */}
-      <div className={styles.logoRow}>
-        {!collapsed && (
-          <div className={styles.logoText}>
-            <div className={styles.logoMain}>TechnoLogs</div>
-            <div className={styles.logoSub}>Repair Management</div>
-          </div>
-        )}
+      {/* ── Header: logo + toggle ── */}
+      <div className={styles.header}>
+        {/* Logo image — mirrors PHP <img src="/php_projex/images/Logo.png"> */}
+        <img
+          src="/images/Logo.png"
+          alt="TechnoLogs"
+          className={styles.logo}
+        />
         <button
           className={styles.toggleBtn}
           onClick={() => setCollapsed(c => !c)}
           aria-label="Toggle sidebar"
         >
-          {collapsed
-            ? <Icon name="grid" size={14} />
-            : (
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
-                stroke="currentColor" strokeWidth="2.5"
-                strokeLinecap="round" strokeLinejoin="round">
-                <path d="M15 18l-6-6 6-6"/>
-              </svg>
-            )
-          }
+          <IconChevronLeft />
         </button>
       </div>
 
       {/* ── Role badge ── */}
-      {!collapsed && (
-        <div className={styles.roleBadge}>
-          <span className={`${styles.dot} ${styles[dot]}`} />
-          <span className={styles.roleLabel}>{label}</span>
-        </div>
-      )}
+      <div className={styles.roleBadge}>
+        <span className={`${styles.roleDot} ${styles[`dot_${dot}`]}`} />
+        <span className={styles.roleLabel}>{label}</span>
+      </div>
 
-      {/* ── Nav items ── */}
+      {/* ── Nav ── */}
       <nav className={styles.nav}>
         {items.map((item, i) => {
+          // Section label
           if (item.section) {
-            if (collapsed) return null;
-            return <div key={i} className={styles.section}>{item.section}</div>;
+            return (
+              <span key={i} className={styles.sectionLabel}>
+                {item.section}
+              </span>
+            );
           }
 
           const isActive = item.label === activeLabel;
 
           return (
-            <div
+            <a
               key={i}
-              className={[
-                styles.item,
-                isActive  ? styles.active       : '',
-                collapsed ? styles.itemCollapsed : '',
-              ].join(' ')}
+              className={`${styles.navItem} ${isActive ? styles.navItemActive : ''}`}
               onClick={() => handleItemClick(item)}
-              title={collapsed ? item.label : undefined}
+              data-tooltip={item.label}
+              role="button"
+              tabIndex={0}
+              onKeyDown={e => e.key === 'Enter' && handleItemClick(item)}
             >
-              <Icon name={item.icon} size={15} />
-              {!collapsed && <span>{item.label}</span>}
-            </div>
+              <span className={styles.navIcon}>{item.icon}</span>
+              <span className={styles.navLabel}>{item.label}</span>
+            </a>
           );
         })}
       </nav>
 
-      {/* ── Footer ── */}
+      {/* ── Divider + Logout ── */}
       <div className={styles.footer}>
-        {collapsed ? (
-          <div className={`${styles.avatar} ${styles[dot]} ${styles.avatarCenter}`}>
-            {username.slice(0, 2).toUpperCase()}
-          </div>
-        ) : (
-          <div className={styles.userBadge}>
-            <div className={`${styles.avatar} ${styles[dot]}`}>
-              {username.slice(0, 2).toUpperCase()}
-            </div>
-            <div className={styles.userInfo}>
-              <div className={styles.userName}>{username}</div>
-              <div className={styles.userRole}>{label}</div>
-            </div>
-          </div>
-        )}
+        <div className={styles.divider} />
+        <a
+          className={`${styles.navItem} ${styles.navItemLogout}`}
+          onClick={handleLogout}
+          data-tooltip="Logout"
+          role="button"
+          tabIndex={0}
+          onKeyDown={e => e.key === 'Enter' && handleLogout()}
+        >
+          <span className={styles.navIcon}><IconLogout /></span>
+          <span className={styles.navLabel}>Logout</span>
+        </a>
       </div>
 
     </aside>

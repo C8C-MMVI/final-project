@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import Panel  from '../components/shared/Panel';
-import styles from './Dashboard.module.css';
+import styles from '../components/layout/DashboardLayout.module.css';
 
 export default function MembersPage({ setPage }) {
   const [members, setMembers] = useState([]);
@@ -119,7 +119,7 @@ export default function MembersPage({ setPage }) {
         </div>
       )}
 
-      <div className={styles.twoCol}>
+      <div className={cStyles.twoCol}>
 
         {/* ── Add Member Form ── */}
         <Panel title="Add New Member" onLink={() => setPage('dashboard')} linkLabel="← Back">
@@ -171,7 +171,7 @@ export default function MembersPage({ setPage }) {
           ) : members.length === 0 ? (
             <div style={{ padding: '1rem', color: 'var(--text-muted)' }}>No members found.</div>
           ) : (
-            <table className={styles.table}>
+            <table className={cStyles.table}>
               <thead>
                 <tr><th>Username</th><th>Email</th><th>Role</th><th></th></tr>
               </thead>
@@ -180,8 +180,8 @@ export default function MembersPage({ setPage }) {
                   const badge = roleBadgeColor[m.role] ?? roleBadgeColor.customer;
                   return (
                     <tr key={m.user_id ?? i}>
-                      <td className={styles.bold}>{m.username}</td>
-                      <td className={styles.muted}>{m.email}</td>
+                      <td className={cStyles.bold}>{m.username}</td>
+                      <td className={cStyles.muted}>{m.email}</td>
                       <td>
                         <span style={{
                           background: badge.bg, color: badge.color,

@@ -1,8 +1,8 @@
 // src/pages/TechnicianDashboard.jsx
 import { useState, useEffect, useCallback } from 'react';
-import Panel from '../components/shared/Panel';
-import Badge from '../components/shared/Badge';
-import styles from './Dashboard.module.css';
+import Panel  from '../components/shared/Panel';
+import Badge  from '../components/shared/Badge';
+import styles from '../components/layout/DashboardLayout.module.css';
 import tStyles from './TechnicianDashboard.module.css';
 
 const STATUSES = ['Pending', 'In Progress', 'Completed'];
@@ -13,7 +13,7 @@ const statusNext = {
   'Completed':   null,
 };
 
-const statusLabel = {
+const statusBadge = {
   'Pending':     'pending',
   'In Progress': 'progress',
   'Completed':   'done',
@@ -28,13 +28,11 @@ export default function TechnicianDashboard({ setPage }) {
   const [saving,   setSaving]   = useState(false);
   const [toast,    setToast]    = useState(null);
 
-  // ── Fetch repairs ──────────────────────────────────────────────────────────
+  // ── Fetch repairs ─────────────────────────────────────────────────────────
   const fetchRepairs = useCallback(async () => {
     try {
       setLoading(true);
-      const res  = await fetch('/api/repairs.php', {
-        credentials: 'include',                       // ← FIXED
-      });
+      const res  = await fetch('/api/repairs.php', { credentials: 'include' });
       const data = await res.json();
       if (data.success) setRepairs(data.repairs);
       else setError(data.message);
@@ -53,7 +51,7 @@ export default function TechnicianDashboard({ setPage }) {
     setTimeout(() => setToast(null), 3000);
   };
 
-  // ── Open modal ────────────────────────────────────────────────────────────
+  // ── Modal helpers ─────────────────────────────────────────────────────────
   const openModal = (repair) => {
     setSelected(repair);
     setNotes(repair.technician_notes ?? '');
@@ -64,14 +62,14 @@ export default function TechnicianDashboard({ setPage }) {
     setNotes('');
   };
 
-  // ── Save update (status and/or notes) ────────────────────────────────────
+  // ── Save update ───────────────────────────────────────────────────────────
   const saveUpdate = async (newStatus) => {
     if (!selected) return;
     setSaving(true);
     try {
       const res  = await fetch('/api/repairs.php', {
         method:      'PATCH',
-        credentials: 'include',                       // ← FIXED
+        credentials: 'include',
         headers:     { 'Content-Type': 'application/json' },
         body:        JSON.stringify({
           request_id:       selected.request_id,
@@ -100,7 +98,6 @@ export default function TechnicianDashboard({ setPage }) {
   const pending    = repairs.filter(r => r.status === 'Pending').length;
   const completed  = repairs.filter(r => r.status === 'Completed').length;
 
-  // ── Render ────────────────────────────────────────────────────────────────
   return (
     <main className={styles.content}>
 
@@ -114,10 +111,10 @@ export default function TechnicianDashboard({ setPage }) {
       {/* ── Stat strip ── */}
       <div className={tStyles.statStrip}>
         {[
-          { label: 'Total Assigned', value: total,      color: 'var(--accent)'  },
-          { label: 'In Progress',    value: inProgress, color: '#facc15'        },
-          { label: 'Pending',        value: pending,    color: '#fb923c'        },
-          { label: 'Completed',      value: completed,  color: '#4ade80'        },
+          { label: 'Total Assigned', value: total,      color: 'var(--color-teal)'   },
+          { label: 'In Progress',    value: inProgress, color: '#facc15'             },
+          { label: 'Pending',        value: pending,    color: '#fb923c'             },
+          { label: 'Completed',      value: completed,  color: '#4ade80'             },
         ].map(s => (
           <div key={s.label} className={tStyles.statCard}>
             <div className={tStyles.statValue} style={{ color: s.color }}>{s.value}</div>
@@ -159,12 +156,9 @@ export default function TechnicianDashboard({ setPage }) {
                   <td className={styles.muted}>
                     {new Date(r.created_at).toLocaleDateString()}
                   </td>
-                  <td><Badge status={statusLabel[r.status]} /></td>
+                  <td><Badge status={statusBadge[r.status] ?? 'pending'} /></td>
                   <td>
-                    <button
-                      className={tStyles.reviewBtn}
-                      onClick={() => openModal(r)}
-                    >
+                    <button className={tStyles.reviewBtn} onClick={() => openModal(r)}>
                       Review
                     </button>
                   </td>
@@ -191,24 +185,17 @@ export default function TechnicianDashboard({ setPage }) {
 
               {/* Info grid */}
               <div className={tStyles.infoGrid}>
-                <div className={tStyles.infoItem}>
-                  <span className={tStyles.infoLabel}>Customer</span>
-                  <span className={tStyles.infoValue}>{selected.customer_name}</span>
-                </div>
-                <div className={tStyles.infoItem}>
-                  <span className={tStyles.infoLabel}>Shop</span>
-                  <span className={tStyles.infoValue}>{selected.shop_name}</span>
-                </div>
-                <div className={tStyles.infoItem}>
-                  <span className={tStyles.infoLabel}>Device</span>
-                  <span className={tStyles.infoValue}>{selected.device_type}</span>
-                </div>
-                <div className={tStyles.infoItem}>
-                  <span className={tStyles.infoLabel}>Status</span>
-                  <span className={tStyles.infoValue}>
-                    <Badge status={statusLabel[selected.status]} />
-                  </span>
-                </div>
+                {[
+                  { label: 'Customer', value: selected.customer_name },
+                  { label: 'Shop',     value: selected.shop_name     },
+                  { label: 'Device',   value: selected.device_type   },
+                  { label: 'Status',   value: <Badge status={statusBadge[selected.status]} /> },
+                ].map(row => (
+                  <div key={row.label} className={tStyles.infoItem}>
+                    <span className={tStyles.infoLabel}>{row.label}</span>
+                    <span className={tStyles.infoValue}>{row.value}</span>
+                  </div>
+                ))}
               </div>
 
               {/* Issue description */}
@@ -236,7 +223,11 @@ export default function TechnicianDashboard({ setPage }) {
                   {STATUSES.map((s, i) => (
                     <div
                       key={s}
-                      className={`${tStyles.step} ${selected.status === s ? tStyles.stepActive : ''} ${STATUSES.indexOf(selected.status) > i ? tStyles.stepDone : ''}`}
+                      className={[
+                        tStyles.step,
+                        selected.status === s                           ? tStyles.stepActive : '',
+                        STATUSES.indexOf(selected.status) > i          ? tStyles.stepDone   : '',
+                      ].join(' ')}
                     >
                       <div className={tStyles.stepDot}>{i + 1}</div>
                       <div className={tStyles.stepLabel}>{s}</div>

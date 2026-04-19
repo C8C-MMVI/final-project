@@ -3,11 +3,21 @@ import { useState, useRef, useEffect } from 'react';
 import Icon from '../shared/Icon';
 import styles from './Topbar.module.css';
 
+// Replace titleMap with a per-page map
 const titleMap = {
-  owner:      { title: 'Dashboard',       sub: 'TechnoLogs / Dashboard'  },
-  admin:      { title: 'Admin Dashboard', sub: 'TechnoLogs / Admin'       },
-  customer:   { title: 'My Dashboard',    sub: 'TechnoLogs / My Account'  },
-  technician: { title: 'My Repairs',      sub: 'TechnoLogs / Technician'  },
+  dashboard:    { owner: 'Dashboard',     admin: 'Admin Dashboard', customer: 'My Dashboard',  technician: 'My Dashboard'  },
+  repairs:      { owner: 'Repair Jobs',   admin: 'Repair Jobs',     customer: 'My Repairs',    technician: 'My Repairs'    },
+  members:      { owner: 'Staff & Customers', admin: 'Members',     customer: '',              technician: ''              },
+  inventory:    { owner: 'Inventory',     admin: 'Inventory',       customer: '',              technician: ''              },
+  transactions: { owner: 'Transactions',  admin: 'Transactions',    customer: 'My Payments',   technician: ''              },
+};
+
+const breadcrumbMap = {
+  dashboard:    'TechnoLogs / Dashboard',
+  repairs:      'TechnoLogs / Repairs',
+  members:      'TechnoLogs / Members',
+  inventory:    'TechnoLogs / Inventory',
+  transactions: 'TechnoLogs / Transactions',
 };
 
 // Maps each role to the pages it can navigate to
@@ -306,15 +316,27 @@ function ProfileModal({ username, initials, roleLabel, role, onClose }) {
 
 // ── Main Topbar ────────────────────────────────────────────────────────────
 
-export default function Topbar({ role, username, onLogout, onNavigate }) {
+export default function Topbar({ role, username, currentPage = 'dashboard', onLogout, onNavigate }) {
   const initials  = username.slice(0, 2).toUpperCase();
   const roleLabel = roleLabels[role] ?? 'Shop Owner';
-  const { title, sub } = titleMap[role] ?? titleMap.owner;
+
+  // Dynamic title based on current page + role
+  const title = titleMap[currentPage]?.[role] ?? 'Dashboard';
+  const sub   = breadcrumbMap[currentPage]    ?? 'TechnoLogs / Dashboard';
 
   const [open,           setOpen]           = useState('');
-  const [notifs,         setNotifs]         = useState(initialNotifications);
+  const [notifs, setNotifs] = useState([]);
   const [showProfile,    setShowProfile]    = useState(false);
   const [loggingOut,     setLoggingOut]     = useState(false);
+
+  useEffect(() => {
+    fetch('/api/topbar.php', { credentials: 'include' })
+      .then(r => r.json())
+      .then(data => {
+        if (data.notifications) setNotifs(data.notifications);
+      })
+      .catch(() => {});
+  }, []);
 
   const toggle   = (panel) => setOpen(p => p === panel ? '' : panel);
   const closeAll = () => setOpen('');

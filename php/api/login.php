@@ -1,8 +1,20 @@
 <?php
-ini_set('display_errors', 0);
-error_reporting(E_ALL);
+/**
+ * api/login.php
+ * Handles login authentication.
+ * Receives JSON: { username, password }
+ * Returns JSON:  { success, message, userId, username, role, redirect }
+ */
 
+session_set_cookie_params([
+    'lifetime' => 0,
+    'path'     => '/',
+    'secure'   => false,
+    'httponly' => true,
+    'samesite' => 'Lax',
+]);
 session_start();
+
 header('Content-Type: application/json');
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
@@ -23,36 +35,18 @@ if (!$data) {
 $username = trim($data['username'] ?? '');
 $password = $data['password'] ?? '';
 
+// ── Validation ────────────────────────────────────────────────────────
 if (empty($username) || empty($password)) {
     http_response_code(422);
     echo json_encode(['success' => false, 'message' => 'Username and password are required.']);
     exit;
 }
 
-try {
-    $stmt = $pdo->prepare('SELECT user_id, username, password, role, status FROM users WHERE username = ? LIMIT 1');
-    $stmt->execute([$username]);
-    $user = $stmt->fetch();
-} catch (PDOException $e) {
-    error_log('Query failed: ' . $e->getMessage());
-    http_response_code(500);
-    echo json_encode(['success' => false, 'message' => 'A server error occurred.']);
-    exit;
-}
+$stmt = $pdo->prepare('SELECT user_id, username, password, role FROM users WHERE username = ? LIMIT 1');
+$stmt->execute([$username]);
+$user = $stmt->fetch();
 
-if (!$user) {
-    http_response_code(401);
-    echo json_encode(['success' => false, 'message' => 'Invalid username or password.']);
-    exit;
-}
-
-if ($user['status'] !== 'active') {
-    http_response_code(403);
-    echo json_encode(['success' => false, 'message' => 'Your account is inactive. Please contact admin.']);
-    exit;
-}
-
-if (!password_verify($password, $user['password'])) {
+if (!$user || !password_verify($password, $user['password'])) {
     http_response_code(401);
     echo json_encode(['success' => false, 'message' => 'Invalid username or password.']);
     exit;
@@ -62,6 +56,14 @@ $_SESSION['user_id']  = $user['user_id'];
 $_SESSION['username'] = $user['username'];
 $_SESSION['role']     = $user['role'];
 
+$redirect = match($user['role']) {
+    'admin'      => '/admin/dashboard',
+    'owner'      => '/owner/dashboard',
+    'technician' => '/technician/dashboard',
+    'customer'   => '/customer/dashboard',
+    default      => '/customer/dashboard',
+};
+
 http_response_code(200);
 echo json_encode([
     'success'  => true,
@@ -69,4 +71,5 @@ echo json_encode([
     'userId'   => $user['user_id'],
     'username' => $user['username'],
     'role'     => $user['role'],
+    'redirect' => $redirect,
 ]);

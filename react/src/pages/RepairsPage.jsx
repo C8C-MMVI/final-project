@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import Panel  from '../components/shared/Panel';
 import Badge  from '../components/shared/Badge';
-import styles from './Dashboard.module.css';
+import styles from '../components/layout/DashboardLayout.module.css';
 
 const statusLabel = { 'Pending': 'pending', 'In Progress': 'progress', 'Completed': 'done' };
 
@@ -33,7 +33,7 @@ export default function RepairsPage({ setPage, role }) {
         ) : repairs.length === 0 ? (
           <div style={{ padding: '1.5rem', color: 'var(--text-muted)' }}>No repairs found.</div>
         ) : (
-          <table className={styles.table}>
+          <table className={cStyles.table}>
             <thead>
               <tr>
                 <th>Job #</th>
@@ -48,12 +48,12 @@ export default function RepairsPage({ setPage, role }) {
             <tbody>
               {repairs.map(r => (
                 <tr key={r.request_id}>
-                  <td className={styles.idCol}>#{r.request_id}</td>
-                  <td className={styles.bold}>{r.customer_name}</td>
+                  <td className={cStyles.idCol}>#{r.request_id}</td>
+                  <td className={cStyles.bold}>{r.customer_name}</td>
                   <td>{r.shop_name}</td>
                   <td>{r.device_type}</td>
                   <td>{r.issue_description}</td>
-                  <td className={styles.muted}>{new Date(r.created_at).toLocaleDateString()}</td>
+                  <td className={cStyles.muted}>{new Date(r.created_at).toLocaleDateString()}</td>
                   <td><Badge status={statusLabel[r.status] ?? 'pending'} /></td>
                 </tr>
               ))}

@@ -1,49 +1,42 @@
 'use strict';
 
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback } from 'react';
 
-const REMEMBER_KEY = 'technologs_remember_username';
+const REMEMBER_KEY = 'remembered_username';
 
-export function useLogin({ onLogin } = {}) {
-  const [username,     setUsernameRaw]  = useState('');
-  const [password,     setPassword]     = useState('');
+export function useLogin() {
+  const [username, setUsername]         = useState('');
+  const [password, setPassword]         = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [remember,     setRemember]     = useState(false);
-  const [errors,       setErrors]       = useState({ username: false, password: false });
-  const [loading,      setLoading]      = useState(false);
-  const [toast,        setToast]        = useState(null);
+  const [remember, setRemember]         = useState(true);
+  const [errors, setErrors]             = useState({ username: false, password: false });
+  const [loading, setLoading]           = useState(false);
+  const [toast, setToast]               = useState(null);
 
-  // Forgot password modal state
-  const [forgotOpen,       setForgotOpen]      = useState(false);
+  const [forgotOpen,       setForgotOpen]       = useState(false);
   const [forgotEmail,      setForgotEmail]      = useState('');
-  const [forgotLoading,    setForgotLoading]    = useState(false);
   const [forgotEmailError, setForgotEmailError] = useState('');
+  const [forgotLoading,    setForgotLoading]    = useState(false);
   const [forgotSent,       setForgotSent]       = useState(false);
 
-  // ── Remember Me: restore saved username on mount ──────────────────────────
-  useEffect(() => {
-    try {
-      const saved = localStorage.getItem(REMEMBER_KEY);
-      if (saved) {
-        setUsernameRaw(saved);
-        setRemember(true);
-      }
-    } catch { }
-  }, []);
-
+  // Toast
   const showToast = useCallback((message, isError = false) => {
     setToast({ message, isError, show: true });
     setTimeout(() => setToast(t => t ? { ...t, show: false } : null), 3300);
   }, []);
 
-  const togglePassword = useCallback(() => setShowPassword(v => !v), []);
+  // Password toggle
+  const togglePassword = useCallback(() => {
+    setShowPassword(v => !v);
+  }, []);
 
+  // Clear field error on input
   const clearError = useCallback((field) => {
     setErrors(e => ({ ...e, [field]: false }));
   }, []);
 
-  const setUsername = useCallback((val) => {
-    setUsernameRaw(val);
+  const wrappedSetUsername = useCallback((val) => {
+    setUsername(val);
     clearError('username');
   }, [clearError]);
 
@@ -52,6 +45,7 @@ export function useLogin({ onLogin } = {}) {
     clearError('password');
   }, [clearError]);
 
+  // Validation
   function validateAll() {
     const newErrors = {
       username: !username.trim(),
@@ -61,7 +55,7 @@ export function useLogin({ onLogin } = {}) {
     return !newErrors.username && !newErrors.password;
   }
 
-  // ── Forgot Password ────────────────────────────────────────────────────────
+  // Forgot password
   const handleForgot = useCallback((e) => {
     e.preventDefault();
     setForgotEmail('');
@@ -111,7 +105,7 @@ export function useLogin({ onLogin } = {}) {
     }
   }, [forgotEmail]);
 
-  // ── Login submit ───────────────────────────────────────────────────────────
+  // Submit
   async function handleSubmit(e) {
     e.preventDefault();
 
@@ -126,16 +120,25 @@ export function useLogin({ onLogin } = {}) {
       const res = await fetch('/api/login.php', {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify({ username: username.trim(), password: password.trim() }),
+        body:    JSON.stringify({
+          username: username.trim(),
+          password: password.trim(),
+        }),
       });
 
+      // safe parse — avoids crash on empty or non-JSON response
       const text = await res.text();
-      let data;
+      let data = {};
       try {
-        data = JSON.parse(text);
+        data = text ? JSON.parse(text) : {};
       } catch {
-        throw new Error('Server returned an invalid response.');
+        console.error('Server returned non-JSON response:', text);
+        showToast('⚠ Unexpected server response. Please contact support.', true);
+        setLoading(false);
+        return;
       }
+
+      setLoading(false);
 
       if (res.ok && data.success) {
         try {
@@ -147,27 +150,21 @@ export function useLogin({ onLogin } = {}) {
         } catch { }
 
         showToast('✓ Login successful! Redirecting…');
-        setTimeout(() => {
-          onLogin?.({ userId: data.userId, username: data.username, role: data.role });
-        }, 1200);
+        setTimeout(() => { window.location.href = data.redirect; }, 1200);
       } else {
         setErrors(e => ({ ...e, password: true }));
         showToast('⚠ ' + (data.message || 'Invalid username or password.'), true);
       }
     } catch (err) {
       console.error('Login error:', err);
-      showToast('⚠ ' + (
-        err.message === 'Server returned an invalid response.'
-          ? 'Server error. Please try again.'
-          : 'Cannot connect to server. Please try again.'
-      ), true);
+      showToast('⚠ Cannot connect to server. Please try again.', true);
     } finally {
       setLoading(false);
     }
   }
 
   return {
-    username,     setUsername,
+    username,     setUsername: wrappedSetUsername,
     password,     setPassword: wrappedSetPassword,
     showPassword, togglePassword,
     remember,     setRemember,

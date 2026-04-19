@@ -65,90 +65,90 @@ export const repairTimeline = [
 
 // ── Nav per role ──────────────────────────────────────────
 export const navItems = {
+
+  // ── Admin ──────────────────────────────────────────────
+  admin: [
+    { section: 'Main' },
+    { label: 'Dashboard',       icon: 'grid'    },
+    { section: 'Platform' },
+    { label: 'User Management', icon: 'users'   },
+    { label: 'Shop Requests',   icon: 'home'    },
+    { label: 'System Logs',     icon: 'file'    },
+  ],
+
+  // ── Owner ──────────────────────────────────────────────
   owner: [
     { section: 'Overview' },
-    { label: 'Dashboard',     icon: 'grid',    active: true },
-    { label: 'Repair Jobs',   icon: 'wrench'   },
-    { label: 'Transactions',  icon: 'peso'     },
-    { section: 'Management' },
-    { label: 'Staff',         icon: 'user'     },
-    { label: 'Customers',     icon: 'users'    },
-    { label: 'Inventory',     icon: 'package'  },
-    { label: 'Reports',       icon: 'bar'      },
-    { section: 'System' },
-    { label: 'Settings',      icon: 'settings' },
-    { label: 'Logout',        icon: 'logout'   },
+    { label: 'Dashboard',          icon: 'grid'     },
+    { section: 'Shop' },
+    { label: 'Repairs / Job Orders', icon: 'wrench' },
+    { label: 'Inventory',          icon: 'package'  },
+    { label: 'Customers',          icon: 'users'    },
+    { section: 'Insights' },
+    { label: 'Reports / Analytics', icon: 'bar'     },
+    { section: 'Team' },
+    { label: 'Member Management',  icon: 'user'     },
   ],
-  admin: [
+
+  // ── Technician ─────────────────────────────────────────
+  technician: [
     { section: 'Overview' },
-    { label: 'Dashboard',     icon: 'grid',    active: true },
-    { label: 'Repair Jobs',   icon: 'wrench'   },
-    { label: 'Transactions',  icon: 'peso'     },
-    { section: 'Operations' },
-    { label: 'Customers',     icon: 'users'    },
-    { label: 'Inventory',     icon: 'package'  },
-    { section: 'System' },
-    { label: 'Settings',      icon: 'settings' },
-    { label: 'Logout',        icon: 'logout'   },
+    { label: 'Dashboard',       icon: 'grid'     },
+    { section: 'Work' },
+    { label: 'Repair Requests', icon: 'file'     },
+    { label: 'My Jobs',         icon: 'wrench'   },
+    { label: 'Reviews',         icon: 'star'     },
   ],
+
+  // ── Customer ───────────────────────────────────────────
   customer: [
     { section: 'My Account' },
-    { label: 'Overview',        icon: 'grid',   active: true },
-    { label: 'My Repairs',      icon: 'wrench'  },
-    { label: 'My Payments',     icon: 'peso'    },
-    { label: 'Notifications',   icon: 'bell'    },
+    { label: 'My Dashboard',      icon: 'grid'  },
+    { label: 'My Repairs',        icon: 'wrench' },
+    { label: 'My Transactions',   icon: 'peso'  },
     { section: 'Support' },
-    { label: 'Help & FAQs',     icon: 'help'    },
-    { label: 'Logout',          icon: 'logout'  },
+    { label: 'Notifications',     icon: 'bell'  },
+    { label: 'Help & FAQs',       icon: 'help'  },
   ],
 };
 
 // ── Quick Actions per role ────────────────────────────────
 export const quickActions = {
   owner: [
-    { label: 'New Repair Job',    primary: true  },
-    { label: 'Receive Payment',   primary: false },
-    { label: 'Search Customer',   primary: false },
-    { label: 'Print Report',      primary: false },
+    { label: 'New Repair Job',  primary: true  },
+    { label: 'Receive Payment', primary: false },
+    { label: 'Search Customer', primary: false },
+    { label: 'Print Report',    primary: false },
   ],
   admin: [
-    { label: 'New Repair Job',    primary: true  },
-    { label: 'Update Status',     primary: false },
-    { label: 'Search Customer',   primary: false },
+    { label: 'New Repair Job',  primary: true  },
+    { label: 'Update Status',   primary: false },
+    { label: 'Search Customer', primary: false },
   ],
   customer: [
-    { label: 'Contact Us',        primary: true  },
-    { label: 'Track Repair',      primary: false },
-    { label: 'View Receipt',      primary: false },
+    { label: 'Contact Us',   primary: true  },
+    { label: 'Track Repair', primary: false },
+    { label: 'View Receipt', primary: false },
   ],
 };
 
 // ── Stats per role ────────────────────────────────────────
 export const statsData = {
   owner: [
-    { label: 'Active Repairs',   value: '14',    sub: '3 due today',       subHighlight: '3',     color: 'orange' },
-    { label: 'Completed Today',  value: '6',     sub: '+2 from yesterday', subHighlight: '+2',    color: 'teal'   },
-    { label: 'Total Customers',  value: '83',    sub: '+5 this week',      subHighlight: '+5',    color: 'blue'   },
-    { label: "Today's Revenue",  value: '₱4.2K', sub: '+18% vs last week', subHighlight: '+18%',  color: 'purple' },
+    { label: 'Active Repairs',  value: '14',    sub: '3 due today',       subHighlight: '3',    color: 'orange' },
+    { label: 'Completed Today', value: '6',     sub: '+2 from yesterday', subHighlight: '+2',   color: 'teal'   },
+    { label: 'Total Customers', value: '83',    sub: '+5 this week',      subHighlight: '+5',   color: 'blue'   },
+    { label: "Today's Revenue", value: '₱4.2K', sub: '+18% vs last week', subHighlight: '+18%', color: 'purple' },
   ],
   admin: [
-    { label: 'Total Users',    value: '128',  sub: '+4 this week',       subHighlight: '+4',   color: 'teal'   },
-    { label: 'Active Shops',   value: '12',   sub: '2 pending approval', subHighlight: '2',    color: 'blue'   },
-    { label: 'Open Repairs',   value: '47',   sub: '8 due today',        subHighlight: '8',    color: 'orange' },
-    { label: 'Total Revenue',  value: '₱84K', sub: '+12% this month',    subHighlight: '+12%', color: 'purple' },
+    { label: 'Total Users',   value: '128',  sub: '+4 this week',       subHighlight: '+4',   color: 'teal'   },
+    { label: 'Active Shops',  value: '12',   sub: '2 pending approval', subHighlight: '2',    color: 'blue'   },
+    { label: 'Open Repairs',  value: '47',   sub: '8 due today',        subHighlight: '8',    color: 'orange' },
+    { label: 'Total Revenue', value: '₱84K', sub: '+12% this month',    subHighlight: '+12%', color: 'purple' },
   ],
   customer: [
-    { label: 'Active Repair',       value: '1',      sub: 'In progress',  subHighlight: '',    color: 'orange' },
-    { label: 'Completed Repairs',   value: '2',      sub: 'All time',     subHighlight: '',    color: 'teal'   },
-    { label: 'Total Spent',         value: '₱1,950', sub: 'All time',     subHighlight: '',    color: 'blue'   },
+    { label: 'Active Repair',     value: '1',      sub: 'In progress', subHighlight: '', color: 'orange' },
+    { label: 'Completed Repairs', value: '2',      sub: 'All time',    subHighlight: '', color: 'teal'   },
+    { label: 'Total Spent',       value: '₱1,950', sub: 'All time',    subHighlight: '', color: 'blue'   },
   ],
 };
-
-navItems.technician = [
-  { section: 'Overview' },
-  { label: 'Dashboard',  icon: 'grid',    active: true },
-  { label: 'My Repairs', icon: 'wrench'   },
-  { section: 'System' },
-  { label: 'Settings',   icon: 'settings' },
-  { label: 'Logout',     icon: 'logout'   },
-];

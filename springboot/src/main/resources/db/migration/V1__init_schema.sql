@@ -48,35 +48,9 @@ CREATE TABLE IF NOT EXISTS repair_requests (
     status            VARCHAR(20)  DEFAULT 'Pending'
                                    CHECK (status IN ('Pending', 'In Progress', 'Completed')),
     technician_notes  TEXT,
+    repair_cost       DECIMAL(10,2) DEFAULT 0.00,
+    payment_status    VARCHAR(20)   DEFAULT 'Unpaid'
+                                   CHECK (payment_status IN ('Unpaid', 'Paid')),
+    payment_method    VARCHAR(30),
     created_at        TIMESTAMP    DEFAULT CURRENT_TIMESTAMP
-);
-
--- ── Inventory Items ──
-CREATE TABLE IF NOT EXISTS inventory_items (
-    item_id   BIGSERIAL    PRIMARY KEY,
-    shop_id   BIGINT       REFERENCES shops(shop_id),
-    item_name VARCHAR(100) NOT NULL,
-    category  VARCHAR(50),
-    quantity  INT          DEFAULT 0,
-    price     DECIMAL(10,2) DEFAULT 0.00
-);
-
--- ── Sales Transactions ──
-CREATE TABLE IF NOT EXISTS sales_transactions (
-    transaction_id   BIGSERIAL    PRIMARY KEY,
-    shop_id          BIGINT       REFERENCES shops(shop_id),
-    customer_id      BIGINT       REFERENCES users(user_id),
-    staff_id         BIGINT       REFERENCES users(user_id),
-    total_amount     DECIMAL(10,2) DEFAULT 0.00,
-    payment_method   VARCHAR(30),
-    transaction_date TIMESTAMP    DEFAULT CURRENT_TIMESTAMP
-);
-
--- ── Sales Items ──
-CREATE TABLE IF NOT EXISTS sales_items (
-    sales_item_id  BIGSERIAL    PRIMARY KEY,
-    transaction_id BIGINT       REFERENCES sales_transactions(transaction_id),
-    item_id        BIGINT       REFERENCES inventory_items(item_id),
-    quantity       INT          DEFAULT 1,
-    price          DECIMAL(10,2) DEFAULT 0.00
 );

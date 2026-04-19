@@ -1,97 +1,128 @@
-import { useState } from 'react';
-import { BrowserRouter, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
-
+// src/App.jsx
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { useState, useEffect } from 'react';
 import './assets/css/login.css';
 import './assets/css/tailwind.css';
 
-import Login    from './pages/Login';
-import Register from './pages/Register';
+import Home                from './pages/Home';
+import Login               from './pages/Login';
+import Register            from './pages/Register';
+import PrivateRoute        from './routes/PrivateRoute';
+import DashboardLayout     from './components/layout/DashboardLayout';
 
-import Sidebar             from './components/layout/Sidebar';
-import Topbar              from './components/layout/Topbar';
-import QuickActions        from './components/layout/QuickActions';
-import OwnerDashboard      from './pages/OwnerDashboard';
-import AdminDashboard      from './pages/AdminDashboard';
-import TechnicianDashboard from './pages/TechnicianDashboard';
+// Dashboard main pages
 import CustomerDashboard   from './pages/CustomerDashboard';
-import InventoryPage       from './pages/InventoryPage';
-import MembersPage         from './pages/MembersPage';
+import AdminDashboard      from './pages/AdminDashboard';
+import OwnerDashboard      from './pages/OwnerDashboard';
+import TechnicianDashboard from './pages/TechnicianDashboard';
+
+// Sub-pages (used inside the layout via pageMap)
 import RepairsPage         from './pages/RepairsPage';
-import ResetPassword from "./pages/ResetPassword";
-import ForgotPassword from "./pages/ForgotPassword";
+import MembersPage         from './pages/MembersPage';
 
-import styles from './App.module.css';
+// ── Page maps per role ─────────────────────────────────────────────────────
+// Keys must match what Sidebar's labelToPage / Topbar's roleNavLinks produce
+const customerPages = {
+  dashboard: CustomerDashboard,
+  repairs:   RepairsPage,
+};
 
-function DashboardShell({ user, onLogout }) {
-  const { username, role } = user;
-  const [activePage, setActivePage] = useState('dashboard');
+const adminPages = {
+  dashboard: AdminDashboard,
+  repairs:   RepairsPage,
+  members:   MembersPage,
+};
 
-  const dashboards = {
-    owner:      <OwnerDashboard      setPage={setActivePage} />,
-    admin:      <AdminDashboard      setPage={setActivePage} />,
-    technician: <TechnicianDashboard setPage={setActivePage} />,
-    customer:   <CustomerDashboard   setPage={setActivePage} username={username} />,
-  };
+const ownerPages = {
+  dashboard: OwnerDashboard,
+  repairs:   RepairsPage,
+  members:   MembersPage,
+};
 
-  const pages = {
-    dashboard: dashboards[role] ?? dashboards.admin,
-    inventory: <InventoryPage setPage={setActivePage} role={role} />,
-    members:   <MembersPage   setPage={setActivePage} />,
-    repairs:   <RepairsPage   setPage={setActivePage} role={role} />,
-  };
+const technicianPages = {
+  dashboard: TechnicianDashboard,
+  repairs:   RepairsPage,
+};
 
-  const currentPage = pages[activePage] ?? pages.dashboard;
-
-  return (
-    <div className={styles.app}>
-      <Sidebar role={role} username={username} onLogout={onLogout} onNavigate={setActivePage} />
-      <div className={styles.main}>
-        <Topbar role={role} username={username} onLogout={onLogout} />
-        <QuickActions role={role} activePage={activePage} setPage={setActivePage} />
-        {currentPage}
-      </div>
-    </div>
-  );
-}
-
-function PrivateRoute({ user, children }) {
-  return user ? children : <Navigate to="/login" replace />;
-}
-
-function AppRoutes() {
-  const [user, setUser] = useState(null);
-  const navigate = useNavigate();
-
-  const handleLogin = (userData) => {
-    setUser(userData);
-    navigate('/', { replace: true });
-  };
-
-  const handleLogout = () => {
-    setUser(null);
-    navigate('/login', { replace: true });
-  };
-
-  return (
-    <Routes>
-      <Route path="/login"    element={user ? <Navigate to="/" replace /> : <Login    onLogin={handleLogin} />} />
-      <Route path="/register" element={user ? <Navigate to="/" replace /> : <Register onLogin={handleLogin} />} />
-      <Route path="/forgot-password" element={<ForgotPassword />} />
-      <Route path="/reset-password" element={<ResetPassword />} />
-      <Route path="/" element={
-        <PrivateRoute user={user}>
-          <DashboardShell user={user} onLogout={handleLogout} />
-        </PrivateRoute>
-      } />
-      <Route path="*" element={<Navigate to="/" replace />} />
-    </Routes>
-  );
-}
-
+// ── App ────────────────────────────────────────────────────────────────────
 export default function App() {
+  const [userRole,  setUserRole]  = useState(null);
+  const [username,  setUsername]  = useState('');
+  const [loading,   setLoading]   = useState(true);
+
+  useEffect(() => {
+    fetch('/api/session.php', { credentials: 'include' })
+      .then(r => r.json())
+      .then(data => {
+        if (data.loggedIn) {
+          setUserRole(data.role);
+          setUsername(data.username ?? '');
+        }
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, []);
+
+  // Shared layout builder — keeps routes DRY
+  const withLayout = (role, pageMap) => (
+    <DashboardLayout role={role} username={username} pageMap={pageMap} />
+  );
+
   return (
     <BrowserRouter>
-      <AppRoutes />
+      <Routes>
+
+        {/* ── Public routes ── */}
+        <Route path="/" element={<Home />} />
+        <Route
+          path="/login"
+          element={
+            !loading && userRole
+              ? <Navigate to={`/${userRole}/dashboard`} replace />
+              : <Login />
+          }
+        />
+        <Route path="/register" element={<Register />} />
+
+        {/* ── Protected routes ── */}
+        <Route
+          path="/customer/dashboard"
+          element={
+            <PrivateRoute role="customer" userRole={userRole} loading={loading}>
+              {withLayout('customer', customerPages)}
+            </PrivateRoute>
+          }
+        />
+
+        <Route
+          path="/admin/dashboard"
+          element={
+            <PrivateRoute role="admin" userRole={userRole} loading={loading}>
+              {withLayout('admin', adminPages)}
+            </PrivateRoute>
+          }
+        />
+
+        <Route
+          path="/owner/dashboard"
+          element={
+            <PrivateRoute role="owner" userRole={userRole} loading={loading}>
+              {withLayout('owner', ownerPages)}
+            </PrivateRoute>
+          }
+        />
+
+        <Route
+          path="/technician/dashboard"
+          element={
+            <PrivateRoute role="technician" userRole={userRole} loading={loading}>
+              {withLayout('technician', technicianPages)}
+            </PrivateRoute>
+          }
+        />
+
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
     </BrowserRouter>
   );
 }

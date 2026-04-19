@@ -4,6 +4,7 @@ import { useState, useCallback } from 'react';
 
 const PHONE_RE = /^[0-9+\-\s()]{7,15}$/;
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const API_URL = '/api/register.php';
 
 function scorePassword(val) {
   if (val.length < 6) return 0;
@@ -102,11 +103,11 @@ export function useRegister() {
 
   // Full validation on submit
   function validateAll() {
-    const u = validateUsername(username.trim());
+    const u  = validateUsername(username.trim());
     const em = validateEmail(email.trim());
-    const p = validatePhone(phone.trim());
-    const w = validatePassword(password);
-    const c = validateConfirm(confirmPassword, password);
+    const p  = validatePhone(phone.trim());
+    const w  = validatePassword(password);
+    const c  = validateConfirm(confirmPassword, password);
     setErrors({ username: u, email: em, phone: p, password: w, confirmPassword: c });
     return !u && !em && !p && !w && !c;
   }
@@ -123,7 +124,7 @@ export function useRegister() {
     setLoading(true);
 
     try {
-      const res = await fetch('/api/register.php', {
+      const res = await fetch(API_URL, {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
         body:    JSON.stringify({

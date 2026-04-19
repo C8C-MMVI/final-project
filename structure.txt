@@ -1,0 +1,51 @@
+.
+├── Dockerfile
+├── Technologs_Django_API.postman_collection.json
+├── composer.json
+├── composer.lock
+├── django
+│   ├── __init__.py
+│   ├── booking
+│   ├── manage.py
+│   ├── repair
+│   ├── requirement.txt
+│   ├── serializers.py
+│   ├── settings.py
+│   ├── shop
+│   ├── urls.py
+│   └── views.py
+├── django_backend
+│   ├── Dockerfile
+│   ├── accounts
+│   ├── db.sqlite3
+│   ├── manage.py
+│   ├── requirements.txt
+│   └── technologs
+├── docker-compose.yml
+├── php
+│   ├── api
+│   ├── composer.json
+│   ├── composer.lock
+│   ├── db_config.php
+│   ├── images
+│   └── includes
+├── py.py
+├── react
+│   ├── README.md
+│   ├── eslint.config.js
+│   ├── index.html
+│   ├── package-lock.json
+│   ├── package.json
+│   ├── public
+│   ├── src
+│   └── vite.config.js
+├── springboot
+│   ├── Dockerfile
+│   ├── mvnw
+│   ├── mvnw.cmd
+│   ├── pom.xml
+│   ├── src
+│   └── target
+└── structure.txt
+
+18 directories, 31 files

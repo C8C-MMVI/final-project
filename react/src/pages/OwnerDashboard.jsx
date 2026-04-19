@@ -1,11 +1,12 @@
+// src/pages/OwnerDashboard.jsx
 import { useState, useEffect } from 'react';
 import StatCard  from '../components/dashboard/StatCard';
 import Panel     from '../components/shared/Panel';
 import Badge     from '../components/shared/Badge';
 import AlertItem from '../components/shared/AlertItem';
-import styles    from './Dashboard.module.css';
+import styles    from '../components/layout/DashboardLayout.module.css';
 
-const statusLabel = {
+const statusBadge = {
   'Pending':     'pending',
   'In Progress': 'progress',
   'Completed':   'done',
@@ -27,38 +28,18 @@ export default function OwnerDashboard({ setPage }) {
       .then(([dashData, repairData, invData]) => {
         if (dashData.success)   setStats(dashData.stats);
         else                    setError(dashData.message);
-        if (repairData.success) setRepairs(repairData.repairs ?? []);
-        if (invData.success)    setInventory(invData.items   ?? []);
+        if (repairData.success) setRepairs(repairData.repairs   ?? []);
+        if (invData.success)    setInventory(invData.items      ?? []);
       })
       .catch(() => setError('Cannot connect to server.'))
       .finally(() => setLoading(false));
   }, []);
 
   const statCards = stats ? [
-    {
-      label: 'Active Repairs',
-      value: stats.active_repairs.toString(),
-      sub:   'Open jobs',
-      color: 'orange',
-    },
-    {
-      label: 'Completed Today',
-      value: stats.completed_today.toString(),
-      sub:   'Today',
-      color: 'teal',
-    },
-    {
-      label: 'Total Customers',
-      value: stats.total_customers.toString(),
-      sub:   'All time',
-      color: 'blue',
-    },
-    {
-      label: "Today's Revenue",
-      value: `₱${Number(stats.today_revenue).toLocaleString()}`,
-      sub:   'Today',
-      color: 'purple',
-    },
+    { label: 'Active Repairs',   value: stats.active_repairs.toString(),                      sub: 'Open jobs',  color: 'orange' },
+    { label: 'Completed Today',  value: stats.completed_today.toString(),                     sub: 'Today',      color: 'teal'   },
+    { label: 'Total Customers',  value: stats.total_customers.toString(),                     sub: 'All time',   color: 'blue'   },
+    { label: "Today's Revenue",  value: `₱${Number(stats.today_revenue).toLocaleString()}`,   sub: 'Today',      color: 'purple' },
   ] : [];
 
   const lowStock = inventory.filter(i => i.quantity <= 5);
@@ -84,7 +65,9 @@ export default function OwnerDashboard({ setPage }) {
           {loading ? (
             <div style={{ padding: '1rem' }}>Loading…</div>
           ) : repairs.length === 0 ? (
-            <div style={{ padding: '1rem', color: 'var(--text-muted)' }}>No repairs found.</div>
+            <div style={{ padding: '1rem', color: 'var(--color-text-secondary)' }}>
+              No repairs found.
+            </div>
           ) : (
             <table className={styles.table}>
               <thead>
@@ -101,7 +84,7 @@ export default function OwnerDashboard({ setPage }) {
                     <td className={styles.idCol}>#{r.request_id}</td>
                     <td>{r.customer_name}</td>
                     <td>{r.device_type}</td>
-                    <td><Badge status={statusLabel[r.status] ?? 'pending'} /></td>
+                    <td><Badge status={statusBadge[r.status] ?? 'pending'} /></td>
                   </tr>
                 ))}
               </tbody>
@@ -115,7 +98,7 @@ export default function OwnerDashboard({ setPage }) {
             {loading ? (
               <div style={{ padding: '1rem' }}>Loading…</div>
             ) : lowStock.length === 0 ? (
-              <div style={{ padding: '1rem', color: 'var(--text-muted)' }}>
+              <div style={{ padding: '1rem', color: 'var(--color-text-secondary)' }}>
                 All stock levels are healthy.
               </div>
             ) : (

@@ -25,7 +25,6 @@ const NAV = {
     { label: 'Dashboard',            page: 'dashboard', icon: <IconGrid /> },
     { section: 'Shop' },
     { label: 'Repairs / Job Orders', page: 'repairs',   icon: <IconTool /> },
-    { label: 'Inventory',            page: 'inventory', icon: <IconBox /> },
     { label: 'Customers',            page: 'members',   icon: <IconUsers /> },
     { section: 'Insights' },
     { label: 'Reports / Analytics',  page: 'reports',   icon: <IconChart /> },

@@ -10,45 +10,49 @@ import Register            from './pages/Register';
 import PrivateRoute        from './routes/PrivateRoute';
 import DashboardLayout     from './components/layout/DashboardLayout';
 
-// Dashboard main pages
+// Dashboard pages
 import CustomerDashboard   from './pages/CustomerDashboard';
 import AdminDashboard      from './pages/AdminDashboard';
 import OwnerDashboard      from './pages/OwnerDashboard';
 import TechnicianDashboard from './pages/TechnicianDashboard';
 
-// Sub-pages (used inside the layout via pageMap)
+// Sub-pages
 import RepairsPage         from './pages/RepairsPage';
 import MembersPage         from './pages/MembersPage';
+import ProfilePage         from './pages/ProfilePage';
 
 // ── Page maps per role ─────────────────────────────────────────────────────
-// Keys must match what Sidebar's labelToPage / Topbar's roleNavLinks produce
 const customerPages = {
   dashboard: CustomerDashboard,
   repairs:   RepairsPage,
+  profile:   ProfilePage,
 };
 
 const adminPages = {
   dashboard: AdminDashboard,
   repairs:   RepairsPage,
   members:   MembersPage,
+  profile:   ProfilePage,
 };
 
 const ownerPages = {
   dashboard: OwnerDashboard,
   repairs:   RepairsPage,
   members:   MembersPage,
+  profile:   ProfilePage,
 };
 
 const technicianPages = {
   dashboard: TechnicianDashboard,
   repairs:   RepairsPage,
+  profile:   ProfilePage,
 };
 
 // ── App ────────────────────────────────────────────────────────────────────
 export default function App() {
-  const [userRole,  setUserRole]  = useState(null);
-  const [username,  setUsername]  = useState('');
-  const [loading,   setLoading]   = useState(true);
+  const [userRole, setUserRole] = useState(null);
+  const [username, setUsername] = useState('');
+  const [loading,  setLoading]  = useState(true);
 
   useEffect(() => {
     fetch('/api/session.php', { credentials: 'include' })
@@ -63,16 +67,28 @@ export default function App() {
       .finally(() => setLoading(false));
   }, []);
 
-  // Shared layout builder — keeps routes DRY
+  // FIX: clear userRole and username in React state BEFORE navigating to /login.
+  // Without this, the /login route sees userRole still set and immediately
+  // redirects back to the dashboard even though the session is destroyed.
+  const handleLogout = () => {
+    setUserRole(null);
+    setUsername('');
+  };
+
   const withLayout = (role, pageMap) => (
-    <DashboardLayout role={role} username={username} pageMap={pageMap} />
+    <DashboardLayout
+      role={role}
+      username={username}
+      pageMap={pageMap}
+      onLogout={handleLogout}
+    />
   );
 
   return (
     <BrowserRouter>
       <Routes>
 
-        {/* ── Public routes ── */}
+        {/* ── Public ── */}
         <Route path="/" element={<Home />} />
         <Route
           path="/login"
@@ -84,7 +100,7 @@ export default function App() {
         />
         <Route path="/register" element={<Register />} />
 
-        {/* ── Protected routes ── */}
+        {/* ── Protected ── */}
         <Route
           path="/customer/dashboard"
           element={
@@ -93,7 +109,6 @@ export default function App() {
             </PrivateRoute>
           }
         />
-
         <Route
           path="/admin/dashboard"
           element={
@@ -102,7 +117,6 @@ export default function App() {
             </PrivateRoute>
           }
         />
-
         <Route
           path="/owner/dashboard"
           element={
@@ -111,7 +125,6 @@ export default function App() {
             </PrivateRoute>
           }
         />
-
         <Route
           path="/technician/dashboard"
           element={

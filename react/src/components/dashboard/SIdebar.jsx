@@ -2,10 +2,17 @@ import { Link, useLocation } from 'react-router-dom';
 
 const NAV_ITEMS = {
   customer: [
-    { label: 'Dashboard',    href: '/customer',               icon: '⬡' },
-    { label: 'My Repairs',   href: '/customer/repairs',       icon: '🔧' },
-    { label: 'Transactions', href: '/customer/transactions',  icon: '💳' },
-    { label: 'Track Repair', href: '/customer/track',         icon: '📡' },
+    { label: 'Dashboard',    href: '/customer',              icon: '⬡'  },
+    { label: 'My Repairs',   href: '/customer/repairs',      icon: '🔧' },
+    { label: 'Transactions', href: '/customer/transactions', icon: '💳' },
+    { label: 'Track Repair', href: '/customer/track',        icon: '📡' },
+  ],
+  owner: [
+    { label: 'Dashboard',            href: '/owner',                 icon: '⬡'  },
+    { label: 'Repairs / Job Orders', href: '/owner/repairs',         icon: '🔧' },
+    { label: 'Customers',            href: '/owner/customers',       icon: '👥' },
+    { label: 'Reports / Analytics',  href: '/owner/reports',         icon: '📊' },
+    { label: 'Member Management',    href: '/owner/members',         icon: '🪪' },
   ],
 };
 
@@ -27,7 +34,6 @@ export default function Sidebar({ role = 'customer', open, onClose, collapsed })
       <aside
         className={[
           'fixed top-0 left-0 h-full z-40 flex flex-col transition-all duration-300',
-          // Mobile: slide in/out
           'md:relative md:translate-x-0',
           open ? 'translate-x-0' : '-translate-x-full md:translate-x-0',
         ].join(' ')}

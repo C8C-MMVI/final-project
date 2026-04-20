@@ -1,4 +1,24 @@
+import { useLocation } from 'react-router-dom';
+
+const PAGE_TITLES = {
+  // Customer routes
+  '/customer':              'Dashboard',
+  '/customer/repairs':      'My Repairs',
+  '/customer/transactions': 'Transactions',
+  '/customer/track':        'Track Repair',
+
+  // Owner routes
+  '/owner':             'Dashboard',
+  '/owner/repairs':     'Repairs / Job Orders',
+  '/owner/customers':   'Customers',
+  '/owner/reports':     'Reports / Analytics',
+  '/owner/members':     'Member Management',
+};
+
 export default function Topbar({ username, initials, role, onMenuToggle, collapsed, onCollapseToggle }) {
+  const location = useLocation();
+  const pageTitle = PAGE_TITLES[location.pathname] ?? 'Dashboard';
+
   return (
     <header
       className="sticky top-0 z-10 flex items-center justify-between px-6 py-4"
@@ -33,7 +53,7 @@ export default function Topbar({ username, initials, role, onMenuToggle, collaps
         {/* Page title */}
         <div>
           <h1 className="font-koho font-bold text-white text-[1.1rem] leading-tight">
-            Dashboard
+            {pageTitle}
           </h1>
           <p className="font-koho text-[rgba(255,255,255,0.4)] text-[0.75rem] tracking-wide capitalize">
             {role}

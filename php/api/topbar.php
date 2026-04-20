@@ -89,7 +89,6 @@
         $navLinks = [
             'Dashboard'      => 'dashboard.php',
             'Repairs'        => 'repairs.php',
-            'Inventory'      => 'inventory.php',
             'Members'        => 'users.php',
             'Transactions'   => 'transactions.php',
         ];

@@ -148,14 +148,21 @@ export default function AdminDashboard({ setPage }) {
 
   // ── Dashboard ──────────────────────────────────────────────────────────────
   useEffect(() => {
-    fetch('/api/dashboard.php', { credentials: 'include' })
+    const controller = new AbortController();
+  
+    fetch('/api/dashboard.php', { credentials: 'include', signal: controller.signal })
       .then(r => r.json())
       .then(d => {
         if (d.success) { setStats(d.stats); setActivity(d.activity ?? []); }
         else setDashError(d.message);
       })
-      .catch(() => setDashError('Cannot connect to server.'))
+      .catch(err => {
+        if (err.name === 'AbortError') return;
+        setDashError('Cannot connect to server.');
+      })
       .finally(() => setLoadingDash(false));
+  
+    return () => controller.abort();
   }, []);
 
   // ── Users ──────────────────────────────────────────────────────────────────

@@ -12,16 +12,16 @@ const roleLabels = {
 
 // ── Page title + breadcrumb maps ──────────────────────────────────────────
 const titleMap = {
-  dashboard:     { admin: 'Admin Dashboard', owner: 'Dashboard',    technician: 'My Dashboard', customer: 'My Dashboard'    },
-  repairs:       { admin: 'Repair Jobs',     owner: 'Repair Jobs',  technician: 'My Jobs',      customer: 'My Repairs'      },
-  userManagement:{ admin: 'User Management', owner: '',             technician: '',             customer: ''                },
-  shopRequests:  { admin: 'Shop Requests',   owner: '',             technician: '',             customer: ''                },
-  systemLogs:    { admin: 'System Logs',     owner: '',             technician: '',             customer: ''                },
-  inventory:     { admin: 'Inventory',       owner: 'Inventory',    technician: '',             customer: ''                },
-  members:       { admin: 'Members',         owner: 'Customers',    technician: '',             customer: ''                },
-  reports:       { admin: 'Reports',         owner: 'Analytics',    technician: '',             customer: ''                },
-  transactions:  { admin: 'Transactions',    owner: 'Transactions', technician: '',             customer: 'My Transactions'  },
-  reviews:       { admin: '',                owner: '',             technician: 'Reviews',      customer: ''                },
+  dashboard:      { admin: 'Admin Dashboard', owner: 'Dashboard',    technician: 'My Dashboard', customer: 'My Dashboard'   },
+  repairs:        { admin: 'Repair Jobs',     owner: 'Repair Jobs',  technician: 'My Jobs',      customer: 'My Repairs'     },
+  userManagement: { admin: 'User Management', owner: '',             technician: '',             customer: ''               },
+  shopRequests:   { admin: 'Shop Requests',   owner: '',             technician: '',             customer: ''               },
+  systemLogs:     { admin: 'System Logs',     owner: '',             technician: '',             customer: ''               },
+  members:        { admin: 'Members',         owner: 'Customers',    technician: '',             customer: ''               },
+  reports:        { admin: 'Reports',         owner: 'Analytics',    technician: '',             customer: ''               },
+  transactions:   { admin: 'Transactions',    owner: 'Transactions', technician: '',             customer: 'My Transactions' },
+  reviews:        { admin: '',                owner: '',             technician: 'Reviews',      customer: ''               },
+  profile:        { admin: 'My Profile',      owner: 'My Profile',   technician: 'My Profile',   customer: 'My Profile'     },
 };
 
 const breadcrumbMap = {
@@ -30,50 +30,38 @@ const breadcrumbMap = {
   userManagement: 'TechnoLogs / User Management',
   shopRequests:   'TechnoLogs / Shop Requests',
   systemLogs:     'TechnoLogs / System Logs',
-  inventory:      'TechnoLogs / Inventory',
   members:        'TechnoLogs / Members',
   reports:        'TechnoLogs / Reports',
   transactions:   'TechnoLogs / Transactions',
   reviews:        'TechnoLogs / Reviews',
+  profile:        'TechnoLogs / My Profile',
 };
 
-// ── Quick-links per role (mirrors PHP $navLinks) ──────────────────────────
+// ── Quick-links per role ──────────────────────────────────────────────────
 const roleNavLinks = {
-  admin:      [
-    { label: 'Dashboard',        page: 'dashboard'      },
-    { label: 'User Management',  page: 'userManagement' },
-    { label: 'Shop Requests',    page: 'shopRequests'   },
-    { label: 'System Logs',      page: 'systemLogs'     },
+  admin: [
+    { label: 'Dashboard',       page: 'dashboard'      },
+    { label: 'User Management', page: 'userManagement' },
+    { label: 'Shop Requests',   page: 'shopRequests'   },
+    { label: 'System Logs',     page: 'systemLogs'     },
   ],
-  owner:      [
-    { label: 'Dashboard',            page: 'dashboard'  },
-    { label: 'Repairs / Job Orders', page: 'repairs'    },
-    { label: 'Inventory',            page: 'inventory'  },
-    { label: 'Customers',            page: 'members'    },
-    { label: 'Reports / Analytics',  page: 'reports'    },
+  owner: [
+    { label: 'Dashboard',            page: 'dashboard' },
+    { label: 'Repairs / Job Orders', page: 'repairs'   },
+    { label: 'Customers',            page: 'members'   },
+    { label: 'Reports / Analytics',  page: 'reports'   },
   ],
   technician: [
-    { label: 'Dashboard',        page: 'dashboard' },
-    { label: 'Repair Requests',  page: 'repairs'   },
-    { label: 'My Jobs',          page: 'repairs'   },
+    { label: 'Dashboard',       page: 'dashboard' },
+    { label: 'Repair Requests', page: 'repairs'   },
+    { label: 'My Jobs',         page: 'repairs'   },
   ],
-  customer:   [
+  customer: [
     { label: 'My Dashboard',    page: 'dashboard'    },
     { label: 'My Repairs',      page: 'repairs'      },
     { label: 'My Transactions', page: 'transactions' },
   ],
 };
-
-// ── useClickOutside ───────────────────────────────────────────────────────
-function useClickOutside(ref, onClose) {
-  useEffect(() => {
-    const handler = (e) => {
-      if (ref.current && !ref.current.contains(e.target)) onClose();
-    };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
-  }, [ref, onClose]);
-}
 
 // ── SVG Icons ─────────────────────────────────────────────────────────────
 const IconSearch = () => (
@@ -127,26 +115,35 @@ const IconBox = () => (
   </svg>
 );
 
-const notifIconMap = { repair: <IconTool />, done: <IconCheck />, stock: <IconBox />, user: <IconUser /> };
+const notifIconMap = {
+  repair: <IconTool />,
+  done:   <IconCheck />,
+  stock:  <IconBox />,
+  user:   <IconUser />,
+};
 
 // ── Search Dropdown ───────────────────────────────────────────────────────
 function SearchDropdown({ role, onNavigate, onClose }) {
   const [query, setQuery] = useState('');
-  const ref               = useRef(null);
   const inputRef          = useRef(null);
-  useClickOutside(ref, onClose);
 
-  useEffect(() => { inputRef.current?.focus(); }, []);
+  useEffect(() => {
+    const t = setTimeout(() => inputRef.current?.focus(), 50);
+    return () => clearTimeout(t);
+  }, []);
 
   const links    = roleNavLinks[role] ?? roleNavLinks.admin;
   const filtered = query.trim()
     ? links.filter(l => l.label.toLowerCase().includes(query.toLowerCase()))
     : links;
 
-  const handleSelect = (page) => { onNavigate(page); onClose(); };
+  const handleSelect = (page) => {
+    onNavigate?.(page);
+    onClose();
+  };
 
   return (
-    <div className={`${styles.dropdown} ${styles.searchDropdown}`} ref={ref}>
+    <div className={`${styles.dropdown} ${styles.searchDropdown}`}>
       <div className={styles.searchInputWrap}>
         <span className={styles.searchIcon}><IconSearch /></span>
         <input
@@ -176,19 +173,15 @@ function SearchDropdown({ role, onNavigate, onClose }) {
 }
 
 // ── Notifications Dropdown ────────────────────────────────────────────────
-function NotifDropdown({ notifs, unreadCount, onMarkAllRead, onClose }) {
-  const ref = useRef(null);
-  useClickOutside(ref, onClose);
-
+function NotifDropdown({ notifs, onMarkAllRead, onClose }) {
   return (
-    <div className={`${styles.dropdown} ${styles.notifDropdown}`} ref={ref}>
+    <div className={`${styles.dropdown} ${styles.notifDropdown}`}>
       <div className={styles.dropdownHeader}>
         <span className={styles.dropdownTitle}>Notifications</span>
         <button className={styles.markReadBtn} onClick={onMarkAllRead}>
           Mark all read
         </button>
       </div>
-
       <div className={styles.notifList}>
         {notifs.length === 0 ? (
           <div className={styles.notifEmpty}>No notifications</div>
@@ -207,9 +200,12 @@ function NotifDropdown({ notifs, unreadCount, onMarkAllRead, onClose }) {
           ))
         )}
       </div>
-
       <div className={styles.dropdownFooter}>
-        <a href="#" className={styles.footerLink} onClick={e => { e.preventDefault(); onClose(); }}>
+        <a
+          href="#"
+          className={styles.footerLink}
+          onClick={e => { e.preventDefault(); onClose(); }}
+        >
           View all notifications →
         </a>
       </div>
@@ -218,13 +214,14 @@ function NotifDropdown({ notifs, unreadCount, onMarkAllRead, onClose }) {
 }
 
 // ── Profile Dropdown ──────────────────────────────────────────────────────
-function ProfileDropdown({ username, initials, roleLabel, onLogout, onClose }) {
-  const ref = useRef(null);
-  useClickOutside(ref, onClose);
+function ProfileDropdown({ username, initials, roleLabel, onLogout, onNavigate, onClose }) {
+  const handleProfile = () => {
+    onNavigate?.('profile');
+    onClose();
+  };
 
   return (
-    <div className={`${styles.dropdown} ${styles.profileDropdown}`} ref={ref}>
-      {/* User info header */}
+    <div className={`${styles.dropdown} ${styles.profileDropdown}`}>
       <div className={styles.profileInfo}>
         <div className={`${styles.avatar} ${styles.avatarLg}`}>{initials}</div>
         <div>
@@ -232,10 +229,8 @@ function ProfileDropdown({ username, initials, roleLabel, onLogout, onClose }) {
           <div className={styles.profileInfoRole}>{roleLabel}</div>
         </div>
       </div>
-
-      {/* Menu */}
       <div className={styles.profileMenu}>
-        <button className={styles.menuItem} onClick={onClose}>
+        <button className={styles.menuItem} onClick={handleProfile}>
           <span className={styles.menuIcon}><IconUser /></span>
           My Profile
         </button>
@@ -251,15 +246,20 @@ function ProfileDropdown({ username, initials, roleLabel, onLogout, onClose }) {
 
 // ── Main Topbar ───────────────────────────────────────────────────────────
 export default function Topbar({ role, username, currentPage = 'dashboard', onLogout, onNavigate }) {
-  const initials  = (username ?? '??').slice(0, 2).toUpperCase();
-  const roleLabel = roleLabels[role] ?? 'User';
-  const pageTitle = titleMap[currentPage]?.[role] ?? 'Dashboard';
-  const breadcrumb = breadcrumbMap[currentPage]   ?? 'TechnoLogs / Dashboard';
+  const initials   = (username ?? '??').slice(0, 2).toUpperCase();
+  const roleLabel  = roleLabels[role] ?? 'User';
+  const pageTitle  = titleMap[currentPage]?.[role]  ?? 'Dashboard';
+  const breadcrumb = breadcrumbMap[currentPage]      ?? 'TechnoLogs / Dashboard';
 
-  const [open,   setOpen]   = useState(''); // 'search' | 'notifs' | 'profile' | ''
+  const [open,   setOpen]   = useState('');
   const [notifs, setNotifs] = useState([]);
 
-  // Fetch notifications from PHP API
+  // ── KEY FIX: one single ref on the entire right panel ────────────────
+  // All three toggle buttons live INSIDE this ref, so clicking them never
+  // triggers the outside-click handler. This eliminates the race condition
+  // where a dropdown was opening and immediately closing on the same click.
+  const rightRef = useRef(null);
+
   useEffect(() => {
     fetch('/api/topbar.php', { credentials: 'include' })
       .then(r => r.json())
@@ -267,49 +267,76 @@ export default function Topbar({ role, username, currentPage = 'dashboard', onLo
       .catch(() => {});
   }, []);
 
-  const toggle   = (panel) => setOpen(p => p === panel ? '' : panel);
   const closeAll = useCallback(() => setOpen(''), []);
 
-  const unreadCount = notifs.filter(n => n.unread).length;
+  // Outside-click: mousedown on rightRef so it fires before any React onClick
+  useEffect(() => {
+    const handler = (e) => {
+      if (rightRef.current && !rightRef.current.contains(e.target)) {
+        closeAll();
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [closeAll]);
 
-  const markAllRead = () => setNotifs(n => n.map(x => ({ ...x, unread: false })));
-
-  const handleLogout = async () => {
-    closeAll();
-    try { await fetch('/api/logout.php', { method: 'POST', credentials: 'include' }); } catch {}
-    onLogout?.();
-  };
-
-  // Close on Escape key
+  // Escape key
   useEffect(() => {
     const handler = (e) => { if (e.key === 'Escape') closeAll(); };
     document.addEventListener('keydown', handler);
     return () => document.removeEventListener('keydown', handler);
   }, [closeAll]);
 
+  // Clicking the same button twice closes the panel
+  const toggle = (panel) => setOpen(prev => prev === panel ? '' : panel);
+
+  const unreadCount = notifs.filter(n => n.unread).length;
+  const markAllRead = () => setNotifs(n => n.map(x => ({ ...x, unread: false })));
+
+  const handleLogout = async () => {
+    closeAll();
+    try {
+      const res  = await fetch('/api/logout.php', { method: 'POST', credentials: 'include' });
+      const data = await res.json();
+      if (!data.success) console.warn('Logout API returned success: false');
+    } catch (err) {
+      console.error('Logout request failed:', err);
+    }
+    if (typeof onLogout === 'function') {
+      onLogout();
+    } else {
+      window.location.href = '/login';
+    }
+  };
+
   return (
     <header className={styles.topbar}>
 
-      {/* ── Left: page title + breadcrumb ── */}
+      {/* ── Left ── */}
       <div className={styles.left}>
         <span className={styles.pageTitle}>{pageTitle}</span>
         <span className={styles.breadcrumb}>{breadcrumb}</span>
       </div>
 
-      {/* ── Right: search, notifs, profile ── */}
-      <div className={styles.right}>
+      {/* ── Right — ref wraps ALL buttons + dropdowns ── */}
+      <div className={styles.right} ref={rightRef}>
 
         {/* Search */}
         <div className={styles.dropdownWrapper}>
           <button
             className={`${styles.iconBtn} ${open === 'search' ? styles.iconBtnActive : ''}`}
             aria-label="Search"
+            aria-expanded={open === 'search'}
             onClick={() => toggle('search')}
           >
             <IconSearch />
           </button>
           {open === 'search' && (
-            <SearchDropdown role={role} onNavigate={onNavigate} onClose={closeAll} />
+            <SearchDropdown
+              role={role}
+              onNavigate={onNavigate}
+              onClose={closeAll}
+            />
           )}
         </div>
 
@@ -318,6 +345,7 @@ export default function Topbar({ role, username, currentPage = 'dashboard', onLo
           <button
             className={`${styles.iconBtn} ${open === 'notifs' ? styles.iconBtnActive : ''}`}
             aria-label="Notifications"
+            aria-expanded={open === 'notifs'}
             onClick={() => toggle('notifs')}
           >
             <IconBell />
@@ -328,7 +356,6 @@ export default function Topbar({ role, username, currentPage = 'dashboard', onLo
           {open === 'notifs' && (
             <NotifDropdown
               notifs={notifs}
-              unreadCount={unreadCount}
               onMarkAllRead={markAllRead}
               onClose={closeAll}
             />
@@ -339,7 +366,8 @@ export default function Topbar({ role, username, currentPage = 'dashboard', onLo
         <div className={styles.dropdownWrapper}>
           <button
             className={`${styles.profileBtn} ${open === 'profile' ? styles.profileBtnActive : ''}`}
-            aria-label="Profile"
+            aria-label="Profile menu"
+            aria-expanded={open === 'profile'}
             onClick={() => toggle('profile')}
           >
             <div className={styles.avatar}>{initials}</div>
@@ -357,6 +385,7 @@ export default function Topbar({ role, username, currentPage = 'dashboard', onLo
               initials={initials}
               roleLabel={roleLabel}
               onLogout={handleLogout}
+              onNavigate={onNavigate}
               onClose={closeAll}
             />
           )}

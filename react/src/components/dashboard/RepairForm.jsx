@@ -1,5 +1,4 @@
-import { useState } from 'react';
-import axios from 'axios';
+import { useState, useEffect } from 'react';
 
 const inputClass = [
   'w-full py-[11px] px-[14px] rounded-[10px]',
@@ -16,10 +15,18 @@ const inputStyle = {
 
 const labelClass = 'font-koho text-[0.72rem] tracking-[2px] uppercase text-[rgba(255,255,255,0.5)] mb-1 block';
 
-export default function RepairForm() {
-  const [form,    setForm]    = useState({ device: '', issue: '', description: '' });
+export default function RepairForm({ onSuccess }) {
+  const [form,    setForm]    = useState({ shop_id: '', device_type: '', issue: '', issue_description: '' });
+  const [shops,   setShops]   = useState([]);
   const [loading, setLoading] = useState(false);
   const [msg,     setMsg]     = useState(null);
+
+  useEffect(() => {
+    fetch('/api/shops.php', { credentials: 'include' })
+      .then(r => r.json())
+      .then(d => { if (d.success) setShops(d.shops ?? []); })
+      .catch(() => {});
+  }, []);
 
   function handleChange(e) {
     setForm(f => ({ ...f, [e.target.name]: e.target.value }));
@@ -27,17 +34,28 @@ export default function RepairForm() {
 
   async function handleSubmit(e) {
     e.preventDefault();
-    if (!form.device || !form.issue || !form.description) {
-      setMsg({ text: 'All fields are required.', error: true });
+    if (!form.shop_id || !form.device_type.trim() || !form.issue) {
+      setMsg({ text: 'Please select a shop, device type, and issue.', error: true });
       return;
     }
     setLoading(true);
     setMsg(null);
     try {
-      const { data } = await axios.post('/api/submit_repair.php', form);
+      const res  = await fetch('/api/repairs.php', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          shop_id:           Number(form.shop_id),
+          device_type:       form.device_type,
+          issue_description: form.issue + (form.issue_description ? ' – ' + form.issue_description : ''),
+        }),
+      });
+      const data = await res.json();
       if (data.success) {
         setMsg({ text: '✓ Repair request submitted!', error: false });
-        setForm({ device: '', issue: '', description: '' });
+        setForm({ shop_id: '', device_type: '', issue: '', issue_description: '' });
+        onSuccess?.();
       } else {
         setMsg({ text: data.message || 'Submission failed.', error: true });
       }
@@ -62,13 +80,30 @@ export default function RepairForm() {
       </h3>
 
       <form onSubmit={handleSubmit} className="flex flex-col gap-4" noValidate>
+
         <div>
-          <label className={labelClass}>Device</label>
+          <label className={labelClass}>Shop</label>
+          <select
+            name="shop_id"
+            value={form.shop_id}
+            onChange={handleChange}
+            className={inputClass}
+            style={inputStyle}
+          >
+            <option value="">Select a shop…</option>
+            {shops.map(sh => (
+              <option key={sh.shop_id} value={sh.shop_id}>{sh.shop_name}</option>
+            ))}
+          </select>
+        </div>
+
+        <div>
+          <label className={labelClass}>Device Type</label>
           <input
-            name="device"
+            name="device_type"
             type="text"
             placeholder="e.g. iPhone 13, Samsung A52…"
-            value={form.device}
+            value={form.device_type}
             onChange={handleChange}
             className={inputClass}
             style={inputStyle}
@@ -76,24 +111,31 @@ export default function RepairForm() {
         </div>
 
         <div>
-          <label className={labelClass}>Issue</label>
-          <input
+          <label className={labelClass}>Issue Type</label>
+          <select
             name="issue"
-            type="text"
-            placeholder="e.g. Cracked screen, won't charge…"
             value={form.issue}
             onChange={handleChange}
             className={inputClass}
             style={inputStyle}
-          />
+          >
+            <option value="">Select an issue…</option>
+            <option>Screen Damage</option>
+            <option>Battery Issue</option>
+            <option>Charging Port</option>
+            <option>Water Damage</option>
+            <option>Camera Problem</option>
+            <option>Speaker / Mic Issue</option>
+            <option>Other</option>
+          </select>
         </div>
 
         <div>
           <label className={labelClass}>Description</label>
           <textarea
-            name="description"
+            name="issue_description"
             placeholder="Describe the problem in detail…"
-            value={form.description}
+            value={form.issue_description}
             onChange={handleChange}
             rows={3}
             className={`${inputClass} resize-none`}
@@ -102,10 +144,8 @@ export default function RepairForm() {
         </div>
 
         {msg && (
-          <p
-            className="font-koho text-[0.82rem]"
-            style={{ color: msg.error ? '#ff4f4f' : '#1abc9c' }}
-          >
+          <p className="font-koho text-[0.82rem]"
+            style={{ color: msg.error ? '#ff4f4f' : '#1abc9c' }}>
             {msg.text}
           </p>
         )}

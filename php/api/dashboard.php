@@ -13,14 +13,13 @@ require_once __DIR__ . '/../db_config.php';
 $role   = $_SESSION['role'];
 $userId = (int) $_SESSION['user_id'];
 
-// ── Admin stats ───────────────────────────────────────────────────────────
+// ── Admin ─────────────────────────────────────────────────────────────────
 if ($role === 'admin') {
     $totalUsers  = $pdo->query("SELECT COUNT(*) FROM users")->fetchColumn();
     $activeShops = $pdo->query("SELECT COUNT(*) FROM shops")->fetchColumn();
     $openRepairs = $pdo->query("SELECT COUNT(*) FROM repair_requests WHERE status != 'Completed'")->fetchColumn();
     $totalRev    = $pdo->query("SELECT COALESCE(SUM(total_amount), 0) FROM sales_transactions")->fetchColumn();
 
-    // Recent activity — last 10 repair requests
     $activity = $pdo->query("
         SELECT u.username, r.device_type, r.status, r.created_at, s.shop_name
         FROM repair_requests r
@@ -31,32 +30,42 @@ if ($role === 'admin') {
     ")->fetchAll();
 
     echo json_encode([
-        'success' => true,
-        'stats'   => [
-            'total_users'  => (int) $totalUsers,
-            'active_shops' => (int) $activeShops,
-            'open_repairs' => (int) $openRepairs,
-            'total_revenue'=> (float) $totalRev,
+        'success'  => true,
+        'stats'    => [
+            'total_users'   => (int)   $totalUsers,
+            'active_shops'  => (int)   $activeShops,
+            'open_repairs'  => (int)   $openRepairs,
+            'total_revenue' => (float) $totalRev,
         ],
         'activity' => $activity,
     ]);
     exit;
 }
 
-// ── Customer stats ────────────────────────────────────────────────────────
+// ── Customer ──────────────────────────────────────────────────────────────
 if ($role === 'customer') {
-    $activeRepair    = $pdo->prepare("SELECT COUNT(*) FROM repair_requests WHERE customer_id = ? AND status != 'Completed'");
+    $activeRepair = $pdo->prepare("
+        SELECT COUNT(*) FROM repair_requests
+        WHERE customer_id = ? AND status != 'Completed'
+    ");
     $activeRepair->execute([$userId]);
 
-    $completedRepair = $pdo->prepare("SELECT COUNT(*) FROM repair_requests WHERE customer_id = ? AND status = 'Completed'");
+    $completedRepair = $pdo->prepare("
+        SELECT COUNT(*) FROM repair_requests
+        WHERE customer_id = ? AND status = 'Completed'
+    ");
     $completedRepair->execute([$userId]);
 
-    $totalSpent      = $pdo->prepare("SELECT COALESCE(SUM(total_amount), 0) FROM sales_transactions WHERE customer_id = ?");
+    $totalSpent = $pdo->prepare("
+        SELECT COALESCE(SUM(total_amount), 0)
+        FROM sales_transactions
+        WHERE customer_id = ?
+    ");
     $totalSpent->execute([$userId]);
 
-    // Recent repairs
     $repairs = $pdo->prepare("
-        SELECT r.request_id, r.device_type, r.issue_description, r.status, r.created_at, s.shop_name
+        SELECT r.request_id, r.device_type, r.issue_description,
+               r.status, r.created_at, s.shop_name
         FROM repair_requests r
         JOIN shops s ON s.shop_id = r.shop_id
         WHERE r.customer_id = ?
@@ -65,9 +74,9 @@ if ($role === 'customer') {
     ");
     $repairs->execute([$userId]);
 
-    // Recent transactions
     $transactions = $pdo->prepare("
-        SELECT st.transaction_id, st.total_amount, st.payment_method, st.transaction_date, s.shop_name
+        SELECT st.transaction_id, st.total_amount, st.payment_method,
+               st.transaction_date, s.shop_name
         FROM sales_transactions st
         JOIN shops s ON s.shop_id = st.shop_id
         WHERE st.customer_id = ?
@@ -76,9 +85,9 @@ if ($role === 'customer') {
     ");
     $transactions->execute([$userId]);
 
-    // Latest active repair for timeline
     $latest = $pdo->prepare("
-        SELECT request_id, device_type, issue_description, status, technician_notes, created_at
+        SELECT request_id, device_type, issue_description,
+               status, technician_notes, created_at
         FROM repair_requests
         WHERE customer_id = ? AND status != 'Completed'
         ORDER BY created_at DESC
@@ -87,20 +96,20 @@ if ($role === 'customer') {
     $latest->execute([$userId]);
 
     echo json_encode([
-        'success' => true,
-        'stats'   => [
-            'active_repairs'    => (int) $activeRepair->fetchColumn(),
-            'completed_repairs' => (int) $completedRepair->fetchColumn(),
+        'success'       => true,
+        'stats'         => [
+            'active_repairs'    => (int)   $activeRepair->fetchColumn(),
+            'completed_repairs' => (int)   $completedRepair->fetchColumn(),
             'total_spent'       => (float) $totalSpent->fetchColumn(),
         ],
-        'repairs'      => $repairs->fetchAll(),
-        'transactions' => $transactions->fetchAll(),
-        'latest_repair'=> $latest->fetch() ?: null,
+        'repairs'       => $repairs->fetchAll(),
+        'transactions'  => $transactions->fetchAll(),
+        'latest_repair' => $latest->fetch() ?: null,
     ]);
     exit;
 }
 
-// ── Owner stats ───────────────────────────────────────────────────────────
+// ── Owner ─────────────────────────────────────────────────────────────────
 if ($role === 'owner') {
     $activeRepairs = $pdo->prepare("
         SELECT COUNT(*) FROM repair_requests r
@@ -135,9 +144,9 @@ if ($role === 'owner') {
     echo json_encode([
         'success' => true,
         'stats'   => [
-            'active_repairs'  => (int) $activeRepairs->fetchColumn(),
-            'completed_today' => (int) $completedToday->fetchColumn(),
-            'total_customers' => (int) $totalCustomers->fetchColumn(),
+            'active_repairs'  => (int)   $activeRepairs->fetchColumn(),
+            'completed_today' => (int)   $completedToday->fetchColumn(),
+            'total_customers' => (int)   $totalCustomers->fetchColumn(),
             'today_revenue'   => (float) $todayRevenue->fetchColumn(),
         ],
     ]);

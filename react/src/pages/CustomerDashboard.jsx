@@ -27,20 +27,21 @@ function buildTimeline(repair) {
     { label: 'Completed',          sub: 'Waiting…', status: 'pending' },
   ];
   const st = (repair.status ?? '').toLowerCase().replace(/[\s_]+/g, '_');
-  if (st === 'pending')      { base[1].status = 'active'; }
+  if (st === 'pending')          { base[1].status = 'active'; }
   else if (st === 'in_progress') { base[1].status = 'done'; base[2].status = 'active'; }
   else if (st === 'completed')   { base.forEach(b => (b.status = 'done')); base[4].sub = created; }
   return base;
 }
 
-// Icons
-const IconTool   = () => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94z"/></svg>;
-const IconCheck  = () => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>;
-const IconPeso   = () => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>;
+// ── Icons ─────────────────────────────────────────────────────────────────
+const IconTool    = () => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94z"/></svg>;
+const IconCheck   = () => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>;
+const IconPeso    = () => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>;
 const IconCheckSm = () => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>;
 const IconDot     = () => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="4"/></svg>;
 const IconEmpty   = () => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" width="36" height="36"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>;
 
+// ── Shared components ─────────────────────────────────────────────────────
 function Badge({ status, label }) {
   const cls = { pending: s.badgePending, progress: s.badgeProgress, done: s.badgeDone, cancelled: s.badgeCancelled }[status] ?? s.badgePending;
   return <span className={`${s.badge} ${cls}`}>{label}</span>;
@@ -61,55 +62,106 @@ function Panel({ title, metaLabel, onMeta, children }) {
   );
 }
 
+// ── Repair Request Form ───────────────────────────────────────────────────
 function RepairRequestForm({ onSuccess }) {
-  const [form,   setForm]   = useState({ device: '', issue: '', description: '' });
+  const [form,   setForm]   = useState({ shop_id: '', device_type: '', issue: '', issue_description: '' });
+  const [shops,  setShops]  = useState([]);
   const [saving, setSaving] = useState(false);
   const [toast,  setToast]  = useState(null);
 
-  const showToast = (msg, isError = false) => { setToast({ msg, isError }); setTimeout(() => setToast(null), 3500); };
+  const showToast = (msg, isError = false) => {
+    setToast({ msg, isError });
+    setTimeout(() => setToast(null), 3500);
+  };
+
+  useEffect(() => {
+    fetch('/api/shops.php', { credentials: 'include' })
+      .then(r => r.json())
+      .then(d => { if (d.success) setShops(d.shops ?? []); })
+      .catch(() => {});
+  }, []);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!form.device.trim() || !form.issue) { showToast('Please fill in device type and issue.', true); return; }
+    if (!form.shop_id || !form.device_type.trim() || !form.issue) {
+      showToast('Please select a shop, device type, and issue.', true);
+      return;
+    }
     setSaving(true);
     try {
       const res  = await fetch('/api/repairs.php', {
         method: 'POST', credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(form),
+        body: JSON.stringify({
+          shop_id:           Number(form.shop_id),
+          device_type:       form.device_type,
+          issue_description: form.issue + (form.issue_description ? ' – ' + form.issue_description : ''),
+        }),
       });
       const data = await res.json();
-      if (data.success) { showToast('Repair request submitted successfully!'); setForm({ device: '', issue: '', description: '' }); onSuccess?.(); }
-      else showToast(data.message || 'Failed to submit.', true);
-    } catch { showToast('Cannot connect to server.', true); }
-    finally   { setSaving(false); }
+      if (data.success) {
+        showToast('Repair request submitted successfully!');
+        setForm({ shop_id: '', device_type: '', issue: '', issue_description: '' });
+        onSuccess?.();
+      } else {
+        showToast(data.message || 'Failed to submit.', true);
+      }
+    } catch {
+      showToast('Cannot connect to server.', true);
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
     <form onSubmit={handleSubmit} className={s.repairForm}>
-      {toast && <div className={`${s.toast} ${toast.isError ? s.toastError : s.toastSuccess}`}>{toast.msg}</div>}
+      {toast && (
+        <div className={`${s.toast} ${toast.isError ? s.toastError : s.toastSuccess}`}>
+          {toast.msg}
+        </div>
+      )}
+
+      <div className={s.formGroup}>
+        <label className={s.formLabel}>Shop</label>
+        <select className={s.formSelect} value={form.shop_id}
+          onChange={e => setForm(f => ({ ...f, shop_id: e.target.value }))}>
+          <option value="">Select a shop…</option>
+          {shops.map(sh => (
+            <option key={sh.shop_id} value={sh.shop_id}>{sh.shop_name}</option>
+          ))}
+        </select>
+      </div>
+
       <div className={s.formRow}>
         <div className={s.formGroup}>
           <label className={s.formLabel}>Device Type</label>
           <input type="text" className={s.formInput} placeholder="e.g. iPhone 14, Samsung A54…"
-            value={form.device} onChange={e => setForm(f => ({ ...f, device: e.target.value }))} />
+            value={form.device_type}
+            onChange={e => setForm(f => ({ ...f, device_type: e.target.value }))} />
         </div>
         <div className={s.formGroup}>
           <label className={s.formLabel}>Issue Type</label>
-          <select className={s.formSelect} value={form.issue} onChange={e => setForm(f => ({ ...f, issue: e.target.value }))}>
+          <select className={s.formSelect} value={form.issue}
+            onChange={e => setForm(f => ({ ...f, issue: e.target.value }))}>
             <option value="">Select an issue…</option>
-            <option>Screen Damage</option><option>Battery Issue</option>
-            <option>Charging Port</option><option>Water Damage</option>
-            <option>Camera Problem</option><option>Speaker / Mic Issue</option>
+            <option>Screen Damage</option>
+            <option>Battery Issue</option>
+            <option>Charging Port</option>
+            <option>Water Damage</option>
+            <option>Camera Problem</option>
+            <option>Speaker / Mic Issue</option>
             <option>Other</option>
           </select>
         </div>
       </div>
+
       <div className={s.formGroup}>
         <label className={s.formLabel}>Description</label>
         <textarea className={s.formTextarea} placeholder="Describe the issue in detail…" rows={4}
-          value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} />
+          value={form.issue_description}
+          onChange={e => setForm(f => ({ ...f, issue_description: e.target.value }))} />
       </div>
+
       <button type="submit" className={s.formSubmit} disabled={saving}>
         {saving ? 'Submitting…' : 'Submit Request'}
       </button>
@@ -117,11 +169,14 @@ function RepairRequestForm({ onSuccess }) {
   );
 }
 
+// ── Repair Timeline ───────────────────────────────────────────────────────
 function RepairTimeline({ repair }) {
   const timeline = buildTimeline(repair);
   return (
-    <Panel title={repair ? `Track Repair – #${repairId(repair)}` : 'Track Repair'}
-      metaLabel={repair ? statusLabel(repair.status) : null}>
+    <Panel
+      title={repair ? `Track Repair – #${repairId(repair)}` : 'Track Repair'}
+      metaLabel={repair ? statusLabel(repair.status) : null}
+    >
       {repair ? (
         <div className={s.timeline}>
           {timeline.map((t, i) => (
@@ -137,14 +192,16 @@ function RepairTimeline({ repair }) {
           ))}
         </div>
       ) : (
-        <div className={s.emptyState}><IconEmpty /><p>No repair requests yet. Submit one to get started.</p></div>
+        <div className={s.emptyState}>
+          <IconEmpty />
+          <p>No repair requests yet. Submit one to get started.</p>
+        </div>
       )}
     </Panel>
   );
 }
 
 // ── Main ──────────────────────────────────────────────────────────────────
-// activeSection comes from DashboardLayout (driven by sidebar clicks)
 export default function CustomerDashboard({ username = 'Customer', setPage, activeSection = 'dashboard', setActiveSection }) {
   const [stats,        setStats]        = useState(null);
   const [repairs,      setRepairs]      = useState([]);
@@ -180,7 +237,7 @@ export default function CustomerDashboard({ username = 'Customer', setPage, acti
   const completedCount = stats?.completed_repairs ?? 0;
   const totalSpent     = stats?.total_spent       ?? 0;
 
-  // ── Dashboard (default) ──────────────────────────────────────────────────
+  // ── Dashboard ─────────────────────────────────────────────────────────
   if (activeSection === 'dashboard') {
     return (
       <>
@@ -192,11 +249,17 @@ export default function CustomerDashboard({ username = 'Customer', setPage, acti
         <div className={s.statsRow}>
           <div className={s.statCard}>
             <div className={`${s.statIcon} ${s.iconOrange}`}><IconTool /></div>
-            <div className={s.statInfo}><span className={s.statValue}>{activeCount}</span><span className={s.statLabel}>Active Repairs</span></div>
+            <div className={s.statInfo}>
+              <span className={s.statValue}>{activeCount}</span>
+              <span className={s.statLabel}>Active Repairs</span>
+            </div>
           </div>
           <div className={s.statCard}>
             <div className={`${s.statIcon} ${s.iconTeal}`}><IconCheck /></div>
-            <div className={s.statInfo}><span className={s.statValue}>{completedCount}</span><span className={s.statLabel}>Completed Repairs</span></div>
+            <div className={s.statInfo}>
+              <span className={s.statValue}>{completedCount}</span>
+              <span className={s.statLabel}>Completed Repairs</span>
+            </div>
           </div>
           <div className={s.statCard}>
             <div className={`${s.statIcon} ${s.iconBlue}`}><IconPeso /></div>
@@ -208,7 +271,9 @@ export default function CustomerDashboard({ username = 'Customer', setPage, acti
         </div>
 
         <div className={s.twoCol}>
-          <Panel title="Submit Repair Request"><RepairRequestForm onSuccess={loadData} /></Panel>
+          <Panel title="Submit Repair Request">
+            <RepairRequestForm onSuccess={loadData} />
+          </Panel>
           <RepairTimeline repair={latestRepair} />
         </div>
 
@@ -219,7 +284,9 @@ export default function CustomerDashboard({ username = 'Customer', setPage, acti
               <div className={s.emptyState}><IconEmpty /><p>No repair requests found.</p></div>
             ) : (
               <table className={s.table}>
-                <thead><tr><th>Job #</th><th>Device</th><th>Issue</th><th>Shop</th><th>Date</th><th>Status</th></tr></thead>
+                <thead>
+                  <tr><th>Job #</th><th>Device</th><th>Issue</th><th>Shop</th><th>Date</th><th>Status</th></tr>
+                </thead>
                 <tbody>
                   {repairs.map(r => (
                     <tr key={repairId(r)}>
@@ -240,7 +307,7 @@ export default function CustomerDashboard({ username = 'Customer', setPage, acti
     );
   }
 
-  // ── My Repairs ───────────────────────────────────────────────────────────
+  // ── My Repairs ────────────────────────────────────────────────────────
   if (activeSection === 'repairs') {
     return (
       <div className={s.tableSection}>
@@ -252,7 +319,9 @@ export default function CustomerDashboard({ username = 'Customer', setPage, acti
             <div className={s.emptyState}><IconEmpty /><p>No repair requests found.</p></div>
           ) : (
             <table className={s.table}>
-              <thead><tr><th>Job #</th><th>Device</th><th>Issue</th><th>Shop</th><th>Date</th><th>Status</th></tr></thead>
+              <thead>
+                <tr><th>Job #</th><th>Device</th><th>Issue</th><th>Shop</th><th>Date</th><th>Status</th></tr>
+              </thead>
               <tbody>
                 {repairs.map(r => (
                   <tr key={repairId(r)}>
@@ -272,7 +341,7 @@ export default function CustomerDashboard({ username = 'Customer', setPage, acti
     );
   }
 
-  // ── My Transactions ───────────────────────────────────────────────────────
+  // ── My Transactions ───────────────────────────────────────────────────
   if (activeSection === 'transactions') {
     return (
       <div className={s.tableSection}>
@@ -284,10 +353,12 @@ export default function CustomerDashboard({ username = 'Customer', setPage, acti
             <div className={s.emptyState}><IconEmpty /><p>No transactions found.</p></div>
           ) : (
             <table className={s.table}>
-              <thead><tr><th>Reference</th><th>Item / Service</th><th>Amount</th><th>Method</th><th>Date</th></tr></thead>
+              <thead>
+                <tr><th>Reference</th><th>Item / Service</th><th>Amount</th><th>Method</th><th>Date</th></tr>
+              </thead>
               <tbody>
                 {transactions.map(t => {
-                  const amount  = t.total_amount  ?? t.amount;
+                  const amount  = t.total_amount   ?? t.amount;
                   const method  = t.payment_method ?? t.type ?? '—';
                   const dateStr = t.transaction_date ?? t.created_at;
                   const item    = t.shop_name
@@ -311,7 +382,7 @@ export default function CustomerDashboard({ username = 'Customer', setPage, acti
     );
   }
 
-  // ── Notifications / Help — placeholders ───────────────────────────────────
+  // ── Fallback (Notifications / Help) ───────────────────────────────────
   return (
     <div className={s.tableSection}>
       <div className={s.emptyState} style={{ padding: '60px 20px' }}>

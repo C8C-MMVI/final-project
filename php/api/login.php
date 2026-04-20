@@ -1,11 +1,4 @@
 <?php
-/**
- * api/login.php
- * Handles login authentication.
- * Receives JSON: { username, password }
- * Returns JSON:  { success, message, userId, username, role, redirect }
- */
-
 session_set_cookie_params([
     'lifetime' => 0,
     'path'     => '/',
@@ -33,9 +26,8 @@ if (!$data) {
 }
 
 $username = trim($data['username'] ?? '');
-$password = $data['password'] ?? '';
+$password = $data['password']      ?? '';
 
-// ── Validation ────────────────────────────────────────────────────────
 if (empty($username) || empty($password)) {
     http_response_code(422);
     echo json_encode(['success' => false, 'message' => 'Username and password are required.']);

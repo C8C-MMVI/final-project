@@ -1,5 +1,4 @@
 <?php
-// php/api/shop_requests.php
 session_start();
 header('Content-Type: application/json');
 
@@ -11,46 +10,44 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
 
 require_once __DIR__ . '/../db_config.php';
 
-// ── POST: approve or reject a shop ───────────────────────────────────────────
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $body   = json_decode(file_get_contents('php://input'), true);
-    $shopId = (int) ($body['shop_id'] ?? 0);
-    $action = $body['action'] ?? '';
+    $body      = json_decode(file_get_contents('php://input'), true);
+    $requestId = (int) ($body['shop_id'] ?? 0);
+    $action    = $body['action'] ?? '';
 
-    if (!$shopId || !in_array($action, ['approve', 'reject'])) {
+    if (!$requestId || !in_array($action, ['approve', 'reject'])) {
         http_response_code(400);
         echo json_encode(['success' => false, 'message' => 'Invalid request.']);
         exit;
     }
 
-    // shops table has no status column in V1 — add it if missing
-    // (safe to run even if column exists; PostgreSQL will throw, so we catch)
-    try {
-        $pdo->exec("ALTER TABLE shops ADD COLUMN IF NOT EXISTS status VARCHAR(20) DEFAULT 'pending'");
-    } catch (PDOException $ignored) {}
-
     $newStatus = $action === 'approve' ? 'approved' : 'rejected';
-    $stmt = $pdo->prepare("UPDATE shops SET status = ? WHERE shop_id = ?");
-    $stmt->execute([$newStatus, $shopId]);
+    $stmt = $pdo->prepare("
+        UPDATE shop_requests
+        SET status = ?, reviewed_at = NOW(), reviewed_by = ?
+        WHERE request_id = ?
+    ");
+    $stmt->execute([$newStatus, $_SESSION['user_id'], $requestId]);
 
     echo json_encode(['success' => true, 'status' => $newStatus]);
     exit;
 }
 
-// ── GET: all shops with owner info ───────────────────────────────────────────
-// Shops table may not have a status column yet — use COALESCE to default to 'pending'
+// GET — all shop requests with requester info
 $requests = $pdo->query("
     SELECT
-        s.shop_id,
-        s.shop_name,
-        s.address,
-        s.created_at,
-        COALESCE(s.status, 'pending') AS status,
-        u.username  AS owner_name,
+        sr.request_id  AS shop_id,
+        sr.shop_name,
+        sr.address,
+        sr.contact_number,
+        sr.status,
+        sr.requested_at AS created_at,
+        sr.rejection_reason,
+        u.username      AS owner_name,
         u.email
-    FROM shops s
-    JOIN users u ON u.user_id = s.owner_id
-    ORDER BY s.created_at DESC
+    FROM shop_requests sr
+    JOIN users u ON u.user_id = sr.user_id
+    ORDER BY sr.requested_at DESC
 ")->fetchAll(PDO::FETCH_ASSOC);
 
 echo json_encode(['success' => true, 'requests' => $requests]);

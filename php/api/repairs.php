@@ -104,7 +104,12 @@ if ($method === 'POST') {
         VALUES (?, ?, ?, ?, 'Pending', NOW())
     ");
     $stmt->execute([$customerId, $shopId, $deviceType, $issueDesc]);
-    echo json_encode(['success' => true, 'message' => 'Repair request submitted.', 'request_id' => $pdo->lastInsertId()]);
+
+    echo json_encode([
+        'success'    => true,
+        'message'    => 'Repair request submitted.',
+        'request_id' => $pdo->lastInsertId(),
+    ]);
     exit;
 }
 

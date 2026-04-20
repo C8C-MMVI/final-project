@@ -34,6 +34,7 @@ if (empty($username) || empty($password)) {
     exit;
 }
 
+// users.user_id is the correct PK column name
 $stmt = $pdo->prepare('SELECT user_id, username, password, role FROM users WHERE username = ? LIMIT 1');
 $stmt->execute([$username]);
 $user = $stmt->fetch();

@@ -10,6 +10,12 @@ if (!isset($_SESSION['user_id'])) {
 
 require_once __DIR__ . '/../db_config.php';
 
+if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
+    http_response_code(405);
+    echo json_encode(['success' => false, 'message' => 'Method not allowed.']);
+    exit;
+}
+
 $shops = $pdo->query("
     SELECT shop_id, shop_name, address, contact_number
     FROM shops

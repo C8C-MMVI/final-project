@@ -13,7 +13,7 @@ require_once __DIR__ . '/../db_config.php';
 $role   = $_SESSION['role'];
 $userId = (int) $_SESSION['user_id'];
 
-// ── Admin ─────────────────────────────────────────────────────────────────
+// ── Admin ─────────────────────────────────────────────────────────────────────
 if ($role === 'admin') {
     $totalUsers  = $pdo->query("SELECT COUNT(*) FROM users")->fetchColumn();
     $activeShops = $pdo->query("SELECT COUNT(*) FROM shops")->fetchColumn();
@@ -21,13 +21,18 @@ if ($role === 'admin') {
     $totalRev    = $pdo->query("SELECT COALESCE(SUM(total_amount), 0) FROM sales_transactions")->fetchColumn();
 
     $activity = $pdo->query("
-        SELECT u.username, r.device_type, r.status, r.created_at, s.shop_name
-        FROM repair_requests r
-        JOIN users u ON u.user_id = r.customer_id
-        JOIN shops s ON s.shop_id = r.shop_id
-        ORDER BY r.created_at DESC
+        SELECT
+            cu.username AS customer,
+            rr.device_type,
+            rr.status,
+            rr.created_at,
+            s.shop_name
+        FROM repair_requests rr
+        JOIN users cu ON cu.user_id = rr.customer_id
+        JOIN shops s  ON s.shop_id  = rr.shop_id
+        ORDER BY rr.created_at DESC
         LIMIT 10
-    ")->fetchAll();
+    ")->fetchAll(PDO::FETCH_ASSOC);
 
     echo json_encode([
         'success'  => true,
@@ -42,113 +47,152 @@ if ($role === 'admin') {
     exit;
 }
 
-// ── Customer ──────────────────────────────────────────────────────────────
+// ── Customer ──────────────────────────────────────────────────────────────────
 if ($role === 'customer') {
-    $activeRepair = $pdo->prepare("
+    $activeStmt = $pdo->prepare("
         SELECT COUNT(*) FROM repair_requests
         WHERE customer_id = ? AND status != 'Completed'
     ");
-    $activeRepair->execute([$userId]);
+    $activeStmt->execute([$userId]);
 
-    $completedRepair = $pdo->prepare("
+    $completedStmt = $pdo->prepare("
         SELECT COUNT(*) FROM repair_requests
         WHERE customer_id = ? AND status = 'Completed'
     ");
-    $completedRepair->execute([$userId]);
+    $completedStmt->execute([$userId]);
 
-    $totalSpent = $pdo->prepare("
-        SELECT COALESCE(SUM(total_amount), 0)
-        FROM sales_transactions
-        WHERE customer_id = ?
+    // Total spent via sales_transactions linked through repair shop
+    $spentStmt = $pdo->prepare("
+        SELECT COALESCE(SUM(st.total_amount), 0)
+        FROM sales_transactions st
+        WHERE st.customer_id = ?
     ");
-    $totalSpent->execute([$userId]);
+    $spentStmt->execute([$userId]);
 
-    $repairs = $pdo->prepare("
-        SELECT r.request_id, r.device_type, r.issue_description,
-               r.status, r.created_at, s.shop_name
-        FROM repair_requests r
-        JOIN shops s ON s.shop_id = r.shop_id
-        WHERE r.customer_id = ?
-        ORDER BY r.created_at DESC
+    $repairsStmt = $pdo->prepare("
+        SELECT
+            rr.request_id,
+            rr.device_type,
+            rr.issue_description,
+            rr.status,
+            rr.technician_notes,
+            rr.created_at,
+            s.shop_name
+        FROM repair_requests rr
+        JOIN shops s ON s.shop_id = rr.shop_id
+        WHERE rr.customer_id = ?
+        ORDER BY rr.created_at DESC
         LIMIT 5
     ");
-    $repairs->execute([$userId]);
+    $repairsStmt->execute([$userId]);
 
-    $transactions = $pdo->prepare("
-        SELECT st.transaction_id, st.total_amount, st.payment_method,
-               st.transaction_date, s.shop_name
+    // Transactions linked to customer
+    $txnStmt = $pdo->prepare("
+        SELECT
+            st.transaction_id,
+            st.total_amount,
+            st.payment_method,
+            st.transaction_date,
+            s.shop_name
         FROM sales_transactions st
         JOIN shops s ON s.shop_id = st.shop_id
         WHERE st.customer_id = ?
         ORDER BY st.transaction_date DESC
         LIMIT 5
     ");
-    $transactions->execute([$userId]);
+    $txnStmt->execute([$userId]);
 
-    $latest = $pdo->prepare("
-        SELECT request_id, device_type, issue_description,
-               status, technician_notes, created_at
-        FROM repair_requests
-        WHERE customer_id = ? AND status != 'Completed'
-        ORDER BY created_at DESC
+    $latestStmt = $pdo->prepare("
+        SELECT
+            rr.request_id,
+            rr.device_type,
+            rr.issue_description,
+            rr.status,
+            rr.technician_notes,
+            rr.created_at,
+            s.shop_name
+        FROM repair_requests rr
+        JOIN shops s ON s.shop_id = rr.shop_id
+        WHERE rr.customer_id = ? AND rr.status != 'Completed'
+        ORDER BY rr.created_at DESC
         LIMIT 1
     ");
-    $latest->execute([$userId]);
+    $latestStmt->execute([$userId]);
 
     echo json_encode([
         'success'       => true,
         'stats'         => [
-            'active_repairs'    => (int)   $activeRepair->fetchColumn(),
-            'completed_repairs' => (int)   $completedRepair->fetchColumn(),
-            'total_spent'       => (float) $totalSpent->fetchColumn(),
+            'active_repairs'    => (int)   $activeStmt->fetchColumn(),
+            'completed_repairs' => (int)   $completedStmt->fetchColumn(),
+            'total_spent'       => (float) $spentStmt->fetchColumn(),
         ],
-        'repairs'       => $repairs->fetchAll(),
-        'transactions'  => $transactions->fetchAll(),
-        'latest_repair' => $latest->fetch() ?: null,
+        'repairs'       => $repairsStmt->fetchAll(PDO::FETCH_ASSOC),
+        'transactions'  => $txnStmt->fetchAll(PDO::FETCH_ASSOC),
+        'latest_repair' => $latestStmt->fetch(PDO::FETCH_ASSOC) ?: null,
     ]);
     exit;
 }
 
-// ── Owner ─────────────────────────────────────────────────────────────────
+// ── Owner ─────────────────────────────────────────────────────────────────────
 if ($role === 'owner') {
-    $activeRepairs = $pdo->prepare("
-        SELECT COUNT(*) FROM repair_requests r
-        JOIN shops s ON s.shop_id = r.shop_id
-        WHERE s.owner_id = ? AND r.status != 'Completed'
+    $activeStmt = $pdo->prepare("
+        SELECT COUNT(*) FROM repair_requests rr
+        JOIN shops s ON s.shop_id = rr.shop_id
+        WHERE s.owner_id = ? AND rr.status != 'Completed'
     ");
-    $activeRepairs->execute([$userId]);
+    $activeStmt->execute([$userId]);
 
-    $completedToday = $pdo->prepare("
-        SELECT COUNT(*) FROM repair_requests r
-        JOIN shops s ON s.shop_id = r.shop_id
-        WHERE s.owner_id = ? AND r.status = 'Completed'
-        AND DATE(r.created_at) = CURRENT_DATE
+    $completedTodayStmt = $pdo->prepare("
+        SELECT COUNT(*) FROM repair_requests rr
+        JOIN shops s ON s.shop_id = rr.shop_id
+        WHERE s.owner_id = ?
+          AND rr.status = 'Completed'
+          AND DATE(rr.created_at) = CURRENT_DATE
     ");
-    $completedToday->execute([$userId]);
+    $completedTodayStmt->execute([$userId]);
 
-    $totalCustomers = $pdo->prepare("
-        SELECT COUNT(DISTINCT r.customer_id) FROM repair_requests r
-        JOIN shops s ON s.shop_id = r.shop_id
+    $customersStmt = $pdo->prepare("
+        SELECT COUNT(DISTINCT rr.customer_id)
+        FROM repair_requests rr
+        JOIN shops s ON s.shop_id = rr.shop_id
         WHERE s.owner_id = ?
     ");
-    $totalCustomers->execute([$userId]);
+    $customersStmt->execute([$userId]);
 
-    $todayRevenue = $pdo->prepare("
+    $revenueStmt = $pdo->prepare("
         SELECT COALESCE(SUM(st.total_amount), 0)
         FROM sales_transactions st
         JOIN shops s ON s.shop_id = st.shop_id
-        WHERE s.owner_id = ? AND DATE(st.transaction_date) = CURRENT_DATE
+        WHERE s.owner_id = ?
+          AND DATE(st.transaction_date) = CURRENT_DATE
     ");
-    $todayRevenue->execute([$userId]);
+    $revenueStmt->execute([$userId]);
+
+    $txnStmt = $pdo->prepare("
+        SELECT
+            st.transaction_id,
+            st.total_amount,
+            st.payment_method,
+            st.transaction_date,
+            cu.username AS customer_name
+        FROM sales_transactions st
+        JOIN shops s  ON s.shop_id  = st.shop_id
+        JOIN users cu ON cu.user_id = st.customer_id
+        WHERE s.owner_id = ?
+        ORDER BY st.transaction_date DESC
+        LIMIT 10
+    ");
+    $txnStmt->execute([$userId]);
 
     echo json_encode([
-        'success' => true,
-        'stats'   => [
-            'active_repairs'  => (int)   $activeRepairs->fetchColumn(),
-            'completed_today' => (int)   $completedToday->fetchColumn(),
-            'total_customers' => (int)   $totalCustomers->fetchColumn(),
-            'today_revenue'   => (float) $todayRevenue->fetchColumn(),
+        'success'      => true,
+        'stats'        => [
+            'active_repairs'  => (int)   $activeStmt->fetchColumn(),
+            'completed_today' => (int)   $completedTodayStmt->fetchColumn(),
+            'total_customers' => (int)   $customersStmt->fetchColumn(),
+            'today_revenue'   => (float) $revenueStmt->fetchColumn(),
         ],
+        'transactions' => $txnStmt->fetchAll(PDO::FETCH_ASSOC),
     ]);
     exit;
 }

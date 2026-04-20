@@ -57,7 +57,6 @@ const NAV = {
     { section: 'Main' },
     { label: 'Dashboard',       page: 'dashboard', icon: <IconGrid />  },
     { section: 'Work' },
-    { label: 'Repair Requests', page: 'repairs',   icon: <IconDoc />   },
     { label: 'My Jobs',         page: 'repairs',   icon: <IconTool />  },
     { label: 'Reviews',         page: 'reviews',   icon: <IconStar />  },
   ],
@@ -149,22 +148,6 @@ export default function Sidebar({ role, username, onNavigate, onLogout, activeSe
           );
         })}
       </nav>
-
-      {/* Footer / Logout */}
-      <div className={styles.footer}>
-        <div className={styles.divider} />
-        <a
-          className={`${styles.navItem} ${styles.navItemLogout}`}
-          onClick={handleLogout}
-          data-tooltip="Logout"
-          role="button"
-          tabIndex={0}
-          onKeyDown={e => e.key === 'Enter' && handleLogout()}
-        >
-          <span className={styles.navIcon}><IconLogout /></span>
-          <span className={styles.navLabel}>Logout</span>
-        </a>
-      </div>
 
     </aside>
   );

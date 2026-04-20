@@ -5,6 +5,8 @@ import Panel     from '../components/shared/Panel';
 import Badge     from '../components/shared/Badge';
 import styles    from './OwnerDashboard.module.css';
 
+
+
 import {
   repairs      as mockRepairs,
   transactions as mockTransactions,
@@ -39,16 +41,8 @@ const repairBadge = {
 const custBadge = { active: 'done', inactive: 'cancelled' };
 const membBadge = { active: 'done', inactive: 'cancelled' };
 
-const SECTIONS = {
-  dashboard: 'dashboard',
-  repairs:   'repairs',
-  customers: 'customers',
-  reports:   'reports',
-  members:   'members',
-};
-
-export default function OwnerDashboard({ setPage }) {
-  const [activeTab, setActiveTab] = useState(SECTIONS.dashboard);
+// activeSection comes from DashboardLayout (driven by sidebar clicks)
+export default function OwnerDashboard({ setPage, activeSection = 'dashboard', setActiveSection }) {
   const [stats]     = useState(statsData.owner);
   const [repairs]   = useState(mockRepairs);
   const [customers] = useState(mockCustomers);
@@ -57,43 +51,29 @@ export default function OwnerDashboard({ setPage }) {
   const [loading]   = useState(false);
   const [error]     = useState(null);
 
-  // Uncomment to wire real APIs:
-  // useEffect(() => {
-  //   setLoading(true);
-  //   Promise.all([
-  //     fetch('/api/dashboard.php',    { credentials: 'include' }).then(r => r.json()),
-  //     fetch('/api/repairs.php',      { credentials: 'include' }).then(r => r.json()),
-  //     fetch('/api/customers.php',    { credentials: 'include' }).then(r => r.json()),
-  //     fetch('/api/members.php',      { credentials: 'include' }).then(r => r.json()),
-  //     fetch('/api/transactions.php', { credentials: 'include' }).then(r => r.json()),
-  //   ])
-  //     .then(([dash, rep, cust, mem, tx]) => {
-  //       if (dash.success) setStats(dash.stats);
-  //       if (rep.success)  setRepairs(rep.repairs ?? []);
-  //       if (cust.success) setCustomers(cust.customers ?? []);
-  //       if (mem.success)  setMembers(mem.members ?? []);
-  //       if (tx.success)   setTxns(tx.transactions ?? []);
-  //     })
-  //     .catch(() => setError('Cannot connect to server.'))
-  //     .finally(() => setLoading(false));
-  // }, []);
+  // Tab click also updates sidebar via setActiveSection
+  const handleTab = (sectionKey) => {
+    if (setActiveSection) setActiveSection(sectionKey);
+  };
+
+  const tabs = [
+    { id: 'dashboard', label: 'Dashboard'            },
+    { id: 'repairs',   label: 'Repairs / Job Orders' },
+    { id: 'customers', label: 'Customers'            },
+    { id: 'reports',   label: 'Reports / Analytics'  },
+    { id: 'members',   label: 'Member Management'    },
+  ];
 
   return (
     <div className={styles.root}>
 
-      {/* Sub-nav tabs */}
+      {/* Sub-nav tabs — stay in sync with sidebar */}
       <nav className={styles.subNav}>
-        {[
-          { id: SECTIONS.dashboard, label: 'Dashboard'            },
-          { id: SECTIONS.repairs,   label: 'Repairs / Job Orders' },
-          { id: SECTIONS.customers, label: 'Customers'            },
-          { id: SECTIONS.reports,   label: 'Reports / Analytics'  },
-          { id: SECTIONS.members,   label: 'Member Management'    },
-        ].map(tab => (
+        {tabs.map(tab => (
           <button
             key={tab.id}
-            className={`${styles.subNavBtn} ${activeTab === tab.id ? styles.subNavBtnActive : ''}`}
-            onClick={() => setActiveTab(tab.id)}
+            className={`${styles.subNavBtn} ${activeSection === tab.id ? styles.subNavBtnActive : ''}`}
+            onClick={() => handleTab(tab.id)}
           >
             {tab.label}
           </button>
@@ -102,8 +82,8 @@ export default function OwnerDashboard({ setPage }) {
 
       <main className={styles.content}>
 
-        {/* SECTION: Dashboard */}
-        {activeTab === SECTIONS.dashboard && (
+        {/* ── DASHBOARD ── */}
+        {activeSection === 'dashboard' && (
           <>
             {loading ? (
               <div className={styles.loadingText}>Loading dashboard...</div>
@@ -115,17 +95,12 @@ export default function OwnerDashboard({ setPage }) {
               </div>
             )}
 
-            <Panel
-              title="Recent Repair Jobs"
-              linkLabel="View all"
-              onLink={() => setActiveTab(SECTIONS.repairs)}
-            >
+            <Panel title="Recent Repair Jobs" linkLabel="View all"
+              onLink={() => handleTab('repairs')}>
               {loading ? <Loader /> : repairs.length === 0 ? <Empty msg="No repairs found." /> : (
                 <table className={styles.table}>
                   <thead>
-                    <tr>
-                      <th>Job #</th><th>Customer</th><th>Device</th><th>Issue</th><th>Status</th>
-                    </tr>
+                    <tr><th>Job #</th><th>Customer</th><th>Device</th><th>Issue</th><th>Status</th></tr>
                   </thead>
                   <tbody>
                     {repairs.slice(0, 5).map((r, i) => (
@@ -146,9 +121,7 @@ export default function OwnerDashboard({ setPage }) {
               {loading ? <Loader /> : txns.length === 0 ? <Empty msg="No transactions yet." /> : (
                 <table className={styles.table}>
                   <thead>
-                    <tr>
-                      <th>Reference</th><th>Customer</th><th>Item / Service</th><th>Amount</th><th>Date</th>
-                    </tr>
+                    <tr><th>Reference</th><th>Customer</th><th>Item / Service</th><th>Amount</th><th>Date</th></tr>
                   </thead>
                   <tbody>
                     {txns.map((t, i) => (
@@ -167,16 +140,14 @@ export default function OwnerDashboard({ setPage }) {
           </>
         )}
 
-        {/* SECTION: Repairs / Job Orders */}
-        {activeTab === SECTIONS.repairs && (
+        {/* ── REPAIRS ── */}
+        {activeSection === 'repairs' && (
           <>
             <SectionHeader title="Repairs / Job Orders" />
             <Panel title="All Repair Jobs" linkLabel={`${repairs.length} total`}>
               <table className={styles.table}>
                 <thead>
-                  <tr>
-                    <th>Job #</th><th>Customer</th><th>Device</th><th>Issue</th><th>Status</th>
-                  </tr>
+                  <tr><th>Job #</th><th>Customer</th><th>Device</th><th>Issue</th><th>Status</th></tr>
                 </thead>
                 <tbody>
                   {repairs.map((r, i) => (
@@ -194,16 +165,14 @@ export default function OwnerDashboard({ setPage }) {
           </>
         )}
 
-        {/* SECTION: Customers */}
-        {activeTab === SECTIONS.customers && (
+        {/* ── CUSTOMERS ── */}
+        {activeSection === 'customers' && (
           <>
             <SectionHeader title="Customers" />
             <Panel title="All Customers" linkLabel={`${customers.length} total`}>
               <table className={styles.table}>
                 <thead>
-                  <tr>
-                    <th>Name</th><th>Email</th><th>Phone</th><th>Repairs</th><th>Last Visit</th><th>Status</th>
-                  </tr>
+                  <tr><th>Name</th><th>Email</th><th>Phone</th><th>Repairs</th><th>Last Visit</th><th>Status</th></tr>
                 </thead>
                 <tbody>
                   {customers.map((c, i) => (
@@ -222,8 +191,8 @@ export default function OwnerDashboard({ setPage }) {
           </>
         )}
 
-        {/* SECTION: Reports / Analytics */}
-        {activeTab === SECTIONS.reports && (
+        {/* ── REPORTS ── */}
+        {activeSection === 'reports' && (
           <>
             <SectionHeader title="Reports / Analytics" />
             <div className={styles.twoCol}>
@@ -237,9 +206,7 @@ export default function OwnerDashboard({ setPage }) {
             <Panel title="Recent Transactions">
               <table className={styles.table}>
                 <thead>
-                  <tr>
-                    <th>Reference</th><th>Customer</th><th>Item / Service</th><th>Amount</th><th>Date</th>
-                  </tr>
+                  <tr><th>Reference</th><th>Customer</th><th>Item / Service</th><th>Amount</th><th>Date</th></tr>
                 </thead>
                 <tbody>
                   {txns.map((t, i) => (
@@ -257,16 +224,14 @@ export default function OwnerDashboard({ setPage }) {
           </>
         )}
 
-        {/* SECTION: Member Management */}
-        {activeTab === SECTIONS.members && (
+        {/* ── MEMBERS ── */}
+        {activeSection === 'members' && (
           <>
             <SectionHeader title="Member Management" />
             <Panel title="Shop Members / Technicians" linkLabel={`${members.length} members`}>
               <table className={styles.table}>
                 <thead>
-                  <tr>
-                    <th>Name</th><th>Email</th><th>Role</th><th>Jobs Done</th><th>Rating</th><th>Status</th><th>Joined</th>
-                  </tr>
+                  <tr><th>Name</th><th>Email</th><th>Role</th><th>Jobs Done</th><th>Rating</th><th>Status</th><th>Joined</th></tr>
                 </thead>
                 <tbody>
                   {members.map((m, i) => (
@@ -292,34 +257,24 @@ export default function OwnerDashboard({ setPage }) {
 }
 
 function SectionHeader({ title }) {
-  return (
-    <div className={styles.sectionPageHeader}>
-      <h2>{title}</h2>
-    </div>
-  );
+  return <div className={styles.sectionPageHeader}><h2>{title}</h2></div>;
 }
-
 function Loader() {
   return <div className={styles.loadingText} style={{ padding: '1rem' }}>Loading...</div>;
 }
-
 function Empty({ msg }) {
   return <div className={styles.emptyText} style={{ padding: '1rem' }}>{msg}</div>;
 }
-
 function EmptyChart({ label, icon }) {
   return (
     <div className={styles.emptyChart}>
       {icon === 'bar' ? (
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-          <line x1="18" y1="20" x2="18" y2="10"/>
-          <line x1="12" y1="20" x2="12" y2="4"/>
-          <line x1="6"  y1="20" x2="6"  y2="14"/>
+          <line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/>
         </svg>
       ) : (
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-          <circle cx="12" cy="12" r="10"/>
-          <path d="M12 8v4l3 3"/>
+          <circle cx="12" cy="12" r="10"/><path d="M12 8v4l3 3"/>
         </svg>
       )}
       <div>{label}</div>

@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
 import Panel  from '../components/shared/Panel';
-import styles from '../components/layout/DashboardLayout.module.css';
+import styles  from '../components/layout/DashboardLayout.module.css';
+
+const cStyles = styles; 
 
 export default function MembersPage({ setPage }) {
   const [members, setMembers] = useState([]);

@@ -1,30 +1,59 @@
+/* src/components/dashboard/StatCard.module.css */
+
 .card {
-  background: var(--color-bg-primary);
-  border: 0.5px solid var(--color-border);
-  border-radius: var(--radius-lg);
-  padding: 14px 16px;
+  background: var(--navy-mid, #0d1f38);
+  border: 0.5px solid var(--navy-border, rgba(26,188,156,0.14));
+  border-radius: 12px;
+  padding: 16px 18px;
 }
+
 .header {
   display: flex;
   align-items: center;
   justify-content: space-between;
   margin-bottom: 10px;
 }
+
 .label {
-  font-size: 12px;
-  color: var(--color-text-secondary);
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+  color: rgba(255,255,255,0.45);
 }
+
 .icon {
-  width: 32px; height: 32px;
-  border-radius: var(--radius-md);
-  display: flex; align-items: center; justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   flex-shrink: 0;
 }
-.orange { background: var(--color-orange-light); color: var(--color-amber);      }
-.teal   { background: var(--color-teal-light);   color: var(--color-teal);       }
-.blue   { background: var(--color-blue-light);   color: var(--color-blue);       }
-.purple { background: var(--color-purple-light); color: var(--color-purple);     }
 
-.value { font-size: 22px; font-weight: 500; margin-bottom: 4px; color: var(--color-text-primary); }
-.sub   { font-size: 11px; color: var(--color-text-secondary); }
-.highlight { color: var(--color-teal); font-weight: 500; }
+/* Color variants — matched to your navy theme */
+.orange { background: rgba(249,115,22,0.12);  color: #f97316; }
+.teal   { background: rgba(26,188,156,0.12);  color: #1abc9c; }
+.blue   { background: rgba(59,130,246,0.12);  color: #60a5fa; }
+.purple { background: rgba(168,85,247,0.12);  color: #c084fc; }
+
+.value {
+  font-size: 1.6rem;
+  font-weight: 700;
+  color: #fff;
+  line-height: 1;
+  margin-bottom: 6px;
+  font-family: 'Rajdhani', sans-serif;
+  letter-spacing: 0.5px;
+}
+
+.sub {
+  font-size: 0.72rem;
+  color: rgba(255,255,255,0.4);
+}
+
+.highlight {
+  color: #1abc9c;
+  font-weight: 600;
+}

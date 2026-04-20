@@ -122,9 +122,16 @@ const statusLabel = {
   'Completed':   'Completed job',
 };
 
+// ── Nav items ─────────────────────────────────────────────────────────────────
+const navItems = [
+  { label: 'Dashboard',       key: 'dashboard'      },
+  { label: 'User Management', key: 'userManagement' },
+  { label: 'Shop Requests',   key: 'shopRequests'   },
+  { label: 'System Logs',     key: 'systemLogs'     },
+];
+
 // ════════════════════════════════════════════════════════════════════════════
-export default function AdminDashboard({ setPage }) {
-  const [activeSection, setActiveSection] = useState('Dashboard');
+export default function AdminDashboard({ setPage, activeSection = 'dashboard', setActiveSection }) {
 
   // data
   const [stats,        setStats]        = useState(null);
@@ -146,10 +153,9 @@ export default function AdminDashboard({ setPage }) {
   const [updatingId,  setUpdatingId]  = useState(null);
   const [approvingId, setApprovingId] = useState(null);
 
-  // ── Dashboard ──────────────────────────────────────────────────────────────
+  // ── Dashboard data ─────────────────────────────────────────────────────────
   useEffect(() => {
     const controller = new AbortController();
-  
     fetch('/api/dashboard.php', { credentials: 'include', signal: controller.signal })
       .then(r => r.json())
       .then(d => {
@@ -161,11 +167,10 @@ export default function AdminDashboard({ setPage }) {
         setDashError('Cannot connect to server.');
       })
       .finally(() => setLoadingDash(false));
-  
     return () => controller.abort();
   }, []);
 
-  // ── Users ──────────────────────────────────────────────────────────────────
+  // ── Fetch functions ────────────────────────────────────────────────────────
   const fetchUsers = () => {
     setLoadingUsers(true);
     fetch('/api/users.php', { credentials: 'include' })
@@ -175,7 +180,6 @@ export default function AdminDashboard({ setPage }) {
       .finally(() => setLoadingUsers(false));
   };
 
-  // ── Shop requests ──────────────────────────────────────────────────────────
   const fetchShops = () => {
     setLoadingShops(true);
     fetch('/api/shop_requests.php', { credentials: 'include' })
@@ -185,7 +189,6 @@ export default function AdminDashboard({ setPage }) {
       .finally(() => setLoadingShops(false));
   };
 
-  // ── Logs ───────────────────────────────────────────────────────────────────
   const fetchLogs = () => {
     setLoadingLogs(true);
     fetch('/api/system_logs.php', { credentials: 'include' })
@@ -195,12 +198,19 @@ export default function AdminDashboard({ setPage }) {
       .finally(() => setLoadingLogs(false));
   };
 
-  // ── Section switch — lazy load ─────────────────────────────────────────────
-  const handleSection = (s) => {
-    setActiveSection(s);
-    if (s === 'User Management' && users.length === 0)        fetchUsers();
-    if (s === 'Shop Requests'   && shopRequests.length === 0) fetchShops();
-    if (s === 'System Logs'     && logs.length === 0)         fetchLogs();
+  // ── React to sidebar-driven section changes (lazy load) ───────────────────
+  useEffect(() => {
+    if (activeSection === 'userManagement' && users.length === 0)        fetchUsers();
+    if (activeSection === 'shopRequests'   && shopRequests.length === 0) fetchShops();
+    if (activeSection === 'systemLogs'     && logs.length === 0)         fetchLogs();
+  }, [activeSection]);
+
+  // ── Section switch via internal tabs ──────────────────────────────────────
+  const handleSection = (key) => {
+    if (setActiveSection) setActiveSection(key);
+    if (key === 'userManagement' && users.length === 0)        fetchUsers();
+    if (key === 'shopRequests'   && shopRequests.length === 0) fetchShops();
+    if (key === 'systemLogs'     && logs.length === 0)         fetchLogs();
   };
 
   // ── User actions ───────────────────────────────────────────────────────────
@@ -259,8 +269,6 @@ export default function AdminDashboard({ setPage }) {
     { label: 'Total Revenue', value: `₱${Number(stats.total_revenue).toLocaleString()}`, sub: 'All time',               color: 'purple' },
   ] : [];
 
-  const navItems = ['Dashboard', 'User Management', 'Shop Requests', 'System Logs'];
-
   // ════════════════════════════════════════════════════════════════════════════
   return (
     <div className={styles.wrapper}>
@@ -268,16 +276,16 @@ export default function AdminDashboard({ setPage }) {
       {/* Tabs */}
       <nav className={styles.tabs}>
         {navItems.map(n => (
-          <button key={n}
-            className={`${styles.tab} ${activeSection === n ? styles.tabActive : ''}`}
-            onClick={() => handleSection(n)}>
-            {n}
+          <button key={n.key}
+            className={`${styles.tab} ${activeSection === n.key ? styles.tabActive : ''}`}
+            onClick={() => handleSection(n.key)}>
+            {n.label}
           </button>
         ))}
       </nav>
 
       {/* ═══ DASHBOARD ═══ */}
-      {activeSection === 'Dashboard' && (
+      {activeSection === 'dashboard' && (
         <div className={styles.section}>
           {loadingDash ? (
             <div className={styles.cardsGrid}>
@@ -293,7 +301,7 @@ export default function AdminDashboard({ setPage }) {
 
           <div className={styles.twoCol}>
             <Panel title="Recent Activity" linkLabel="View all →"
-              onLink={() => handleSection('User Management')}>
+              onLink={() => handleSection('userManagement')}>
               {loadingDash ? <TableSkeleton cols={4} rows={5} /> :
                activity.length === 0 ? <div className={styles.empty}>No recent activity.</div> : (
                 <table className={styles.table}>
@@ -327,7 +335,7 @@ export default function AdminDashboard({ setPage }) {
       )}
 
       {/* ═══ USER MANAGEMENT ═══ */}
-      {activeSection === 'User Management' && (
+      {activeSection === 'userManagement' && (
         <div className={styles.section}>
           <div className={styles.sectionPageHeader}>
             <h2 className={styles.sectionTitle}>User Management</h2>
@@ -388,7 +396,7 @@ export default function AdminDashboard({ setPage }) {
       )}
 
       {/* ═══ SHOP REQUESTS ═══ */}
-      {activeSection === 'Shop Requests' && (
+      {activeSection === 'shopRequests' && (
         <div className={styles.section}>
           <div className={styles.sectionPageHeader}>
             <h2 className={styles.sectionTitle}>Shop Requests</h2>
@@ -442,7 +450,7 @@ export default function AdminDashboard({ setPage }) {
       )}
 
       {/* ═══ SYSTEM LOGS ═══ */}
-      {activeSection === 'System Logs' && (
+      {activeSection === 'systemLogs' && (
         <div className={styles.section}>
           <div className={styles.sectionPageHeader}>
             <h2 className={styles.sectionTitle}>System Logs</h2>

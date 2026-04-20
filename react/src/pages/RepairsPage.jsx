@@ -1,3 +1,4 @@
+// src/pages/RepairsPage.jsx
 import { useState, useEffect } from 'react';
 import Panel  from '../components/shared/Panel';
 import Badge  from '../components/shared/Badge';
@@ -11,7 +12,7 @@ export default function RepairsPage({ setPage, role }) {
   const [error,   setError]   = useState(null);
 
   useEffect(() => {
-    fetch('/api/repairs.php')
+    fetch('/api/repairs.php', { credentials: 'include' })   // ← also add credentials
       .then(r => r.json())
       .then(data => {
         if (data.success) setRepairs(data.repairs ?? []);
@@ -33,7 +34,7 @@ export default function RepairsPage({ setPage, role }) {
         ) : repairs.length === 0 ? (
           <div style={{ padding: '1.5rem', color: 'var(--text-muted)' }}>No repairs found.</div>
         ) : (
-          <table className={cStyles.table}>
+          <table className={styles.table}>         {/* ← was cStyles.table */}
             <thead>
               <tr>
                 <th>Job #</th>
@@ -48,12 +49,12 @@ export default function RepairsPage({ setPage, role }) {
             <tbody>
               {repairs.map(r => (
                 <tr key={r.request_id}>
-                  <td className={cStyles.idCol}>#{r.request_id}</td>
-                  <td className={cStyles.bold}>{r.customer_name}</td>
+                  <td className={styles.idCol}>#{r.request_id}</td>    {/* ← was cStyles */}
+                  <td className={styles.bold}>{r.customer_name}</td>   {/* ← was cStyles */}
                   <td>{r.shop_name}</td>
                   <td>{r.device_type}</td>
                   <td>{r.issue_description}</td>
-                  <td className={cStyles.muted}>{new Date(r.created_at).toLocaleDateString()}</td>
+                  <td className={styles.muted}>{new Date(r.created_at).toLocaleDateString()}</td>  {/* ← was cStyles */}
                   <td><Badge status={statusLabel[r.status] ?? 'pending'} /></td>
                 </tr>
               ))}

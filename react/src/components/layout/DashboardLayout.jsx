@@ -5,32 +5,65 @@ import Sidebar from './Sidebar';
 import Topbar  from './Topbar';
 import styles  from './DashboardLayout.module.css';
 
+const SECTION_MAP = {
+  admin: {
+    'Dashboard':       'dashboard',       // ← was 'Dashboard'
+    'User Management': 'userManagement',  // ← was 'User Management'
+    'Shop Requests':   'shopRequests',    // ← was 'Shop Requests'
+    'System Logs':     'systemLogs',      // ← was 'System Logs'
+  },
+  owner: {
+    'Dashboard':             'dashboard',
+    'Repairs / Job Orders':  'repairs',
+    'Inventory':             'inventory',
+    'Customers':             'customers',
+    'Reports / Analytics':   'reports',
+    'Member Management':     'members',
+  },
+  technician: {
+    'Dashboard':       'dashboard',
+    'Repair Requests': 'repairs',
+    'My Jobs':         'repairs',
+    'Reviews':         'reviews',
+  },
+  customer: {
+    'My Dashboard':    'dashboard',
+    'My Repairs':      'repairs',
+    'My Transactions': 'transactions',
+    'Notifications':   'notifications',
+    'Help & FAQs':     'help',
+  },
+};
+
+const DEFAULT_SECTION = {
+  admin:      'dashboard',
+  owner:      'dashboard',
+  technician: 'dashboard',
+  customer:   'dashboard',
+};
+
 export default function DashboardLayout({ role, username, children, pageMap, onLogout }) {
   const [page,       setPage]       = useState('dashboard');
+  const [section,    setSection]    = useState(DEFAULT_SECTION[role] ?? 'dashboard');
   const [loggingOut, setLoggingOut] = useState(false);
   const navigate = useNavigate();
 
   const handleLogout = async () => {
-    // 1. Unmount dashboard content immediately so no more fetches fire
     setLoggingOut(true);
-
-    // 2. Destroy the server session
-    try {
-      await fetch('/api/logout.php', {
-        method: 'POST',
-        credentials: 'include',
-      });
-    } catch {}
-
-    // 3. Clear userRole in App state — this is what actually allows
-    //    /login to render instead of redirecting back to the dashboard
+    try { await fetch('/api/logout.php', { method: 'POST', credentials: 'include' }); } catch {}
     onLogout?.();
-
-    // 4. Navigate to login
     navigate('/login', { replace: true });
   };
 
-  const handleNavigate = (p) => setPage(p);
+  const handleNavigate = (pageKey, label) => {
+    const mapped = label ? (SECTION_MAP[role] ?? {})[label] : null;
+    if (mapped) {
+      setSection(mapped);
+      setPage('dashboard');
+    } else {
+      setPage(pageKey);
+    }
+  };
 
   const Content = loggingOut
     ? null
@@ -43,18 +76,23 @@ export default function DashboardLayout({ role, username, children, pageMap, onL
         username={username}
         onNavigate={handleNavigate}
         onLogout={handleLogout}
+        activeSection={section}
       />
       <div className={styles.main}>
         <Topbar
           role={role}
           username={username}
-          currentPage={page}
+          currentPage={section}
           onLogout={handleLogout}
           onNavigate={handleNavigate}
         />
         <div className={styles.body}>
           {Content
-            ? <Content setPage={setPage} />
+            ? <Content
+                setPage={setPage}
+                activeSection={section}
+                setActiveSection={setSection}
+              />
             : children}
         </div>
       </div>

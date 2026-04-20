@@ -22,6 +22,9 @@ const titleMap = {
   transactions:   { admin: 'Transactions',    owner: 'Transactions', technician: '',             customer: 'My Transactions' },
   reviews:        { admin: '',                owner: '',             technician: 'Reviews',      customer: ''               },
   profile:        { admin: 'My Profile',      owner: 'My Profile',   technician: 'My Profile',   customer: 'My Profile'     },
+  // ── FIX: added missing customer sections ─────────────────────────────
+  notifications:  { admin: 'Notifications',   owner: 'Notifications', technician: 'Notifications', customer: 'Notifications' },
+  help:           { admin: 'Help & FAQs',      owner: 'Help & FAQs',   technician: 'Help & FAQs',   customer: 'Help & FAQs'   },
 };
 
 const breadcrumbMap = {
@@ -35,6 +38,9 @@ const breadcrumbMap = {
   transactions:   'TechnoLogs / Transactions',
   reviews:        'TechnoLogs / Reviews',
   profile:        'TechnoLogs / My Profile',
+  // ── FIX: added missing customer sections ─────────────────────────────
+  notifications:  'TechnoLogs / Notifications',
+  help:           'TechnoLogs / Help & FAQs',
 };
 
 // ── Quick-links per role ──────────────────────────────────────────────────
@@ -57,9 +63,11 @@ const roleNavLinks = {
     { label: 'My Jobs',         page: 'repairs'   },
   ],
   customer: [
-    { label: 'My Dashboard',    page: 'dashboard'    },
-    { label: 'My Repairs',      page: 'repairs'      },
-    { label: 'My Transactions', page: 'transactions' },
+    { label: 'My Dashboard',    page: 'dashboard'     },
+    { label: 'My Repairs',      page: 'repairs'       },
+    { label: 'My Transactions', page: 'transactions'  },
+    { label: 'Notifications',   page: 'notifications' },
+    { label: 'Help & FAQs',     page: 'help'          },
   ],
 };
 
@@ -254,10 +262,6 @@ export default function Topbar({ role, username, currentPage = 'dashboard', onLo
   const [open,   setOpen]   = useState('');
   const [notifs, setNotifs] = useState([]);
 
-  // ── KEY FIX: one single ref on the entire right panel ────────────────
-  // All three toggle buttons live INSIDE this ref, so clicking them never
-  // triggers the outside-click handler. This eliminates the race condition
-  // where a dropdown was opening and immediately closing on the same click.
   const rightRef = useRef(null);
 
   useEffect(() => {
@@ -269,7 +273,6 @@ export default function Topbar({ role, username, currentPage = 'dashboard', onLo
 
   const closeAll = useCallback(() => setOpen(''), []);
 
-  // Outside-click: mousedown on rightRef so it fires before any React onClick
   useEffect(() => {
     const handler = (e) => {
       if (rightRef.current && !rightRef.current.contains(e.target)) {
@@ -280,14 +283,12 @@ export default function Topbar({ role, username, currentPage = 'dashboard', onLo
     return () => document.removeEventListener('mousedown', handler);
   }, [closeAll]);
 
-  // Escape key
   useEffect(() => {
     const handler = (e) => { if (e.key === 'Escape') closeAll(); };
     document.addEventListener('keydown', handler);
     return () => document.removeEventListener('keydown', handler);
   }, [closeAll]);
 
-  // Clicking the same button twice closes the panel
   const toggle = (panel) => setOpen(prev => prev === panel ? '' : panel);
 
   const unreadCount = notifs.filter(n => n.unread).length;

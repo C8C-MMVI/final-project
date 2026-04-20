@@ -1,5 +1,8 @@
 // src/pages/CustomerDashboard.jsx
+// Only the transactions section changes — it now reads from Spring Boot.
+// Everything else (dashboard, repairs, notifications, help) is unchanged.
 import { useState, useEffect, useCallback } from 'react';
+import { getSalesByCustomer } from '../lib/api';
 import s from './CustomerDashboard.module.css';
 
 function normStatus(raw = '') {
@@ -41,7 +44,6 @@ const IconCheckSm = () => <svg viewBox="0 0 24 24" fill="none" stroke="currentCo
 const IconDot     = () => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="4"/></svg>;
 const IconEmpty   = () => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" width="36" height="36"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>;
 
-// ── Shared components ─────────────────────────────────────────────────────
 function Badge({ status, label }) {
   const cls = { pending: s.badgePending, progress: s.badgeProgress, done: s.badgeDone, cancelled: s.badgeCancelled }[status] ?? s.badgePending;
   return <span className={`${s.badge} ${cls}`}>{label}</span>;
@@ -120,7 +122,6 @@ function RepairRequestForm({ onSuccess }) {
           {toast.msg}
         </div>
       )}
-
       <div className={s.formGroup}>
         <label className={s.formLabel}>Shop</label>
         <select className={s.formSelect} value={form.shop_id}
@@ -131,7 +132,6 @@ function RepairRequestForm({ onSuccess }) {
           ))}
         </select>
       </div>
-
       <div className={s.formRow}>
         <div className={s.formGroup}>
           <label className={s.formLabel}>Device Type</label>
@@ -154,14 +154,12 @@ function RepairRequestForm({ onSuccess }) {
           </select>
         </div>
       </div>
-
       <div className={s.formGroup}>
         <label className={s.formLabel}>Description</label>
         <textarea className={s.formTextarea} placeholder="Describe the issue in detail…" rows={4}
           value={form.issue_description}
           onChange={e => setForm(f => ({ ...f, issue_description: e.target.value }))} />
       </div>
-
       <button type="submit" className={s.formSubmit} disabled={saving}>
         {saving ? 'Submitting…' : 'Submit Request'}
       </button>
@@ -202,13 +200,17 @@ function RepairTimeline({ repair }) {
 }
 
 // ── Main ──────────────────────────────────────────────────────────────────
-export default function CustomerDashboard({ username = 'Customer', setPage, activeSection = 'dashboard', setActiveSection }) {
+export default function CustomerDashboard({ username = 'Customer', userId, setPage, activeSection = 'dashboard', setActiveSection }) {
   const [stats,        setStats]        = useState(null);
   const [repairs,      setRepairs]      = useState([]);
-  const [transactions, setTransactions] = useState([]);
+  const [transactions, setTransactions] = useState([]); // from Spring Boot
   const [latestRepair, setLatestRepair] = useState(null);
   const [loading,      setLoading]      = useState(true);
+  const [txLoading,    setTxLoading]    = useState(false);
   const [error,        setError]        = useState(null);
+
+  // customerId from PHP session — dashboard.php should return it in stats
+  const [customerId, setCustomerId] = useState(userId ?? null);
 
   const loadData = useCallback(() => {
     setLoading(true);
@@ -218,8 +220,9 @@ export default function CustomerDashboard({ username = 'Customer', setPage, acti
         if (data.success) {
           setStats(data.stats);
           setRepairs(data.repairs ?? []);
-          setTransactions(data.transactions ?? []);
           setLatestRepair(data.latest_repair ?? (data.repairs?.length ? data.repairs[0] : null));
+          // Grab customer_id so we can query Spring Boot
+          if (data.stats?.customer_id) setCustomerId(data.stats.customer_id);
         } else {
           setError(data.message || 'Failed to load dashboard.');
         }
@@ -228,14 +231,30 @@ export default function CustomerDashboard({ username = 'Customer', setPage, acti
       .finally(() => setLoading(false));
   }, []);
 
+  // Load sales from Spring Boot whenever we have a customerId
+  const loadTransactions = useCallback(async (cid) => {
+    if (!cid) return;
+    setTxLoading(true);
+    try {
+      const res = await getSalesByCustomer(cid);
+      if (res.ok) {
+        const data = await res.json();
+        setTransactions(data ?? []);
+      }
+    } catch {}
+    finally { setTxLoading(false); }
+  }, []);
+
   useEffect(() => { loadData(); }, [loadData]);
+  useEffect(() => { if (customerId) loadTransactions(customerId); }, [customerId, loadTransactions]);
 
   if (loading) return <div className={s.loadingState}>Loading dashboard…</div>;
   if (error)   return <div className={s.errorState}>{error}</div>;
 
   const activeCount    = stats?.active_repairs    ?? 0;
   const completedCount = stats?.completed_repairs ?? 0;
-  const totalSpent     = stats?.total_spent       ?? 0;
+  // Total spent = sum of all sale amounts from Spring Boot
+  const totalSpent     = transactions.reduce((sum, t) => sum + Number(t.amount ?? 0), 0);
 
   // ── Dashboard ─────────────────────────────────────────────────────────
   if (activeSection === 'dashboard') {
@@ -264,7 +283,7 @@ export default function CustomerDashboard({ username = 'Customer', setPage, acti
           <div className={s.statCard}>
             <div className={`${s.statIcon} ${s.iconBlue}`}><IconPeso /></div>
             <div className={s.statInfo}>
-              <span className={s.statValue}>₱{Number(totalSpent).toLocaleString('en-PH', { minimumFractionDigits: 0 })}</span>
+              <span className={s.statValue}>₱{totalSpent.toLocaleString('en-PH', { minimumFractionDigits: 0 })}</span>
               <span className={s.statLabel}>Total Spent</span>
             </div>
           </div>
@@ -311,9 +330,7 @@ export default function CustomerDashboard({ username = 'Customer', setPage, acti
   if (activeSection === 'repairs') {
     return (
       <div className={s.tableSection}>
-        <div className={s.sectionHeader}>
-          <h2 className={s.sectionTitle}>My Repairs</h2>
-        </div>
+        <div className={s.sectionHeader}><h2 className={s.sectionTitle}>My Repairs</h2></div>
         <Panel title="All Repair Requests" metaLabel={`${repairs.length} total`}>
           {repairs.length === 0 ? (
             <div className={s.emptyState}><IconEmpty /><p>No repair requests found.</p></div>
@@ -341,39 +358,31 @@ export default function CustomerDashboard({ username = 'Customer', setPage, acti
     );
   }
 
-  // ── My Transactions ───────────────────────────────────────────────────
+  // ── My Transactions (from Spring Boot) ────────────────────────────────
   if (activeSection === 'transactions') {
     return (
       <div className={s.tableSection}>
-        <div className={s.sectionHeader}>
-          <h2 className={s.sectionTitle}>My Transactions</h2>
-        </div>
+        <div className={s.sectionHeader}><h2 className={s.sectionTitle}>My Transactions</h2></div>
         <Panel title="Transaction History" metaLabel={`${transactions.length} records`}>
-          {transactions.length === 0 ? (
+          {txLoading ? (
+            <div className={s.emptyState}><p>Loading transactions…</p></div>
+          ) : transactions.length === 0 ? (
             <div className={s.emptyState}><IconEmpty /><p>No transactions found.</p></div>
           ) : (
             <table className={s.table}>
               <thead>
-                <tr><th>Reference</th><th>Item / Service</th><th>Amount</th><th>Method</th><th>Date</th></tr>
+                <tr><th>Sale #</th><th>Repair #</th><th>Amount</th><th>Method</th><th>Date</th></tr>
               </thead>
               <tbody>
-                {transactions.map(t => {
-                  const amount  = t.total_amount   ?? t.amount;
-                  const method  = t.payment_method ?? t.type ?? '—';
-                  const dateStr = t.transaction_date ?? t.created_at;
-                  const item    = t.shop_name
-                    ? t.shop_name
-                    : `${t.device ?? ''} – ${t.issue ?? ''}`.replace(/^–\s*|–\s*$/, '');
-                  return (
-                    <tr key={t.transaction_id}>
-                      <td className={s.idCol}>TXN-{String(t.transaction_id).padStart(4, '0')}</td>
-                      <td>{item}</td>
-                      <td className={s.bold}>₱{Number(amount).toLocaleString('en-PH', { minimumFractionDigits: 2 })}</td>
-                      <td>{method}</td>
-                      <td className={s.muted}>{fmtDate(dateStr)}</td>
-                    </tr>
-                  );
-                })}
+                {transactions.map(t => (
+                  <tr key={t.saleId}>
+                    <td className={s.idCol}>SALE-{String(t.saleId).padStart(4, '0')}</td>
+                    <td>#{t.requestId}</td>
+                    <td className={s.bold}>₱{Number(t.amount).toLocaleString('en-PH', { minimumFractionDigits: 2 })}</td>
+                    <td>{t.paymentMethod}</td>
+                    <td className={s.muted}>{fmtDate(t.soldAt)}</td>
+                  </tr>
+                ))}
               </tbody>
             </table>
           )}
@@ -382,13 +391,31 @@ export default function CustomerDashboard({ username = 'Customer', setPage, acti
     );
   }
 
-  // ── Fallback (Notifications / Help) ───────────────────────────────────
-  return (
-    <div className={s.tableSection}>
-      <div className={s.emptyState} style={{ padding: '60px 20px' }}>
-        <IconEmpty />
-        <p style={{ textTransform: 'capitalize' }}>{activeSection} coming soon.</p>
+  // ── Notifications ─────────────────────────────────────────────────────
+  if (activeSection === 'notifications') {
+    return (
+      <div className={s.tableSection}>
+        <div className={s.sectionHeader}><h2 className={s.sectionTitle}>Notifications</h2></div>
+        <div className={s.emptyState} style={{ padding: '60px 20px' }}>
+          <IconEmpty />
+          <p>No notifications yet.</p>
+        </div>
       </div>
-    </div>
-  );
+    );
+  }
+
+  // ── Help & FAQs ───────────────────────────────────────────────────────
+  if (activeSection === 'help') {
+    return (
+      <div className={s.tableSection}>
+        <div className={s.sectionHeader}><h2 className={s.sectionTitle}>Help & FAQs</h2></div>
+        <div className={s.emptyState} style={{ padding: '60px 20px' }}>
+          <IconEmpty />
+          <p>Help content coming soon.</p>
+        </div>
+      </div>
+    );
+  }
+
+  return null;
 }

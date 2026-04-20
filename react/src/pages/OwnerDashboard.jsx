@@ -3,6 +3,7 @@ import { useState, useEffect, useCallback } from 'react';
 import StatCard from '../components/dashboard/StatCard';
 import Panel    from '../components/shared/Panel';
 import Badge    from '../components/shared/Badge';
+import { createSale, getSalesByShop } from '../lib/api';
 import styles   from './OwnerDashboard.module.css';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -11,7 +12,6 @@ const repairBadge = {
   'Pending':     'pending',
   'Completed':   'done',
 };
-const membBadge = { active: 'done', inactive: 'cancelled' };
 
 function fmtDate(d) {
   if (!d) return '—';
@@ -38,7 +38,6 @@ function AssignCell({ repair, technicians, onAssigned }) {
     finally { setSaving(false); }
   };
 
-  // Only show for Pending / In Progress repairs
   if (repair.status === 'Completed') {
     return <span style={{ color: 'var(--muted)', fontSize: '0.78rem' }}>{repair.technician_name ?? '—'}</span>;
   }
@@ -69,17 +68,9 @@ function AssignCell({ repair, technicians, onAssigned }) {
         onClick={handleAssign}
         disabled={saving || !selected || Number(selected) === Number(repair.technician_id)}
         style={{
-          background: 'var(--teal, #1abc9c)',
-          color: '#0a1628',
-          border: 'none',
-          fontSize: '0.73rem',
-          fontWeight: 700,
-          padding: '4px 11px',
-          borderRadius: 7,
-          cursor: 'pointer',
-          opacity: saving ? 0.55 : 1,
-          whiteSpace: 'nowrap',
-          transition: 'opacity 0.2s',
+          background: 'var(--teal, #1abc9c)', color: '#0a1628', border: 'none',
+          fontSize: '0.73rem', fontWeight: 700, padding: '4px 11px', borderRadius: 7,
+          cursor: 'pointer', opacity: saving ? 0.55 : 1, whiteSpace: 'nowrap', transition: 'opacity 0.2s',
         }}
       >
         {saving ? '…' : 'Save'}
@@ -88,22 +79,195 @@ function AssignCell({ repair, technicians, onAssigned }) {
   );
 }
 
+// ── Create Sale Modal ─────────────────────────────────────────────────────────
+// Opens when owner clicks "Create Sale" on a Completed repair.
+// POSTs to Spring Boot POST /api/sales
+function CreateSaleModal({ repair, onClose, onCreated }) {
+  const emptyItem = () => ({ description: '', quantity: 1, unitPrice: '' });
+
+  const [items,   setItems]   = useState([emptyItem()]);
+  const [method,  setMethod]  = useState('Cash');
+  const [saving,  setSaving]  = useState(false);
+  const [error,   setError]   = useState(null);
+
+  const addItem    = () => setItems(prev => [...prev, emptyItem()]);
+  const removeItem = (i) => setItems(prev => prev.filter((_, idx) => idx !== i));
+
+  const updateItem = (i, field, value) =>
+    setItems(prev => prev.map((item, idx) => idx === i ? { ...item, [field]: value } : item));
+
+  const total = items.reduce((sum, it) => {
+    const qty   = Number(it.quantity)  || 0;
+    const price = Number(it.unitPrice) || 0;
+    return sum + qty * price;
+  }, 0);
+
+  const handleSubmit = async () => {
+    setError(null);
+
+    // Validate
+    for (const it of items) {
+      if (!it.description.trim() || !it.quantity || !it.unitPrice) {
+        setError('Please fill in all item fields.');
+        return;
+      }
+    }
+
+    setSaving(true);
+    try {
+      const body = {
+        requestId:     repair.request_id,
+        shopId:        repair.shop_id,
+        customerId:    repair.customer_id,
+        staffId:       repair.technician_id,
+        paymentMethod: method,
+        items: items.map(it => ({
+          description: it.description.trim(),
+          quantity:    Number(it.quantity),
+          unitPrice:   Number(it.unitPrice),
+        })),
+      };
+
+      const res  = await createSale(body);
+      const data = await res.json();
+
+      if (res.ok) {
+        onCreated?.();
+        onClose();
+      } else {
+        setError(data.error ?? 'Failed to create sale.');
+      }
+    } catch {
+      setError('Cannot connect to sales server.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // Modal overlay styles (inline so no extra CSS file needed)
+  const overlay = {
+    position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.65)',
+    display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999,
+  };
+  const modal = {
+    background: 'var(--navy-mid, #0d1f38)',
+    border: '1px solid rgba(26,188,156,0.18)',
+    borderRadius: 14, padding: '28px 32px', width: '100%', maxWidth: 580,
+    maxHeight: '90vh', overflowY: 'auto',
+    boxShadow: '0 20px 60px rgba(0,0,0,0.5)',
+  };
+  const label   = { display: 'block', color: 'var(--muted, #8090a8)', fontSize: '0.72rem', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.06em' };
+  const input   = { width: '100%', background: 'var(--navy-dark, #0a1628)', border: '1px solid rgba(26,188,156,0.15)', color: '#fff', padding: '7px 11px', borderRadius: 7, fontSize: '0.82rem', outline: 'none', boxSizing: 'border-box' };
+  const btnTeal = { background: 'var(--teal, #1abc9c)', color: '#0a1628', border: 'none', fontWeight: 700, padding: '8px 18px', borderRadius: 8, cursor: 'pointer', fontSize: '0.82rem' };
+  const btnGhost= { background: 'transparent', color: 'var(--muted)', border: '1px solid rgba(255,255,255,0.12)', padding: '8px 18px', borderRadius: 8, cursor: 'pointer', fontSize: '0.82rem' };
+
+  return (
+    <div style={overlay} onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
+      <div style={modal}>
+
+        {/* Header */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+          <div>
+            <div style={{ color: '#fff', fontWeight: 700, fontSize: '1rem', fontFamily: 'Rajdhani, sans-serif' }}>
+              Create Sale — Repair #{repair.request_id}
+            </div>
+            <div style={{ color: 'var(--muted)', fontSize: '0.78rem', marginTop: 2 }}>
+              {repair.device_type} · {repair.customer_name}
+            </div>
+          </div>
+          <button onClick={onClose} style={{ ...btnGhost, padding: '4px 10px' }}>✕</button>
+        </div>
+
+        {/* Error */}
+        {error && (
+          <div style={{ background: 'rgba(239,68,68,0.12)', border: '1px solid #ef4444', color: '#ef4444', padding: '8px 12px', borderRadius: 7, marginBottom: 14, fontSize: '0.8rem' }}>
+            {error}
+          </div>
+        )}
+
+        {/* Payment method */}
+        <div style={{ marginBottom: 16 }}>
+          <label style={label}>Payment Method</label>
+          <select value={method} onChange={e => setMethod(e.target.value)} style={input}>
+            <option>Cash</option>
+            <option>GCash</option>
+            <option>Maya</option>
+            <option>Bank Transfer</option>
+            <option>Card</option>
+          </select>
+        </div>
+
+        {/* Line items */}
+        <div style={{ marginBottom: 8 }}>
+          <label style={label}>Line Items</label>
+          {items.map((it, i) => (
+            <div key={i} style={{ display: 'grid', gridTemplateColumns: '1fr 70px 100px 32px', gap: 8, marginBottom: 8, alignItems: 'center' }}>
+              <input
+                style={input} placeholder="Description (e.g. Screen Replacement)"
+                value={it.description}
+                onChange={e => updateItem(i, 'description', e.target.value)}
+              />
+              <input
+                style={input} type="number" min="1" placeholder="Qty"
+                value={it.quantity}
+                onChange={e => updateItem(i, 'quantity', e.target.value)}
+              />
+              <input
+                style={input} type="number" min="0" step="0.01" placeholder="Unit Price"
+                value={it.unitPrice}
+                onChange={e => updateItem(i, 'unitPrice', e.target.value)}
+              />
+              <button
+                onClick={() => removeItem(i)} disabled={items.length === 1}
+                style={{ ...btnGhost, padding: '6px 8px', opacity: items.length === 1 ? 0.3 : 1 }}
+              >✕</button>
+            </div>
+          ))}
+          <button onClick={addItem} style={{ ...btnGhost, marginTop: 4, fontSize: '0.78rem' }}>
+            + Add Item
+          </button>
+        </div>
+
+        {/* Total */}
+        <div style={{ textAlign: 'right', color: 'var(--teal, #1abc9c)', fontWeight: 700, fontSize: '1.1rem', fontFamily: 'Rajdhani, sans-serif', margin: '16px 0' }}>
+          Total: ₱{total.toLocaleString('en-PH', { minimumFractionDigits: 2 })}
+        </div>
+
+        {/* Actions */}
+        <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+          <button style={btnGhost} onClick={onClose} disabled={saving}>Cancel</button>
+          <button style={{ ...btnTeal, opacity: saving ? 0.6 : 1 }} onClick={handleSubmit} disabled={saving}>
+            {saving ? 'Saving…' : 'Confirm Sale'}
+          </button>
+        </div>
+
+      </div>
+    </div>
+  );
+}
+
 // ── Main Component ────────────────────────────────────────────────────────────
 export default function OwnerDashboard({ setPage, activeSection = 'dashboard', setActiveSection }) {
   const [repairs,      setRepairs]      = useState([]);
   const [technicians,  setTechnicians]  = useState([]);
-  const [transactions, setTransactions] = useState([]);
+  const [transactions, setTransactions] = useState([]); // now from Spring Boot
   const [stats,        setStats]        = useState(null);
   const [loading,      setLoading]      = useState(true);
   const [error,        setError]        = useState(null);
   const [toast,        setToast]        = useState(null);
+
+  // Create Sale modal state
+  const [saleRepair,   setSaleRepair]   = useState(null); // repair to create a sale for
+
+  // Shop ID comes from the session — PHP dashboard returns it in stats
+  const [shopId, setShopId] = useState(null);
 
   const showToast = (msg, isError = false) => {
     setToast({ msg, isError });
     setTimeout(() => setToast(null), 3000);
   };
 
-  // ── Fetch all data ──────────────────────────────────────────────────────────
+  // ── Fetch repairs (PHP) ────────────────────────────────────────────────────
   const fetchRepairs = useCallback(async () => {
     try {
       const res  = await fetch('/api/repairs.php', { credentials: 'include' });
@@ -112,6 +276,7 @@ export default function OwnerDashboard({ setPage, activeSection = 'dashboard', s
     } catch {}
   }, []);
 
+  // ── Fetch technicians (PHP) ────────────────────────────────────────────────
   const fetchTechnicians = useCallback(async () => {
     try {
       const res  = await fetch('/api/technicians.php', { credentials: 'include' });
@@ -120,13 +285,27 @@ export default function OwnerDashboard({ setPage, activeSection = 'dashboard', s
     } catch {}
   }, []);
 
+  // ── Fetch stats (PHP) ─────────────────────────────────────────────────────
   const fetchDashboard = useCallback(async () => {
     try {
       const res  = await fetch('/api/dashboard.php', { credentials: 'include' });
       const data = await res.json();
       if (data.success) {
         setStats(data.stats);
-        setTransactions(data.transactions ?? []);
+        // Grab shop_id from stats so we can query Spring Boot
+        if (data.stats?.shop_id) setShopId(data.stats.shop_id);
+      }
+    } catch {}
+  }, []);
+
+  // ── Fetch sales/transactions (Spring Boot) ────────────────────────────────
+  const fetchSales = useCallback(async (sid) => {
+    if (!sid) return;
+    try {
+      const res  = await getSalesByShop(sid);
+      if (res.ok) {
+        const data = await res.json();
+        setTransactions(data ?? []);
       }
     } catch {}
   }, []);
@@ -145,10 +324,19 @@ export default function OwnerDashboard({ setPage, activeSection = 'dashboard', s
 
   useEffect(() => { loadAll(); }, [loadAll]);
 
-  // After assigning a technician, refresh repairs silently
+  // Once we have shopId, load sales from Spring Boot
+  useEffect(() => {
+    if (shopId) fetchSales(shopId);
+  }, [shopId, fetchSales]);
+
   const handleAssigned = () => {
     showToast('Technician assigned successfully.');
     fetchRepairs();
+  };
+
+  const handleSaleCreated = () => {
+    showToast('Sale created successfully!');
+    if (shopId) fetchSales(shopId);
   };
 
   const handleTab = (sectionKey) => {
@@ -157,10 +345,10 @@ export default function OwnerDashboard({ setPage, activeSection = 'dashboard', s
 
   // ── Derived stats ───────────────────────────────────────────────────────────
   const statCards = stats ? [
-    { label: 'Active Repairs',   value: stats.active_repairs,  sub: '',          icon_class: 'orange' },
-    { label: 'Completed Today',  value: stats.completed_today, sub: '',          icon_class: 'teal'   },
-    { label: 'Total Customers',  value: stats.total_customers, sub: '',          icon_class: 'blue'   },
-    { label: "Today's Revenue",  value: `₱${Number(stats.today_revenue ?? 0).toLocaleString('en-PH')}`, sub: '', icon_class: 'purple' },
+    { label: 'Active Repairs',   value: stats.active_repairs,  icon_class: 'orange' },
+    { label: 'Completed Today',  value: stats.completed_today, icon_class: 'teal'   },
+    { label: 'Total Customers',  value: stats.total_customers, icon_class: 'blue'   },
+    { label: "Today's Revenue",  value: `₱${Number(stats.today_revenue ?? 0).toLocaleString('en-PH')}`, icon_class: 'purple' },
   ] : [];
 
   const tabs = [
@@ -176,7 +364,7 @@ export default function OwnerDashboard({ setPage, activeSection = 'dashboard', s
       {/* Toast */}
       {toast && (
         <div style={{
-          position: 'fixed', bottom: 28, right: 28, zIndex: 9999,
+          position: 'fixed', bottom: 28, right: 28, zIndex: 9998,
           background: 'var(--navy-mid, #0d1f38)',
           border: `1px solid ${toast.isError ? '#ef4444' : 'var(--teal, #1abc9c)'}`,
           color: toast.isError ? '#ef4444' : 'var(--white, #fff)',
@@ -185,6 +373,15 @@ export default function OwnerDashboard({ setPage, activeSection = 'dashboard', s
         }}>
           {toast.msg}
         </div>
+      )}
+
+      {/* Create Sale Modal */}
+      {saleRepair && (
+        <CreateSaleModal
+          repair={saleRepair}
+          onClose={() => setSaleRepair(null)}
+          onCreated={handleSaleCreated}
+        />
       )}
 
       {/* Sub-nav tabs */}
@@ -242,20 +439,20 @@ export default function OwnerDashboard({ setPage, activeSection = 'dashboard', s
               )}
             </Panel>
 
-            <Panel title="Recent Transactions">
-              {loading ? <Loader /> : transactions.length === 0 ? <Empty msg="No transactions yet." /> : (
+            <Panel title="Recent Sales" linkLabel="View all" onLink={() => handleTab('reports')}>
+              {transactions.length === 0 ? <Empty msg="No sales yet." /> : (
                 <table className={styles.table}>
                   <thead>
-                    <tr><th>Reference</th><th>Customer</th><th>Amount</th><th>Method</th><th>Date</th></tr>
+                    <tr><th>Sale #</th><th>Repair #</th><th>Amount</th><th>Method</th><th>Date</th></tr>
                   </thead>
                   <tbody>
-                    {transactions.map((t, i) => (
-                      <tr key={t.transaction_id ?? i}>
-                        <td className={styles.idCol}>TXN-{String(t.transaction_id).padStart(4, '0')}</td>
-                        <td>{t.customer_name ?? '—'}</td>
-                        <td className={styles.amountCol}>₱{Number(t.total_amount ?? 0).toLocaleString('en-PH', { minimumFractionDigits: 2 })}</td>
-                        <td>{t.payment_method ?? '—'}</td>
-                        <td className={styles.mutedCol}>{fmtDate(t.transaction_date)}</td>
+                    {transactions.slice(0, 5).map((t, i) => (
+                      <tr key={t.saleId ?? i}>
+                        <td className={styles.idCol}>SALE-{String(t.saleId).padStart(4, '0')}</td>
+                        <td>#{t.requestId}</td>
+                        <td className={styles.amountCol}>₱{Number(t.amount).toLocaleString('en-PH', { minimumFractionDigits: 2 })}</td>
+                        <td>{t.paymentMethod}</td>
+                        <td className={styles.mutedCol}>{fmtDate(t.soldAt)}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -270,14 +467,13 @@ export default function OwnerDashboard({ setPage, activeSection = 'dashboard', s
           <>
             <SectionHeader title="Repairs / Job Orders" />
 
-            {/* Quick stats strip */}
             <div style={{ display: 'flex', gap: 12, marginBottom: 20, flexWrap: 'wrap' }}>
               {[
-                { label: 'Total',       value: repairs.length,                                          color: 'var(--teal)'  },
-                { label: 'Pending',     value: repairs.filter(r => r.status === 'Pending').length,      color: '#fb923c'      },
-                { label: 'In Progress', value: repairs.filter(r => r.status === 'In Progress').length,  color: '#facc15'      },
-                { label: 'Completed',   value: repairs.filter(r => r.status === 'Completed').length,    color: '#4ade80'      },
-                { label: 'Unassigned',  value: repairs.filter(r => !r.technician_id).length,            color: '#f87171'      },
+                { label: 'Total',       value: repairs.length,                                         color: 'var(--teal)'  },
+                { label: 'Pending',     value: repairs.filter(r => r.status === 'Pending').length,     color: '#fb923c'      },
+                { label: 'In Progress', value: repairs.filter(r => r.status === 'In Progress').length, color: '#facc15'      },
+                { label: 'Completed',   value: repairs.filter(r => r.status === 'Completed').length,   color: '#4ade80'      },
+                { label: 'Unassigned',  value: repairs.filter(r => !r.technician_id).length,           color: '#f87171'      },
               ].map(s => (
                 <div key={s.label} style={{
                   background: 'var(--navy-mid, #0d1f38)',
@@ -296,7 +492,7 @@ export default function OwnerDashboard({ setPage, activeSection = 'dashboard', s
                   <thead>
                     <tr>
                       <th>Job #</th><th>Customer</th><th>Device</th><th>Issue</th>
-                      <th>Date</th><th>Status</th><th>Assign Technician</th>
+                      <th>Date</th><th>Status</th><th>Assign Technician</th><th>Sale</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -309,11 +505,25 @@ export default function OwnerDashboard({ setPage, activeSection = 'dashboard', s
                         <td className={styles.mutedCol}>{fmtDate(r.created_at)}</td>
                         <td><Badge status={repairBadge[r.status] ?? 'pending'} /></td>
                         <td>
-                          <AssignCell
-                            repair={r}
-                            technicians={technicians}
-                            onAssigned={handleAssigned}
-                          />
+                          <AssignCell repair={r} technicians={technicians} onAssigned={handleAssigned} />
+                        </td>
+                        <td>
+                          {/* Only completed repairs can have a sale created */}
+                          {r.status === 'Completed' ? (
+                            <button
+                              onClick={() => setSaleRepair(r)}
+                              style={{
+                                background: 'var(--teal, #1abc9c)', color: '#0a1628',
+                                border: 'none', fontSize: '0.72rem', fontWeight: 700,
+                                padding: '4px 12px', borderRadius: 7, cursor: 'pointer',
+                                whiteSpace: 'nowrap',
+                              }}
+                            >
+                              Create Sale
+                            </button>
+                          ) : (
+                            <span style={{ color: 'var(--muted)', fontSize: '0.75rem' }}>—</span>
+                          )}
                         </td>
                       </tr>
                     ))}
@@ -367,20 +577,21 @@ export default function OwnerDashboard({ setPage, activeSection = 'dashboard', s
               <Panel title="Revenue This Month"><EmptyChart label="Charts coming soon" icon="bar" /></Panel>
               <Panel title="Repairs by Status"><EmptyChart label="Charts coming soon" icon="pie" /></Panel>
             </div>
-            <Panel title="Recent Transactions">
-              {transactions.length === 0 ? <Empty msg="No transactions yet." /> : (
+            <Panel title="All Sales" linkLabel={`${transactions.length} records`}>
+              {transactions.length === 0 ? <Empty msg="No sales yet." /> : (
                 <table className={styles.table}>
                   <thead>
-                    <tr><th>Reference</th><th>Customer</th><th>Amount</th><th>Method</th><th>Date</th></tr>
+                    <tr><th>Sale #</th><th>Repair #</th><th>Amount</th><th>Method</th><th>Date</th><th>Items</th></tr>
                   </thead>
                   <tbody>
                     {transactions.map((t, i) => (
-                      <tr key={t.transaction_id ?? i}>
-                        <td className={styles.idCol}>TXN-{String(t.transaction_id).padStart(4, '0')}</td>
-                        <td>{t.customer_name ?? '—'}</td>
-                        <td className={styles.amountCol}>₱{Number(t.total_amount ?? 0).toLocaleString('en-PH', { minimumFractionDigits: 2 })}</td>
-                        <td>{t.payment_method ?? '—'}</td>
-                        <td className={styles.mutedCol}>{fmtDate(t.transaction_date)}</td>
+                      <tr key={t.saleId ?? i}>
+                        <td className={styles.idCol}>SALE-{String(t.saleId).padStart(4, '0')}</td>
+                        <td>#{t.requestId}</td>
+                        <td className={styles.amountCol}>₱{Number(t.amount).toLocaleString('en-PH', { minimumFractionDigits: 2 })}</td>
+                        <td>{t.paymentMethod}</td>
+                        <td className={styles.mutedCol}>{fmtDate(t.soldAt)}</td>
+                        <td className={styles.mutedCol}>{t.items?.length ?? 0} item(s)</td>
                       </tr>
                     ))}
                   </tbody>

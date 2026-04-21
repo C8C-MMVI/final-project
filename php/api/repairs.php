@@ -77,9 +77,11 @@ if ($method === 'GET') {
                 rr.status,
                 rr.technician_notes,
                 rr.created_at,
+                tu.username  AS technician_name,
                 s.shop_name
             FROM repair_requests rr
             JOIN shops s ON s.shop_id = rr.shop_id
+            LEFT JOIN users tu ON tu.user_id = rr.technician_id
             WHERE rr.customer_id = ?
             ORDER BY rr.created_at DESC
         ");

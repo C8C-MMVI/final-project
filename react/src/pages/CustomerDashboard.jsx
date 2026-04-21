@@ -13,12 +13,15 @@ const fmtDate    = d => new Date(d).toLocaleDateString('en-US',{month:'short',da
 
 // ── Enrich sale with repair details for receipt ───────────────────────────────
 function enrichSale(sale, repairs) {
-  const repair = repairs.find(r => (r.repair_id ?? r.request_id) === sale.requestId);
+  const repair = repairs.find(r =>
+    (r.repair_id ?? r.request_id) === sale.requestId ||
+    (r.repair_id ?? r.request_id) === Number(sale.requestId)
+  );
   return {
     ...sale,
-    shopName:       repair?.shop_name       ?? null,
-    deviceType:     repair?.device_type ?? repair?.device ?? null,
-    technicianName: repair?.technician_name ?? null,
+    shopName:       repair?.shop_name       ?? sale.shopName       ?? null,
+    deviceType:     repair?.device_type     ?? repair?.device      ?? sale.deviceType ?? null,
+    technicianName: repair?.technician_name ?? sale.technicianName ?? null,
   };
 }
 
@@ -171,51 +174,61 @@ function RepairTimeline({repair}){
 
 // ── Main ──────────────────────────────────────────────────────────────────────
 export default function CustomerDashboard({username='Customer',userId,setPage,activeSection='dashboard',setActiveSection}){
-  const [stats,setStats]=useState(null);
-  const [repairs,setRepairs]=useState([]);
-  const [transactions,setTransactions]=useState([]);
-  const [latestRepair,setLatestRepair]=useState(null);
-  const [loading,setLoading]=useState(true);
-  const [txLoading,setTxLoading]=useState(false);
-  const [error,setError]=useState(null);
-  const [customerId,setCustomerId]=useState(userId??null);
+  const [stats,setStats]               = useState(null);
+  const [repairs,setRepairs]           = useState([]);
+  const [transactions,setTransactions] = useState([]);
+  const [latestRepair,setLatestRepair] = useState(null);
+  const [loading,setLoading]           = useState(true);
+  const [txLoading,setTxLoading]       = useState(false);
+  const [error,setError]               = useState(null);
+  const [customerId,setCustomerId]     = useState(userId??null);
 
   const { downloadReceipt, downloadAllReceipts } = useReceiptDownload({ name: 'TechnoLogs Repair' });
 
-  // Enrich sale with repair details
+  // Enrich sale with repair data (technician_name now comes from dashboard.php & repairs.php)
   const getSaleForReceipt = (sale) => enrichSale(sale, repairs);
 
-  const loadData=useCallback(()=>{
+  const loadData = useCallback(() => {
     setLoading(true);
-    fetch('/api/dashboard.php',{credentials:'include'}).then(r=>r.json()).then(data=>{
-      if(data.success){
-        setStats(data.stats);setRepairs(data.repairs??[]);
-        setLatestRepair(data.latest_repair??(data.repairs?.length?data.repairs[0]:null));
-        if(data.stats?.customer_id)setCustomerId(data.stats.customer_id);
-      }else{setError(data.message||'Failed to load dashboard.');}
-    }).catch(()=>setError('Cannot connect to server.')).finally(()=>setLoading(false));
-  },[]);
+    fetch('/api/dashboard.php', { credentials: 'include' })
+      .then(r => r.json())
+      .then(data => {
+        if (data.success) {
+          setStats(data.stats);
+          setRepairs(data.repairs ?? []);
+          setLatestRepair(data.latest_repair ?? (data.repairs?.length ? data.repairs[0] : null));
+          if (data.stats?.customer_id) setCustomerId(data.stats.customer_id);
+        } else {
+          setError(data.message || 'Failed to load dashboard.');
+        }
+      })
+      .catch(() => setError('Cannot connect to server.'))
+      .finally(() => setLoading(false));
+  }, []);
 
-  const loadTransactions=useCallback(async(cid)=>{
-    if(!cid)return;
+  const loadTransactions = useCallback(async (cid) => {
+    if (!cid) return;
     setTxLoading(true);
-    try{const res=await getSalesByCustomer(cid);if(res.ok){const data=await res.json();setTransactions(data??[]);}}
-    catch{}finally{setTxLoading(false);}
-  },[]);
+    try {
+      const res = await getSalesByCustomer(cid);
+      if (res.ok) { const data = await res.json(); setTransactions(data ?? []); }
+    } catch {}
+    finally { setTxLoading(false); }
+  }, []);
 
-  useEffect(()=>{loadData();},[loadData]);
-  useEffect(()=>{if(customerId)loadTransactions(customerId);},[customerId,loadTransactions]);
+  useEffect(() => { loadData(); }, [loadData]);
+  useEffect(() => { if (customerId) loadTransactions(customerId); }, [customerId, loadTransactions]);
 
-  if(loading)return <div className={s.loadingState}>Loading dashboard…</div>;
-  if(error)return <div className={s.errorState}>{error}</div>;
+  if (loading) return <div className={s.loadingState}>Loading dashboard…</div>;
+  if (error)   return <div className={s.errorState}>{error}</div>;
 
   const activeCount    = stats?.active_repairs    ?? 0;
   const completedCount = stats?.completed_repairs ?? 0;
-  const totalSpent     = transactions.reduce((sum,t)=>sum+Number(t.amount??0),0);
+  const totalSpent     = transactions.reduce((sum, t) => sum + Number(t.amount ?? 0), 0);
 
   // ── Dashboard ─────────────────────────────────────────────────────────────
-  if(activeSection==='dashboard'){
-    return(
+  if (activeSection === 'dashboard') {
+    return (
       <>
         <div className={s.welcomeHeader}>
           <div className={s.welcomeGreeting}>Welcome back, <span>{username}</span></div>
@@ -231,12 +244,12 @@ export default function CustomerDashboard({username='Customer',userId,setPage,ac
           <RepairTimeline repair={latestRepair}/>
         </div>
         <div className={s.tableSection}>
-          <Panel title="My Repair Requests" metaLabel={`${repairs.length} total`} onMeta={setActiveSection?()=>setActiveSection('repairs'):null}>
-            {repairs.length===0?(<div className={s.emptyState}><IconEmpty/><p>No repair requests found.</p></div>):(
+          <Panel title="My Repair Requests" metaLabel={`${repairs.length} total`} onMeta={setActiveSection ? () => setActiveSection('repairs') : null}>
+            {repairs.length === 0 ? (<div className={s.emptyState}><IconEmpty/><p>No repair requests found.</p></div>) : (
               <table className={s.table}>
                 <thead><tr><th>Job #</th><th>Device</th><th>Issue</th><th>Shop</th><th>Date</th><th>Status</th></tr></thead>
                 <tbody>
-                  {repairs.map(r=>(
+                  {repairs.map(r => (
                     <tr key={repairId(r)}>
                       <td className={s.idCol}>#{repairId(r)}</td><td className={s.bold}>{deviceName(r)}</td>
                       <td>{issueText(r)}</td><td>{r.shop_name}</td>
@@ -254,16 +267,16 @@ export default function CustomerDashboard({username='Customer',userId,setPage,ac
   }
 
   // ── My Repairs ────────────────────────────────────────────────────────────
-  if(activeSection==='repairs'){
-    return(
+  if (activeSection === 'repairs') {
+    return (
       <div className={s.tableSection}>
         <div className={s.sectionHeader}><h2 className={s.sectionTitle}>My Repairs</h2></div>
         <Panel title="All Repair Requests" metaLabel={`${repairs.length} total`}>
-          {repairs.length===0?(<div className={s.emptyState}><IconEmpty/><p>No repair requests found.</p></div>):(
+          {repairs.length === 0 ? (<div className={s.emptyState}><IconEmpty/><p>No repair requests found.</p></div>) : (
             <table className={s.table}>
               <thead><tr><th>Job #</th><th>Device</th><th>Issue</th><th>Shop</th><th>Date</th><th>Status</th></tr></thead>
               <tbody>
-                {repairs.map(r=>(
+                {repairs.map(r => (
                   <tr key={repairId(r)}>
                     <td className={s.idCol}>#{repairId(r)}</td><td className={s.bold}>{deviceName(r)}</td>
                     <td>{issueText(r)}</td><td>{r.shop_name}</td>
@@ -280,39 +293,38 @@ export default function CustomerDashboard({username='Customer',userId,setPage,ac
   }
 
   // ── My Transactions ───────────────────────────────────────────────────────
-  if(activeSection==='transactions'){
-    return(
+  if (activeSection === 'transactions') {
+    return (
       <div className={s.tableSection}>
         <div className={s.sectionHeader}><h2 className={s.sectionTitle}>My Transactions</h2></div>
         <Panel title="Transaction History" metaLabel={`${transactions.length} records`}>
           <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'10px 0 14px',borderBottom:'1px solid rgba(26,188,156,0.08)',marginBottom:4,flexWrap:'wrap',gap:10}}>
             <span style={{color:'rgba(128,144,168,0.8)',fontSize:'0.78rem'}}>
-              {txLoading?'Loading transactions…':transactions.length>0?`${transactions.length} transaction${transactions.length!==1?'s':''} found`:'No transactions yet'}
+              {txLoading ? 'Loading transactions…' : transactions.length > 0 ? `${transactions.length} transaction${transactions.length !== 1 ? 's' : ''} found` : 'No transactions yet'}
             </span>
             <div style={{display:'flex',gap:8}}>
               <DownloadButton
-                onClick={()=>downloadAllReceipts(transactions.map(t=>getSaleForReceipt(t)))}
-                disabled={txLoading||transactions.length===0}
+                onClick={() => downloadAllReceipts(transactions.map(t => getSaleForReceipt(t)))}
+                disabled={txLoading || transactions.length === 0}
                 label="Download All (PDF)"
               />
             </div>
           </div>
-
-          {txLoading?(<div className={s.emptyState}><p>Loading transactions…</p></div>)
-            :transactions.length===0?(<div className={s.emptyState}><IconEmpty/><p>No transactions found.</p></div>)
-            :(
+          {txLoading ? (<div className={s.emptyState}><p>Loading transactions…</p></div>)
+            : transactions.length === 0 ? (<div className={s.emptyState}><IconEmpty/><p>No transactions found.</p></div>)
+            : (
               <table className={s.table}>
                 <thead><tr><th>Sale #</th><th>Repair #</th><th>Amount</th><th>Method</th><th>Date</th><th>Receipt</th></tr></thead>
                 <tbody>
-                  {transactions.map(t=>(
+                  {transactions.map(t => (
                     <tr key={t.saleId}>
-                      <td className={s.idCol}>SALE-{String(t.saleId).padStart(4,'0')}</td>
+                      <td className={s.idCol}>SALE-{String(t.saleId).padStart(4, '0')}</td>
                       <td>#{t.requestId}</td>
-                      <td className={s.bold}>₱{Number(t.amount).toLocaleString('en-PH',{minimumFractionDigits:2})}</td>
+                      <td className={s.bold}>₱{Number(t.amount).toLocaleString('en-PH', {minimumFractionDigits: 2})}</td>
                       <td>{t.paymentMethod}</td>
                       <td className={s.muted}>{fmtDate(t.soldAt)}</td>
                       <td>
-                        <button onClick={()=>downloadReceipt(getSaleForReceipt(t))} style={{background:'transparent',border:'1px solid rgba(26,188,156,0.3)',color:'var(--teal,#1abc9c)',fontSize:'0.72rem',fontWeight:700,padding:'3px 10px',borderRadius:6,cursor:'pointer'}}>
+                        <button onClick={() => downloadReceipt(getSaleForReceipt(t))} style={{background:'transparent',border:'1px solid rgba(26,188,156,0.3)',color:'var(--teal,#1abc9c)',fontSize:'0.72rem',fontWeight:700,padding:'3px 10px',borderRadius:6,cursor:'pointer'}}>
                           PDF
                         </button>
                       </td>
@@ -327,8 +339,8 @@ export default function CustomerDashboard({username='Customer',userId,setPage,ac
   }
 
   // ── Notifications ─────────────────────────────────────────────────────────
-  if(activeSection==='notifications'){
-    return(
+  if (activeSection === 'notifications') {
+    return (
       <div className={s.tableSection}>
         <div className={s.sectionHeader}><h2 className={s.sectionTitle}>Notifications</h2></div>
         <div className={s.emptyState} style={{padding:'60px 20px'}}><IconEmpty/><p>No notifications yet.</p></div>
@@ -337,8 +349,8 @@ export default function CustomerDashboard({username='Customer',userId,setPage,ac
   }
 
   // ── Help ──────────────────────────────────────────────────────────────────
-  if(activeSection==='help'){
-    return(
+  if (activeSection === 'help') {
+    return (
       <div className={s.tableSection}>
         <div className={s.sectionHeader}><h2 className={s.sectionTitle}>Help & FAQs</h2></div>
         <div className={s.emptyState} style={{padding:'60px 20px'}}><IconEmpty/><p>Help content coming soon.</p></div>

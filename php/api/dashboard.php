@@ -61,6 +61,7 @@ if ($role === 'customer') {
     ");
     $completedStmt->execute([$userId]);
 
+    // ── repairs list — now includes technician_name ───────────────────────
     $repairsStmt = $pdo->prepare("
         SELECT
             rr.request_id,
@@ -69,15 +70,18 @@ if ($role === 'customer') {
             rr.status,
             rr.technician_notes,
             rr.created_at,
+            tu.username  AS technician_name,
             s.shop_name
         FROM repair_requests rr
         JOIN shops s ON s.shop_id = rr.shop_id
+        LEFT JOIN users tu ON tu.user_id = rr.technician_id
         WHERE rr.customer_id = ?
         ORDER BY rr.created_at DESC
         LIMIT 5
     ");
     $repairsStmt->execute([$userId]);
 
+    // ── latest active repair — now includes technician_name ───────────────
     $latestStmt = $pdo->prepare("
         SELECT
             rr.request_id,
@@ -86,9 +90,11 @@ if ($role === 'customer') {
             rr.status,
             rr.technician_notes,
             rr.created_at,
+            tu.username  AS technician_name,
             s.shop_name
         FROM repair_requests rr
         JOIN shops s ON s.shop_id = rr.shop_id
+        LEFT JOIN users tu ON tu.user_id = rr.technician_id
         WHERE rr.customer_id = ? AND rr.status != 'Completed'
         ORDER BY rr.created_at DESC
         LIMIT 1
@@ -98,13 +104,13 @@ if ($role === 'customer') {
     echo json_encode([
         'success'       => true,
         'stats'         => [
-            'customer_id'       => $userId,          // ← ADDED: needed by React to call Spring Boot
+            'customer_id'       => $userId,
             'active_repairs'    => (int) $activeStmt->fetchColumn(),
             'completed_repairs' => (int) $completedStmt->fetchColumn(),
-            'total_spent'       => 0,                // ← now calculated from Spring Boot sales on the frontend
+            'total_spent'       => 0,
         ],
         'repairs'       => $repairsStmt->fetchAll(PDO::FETCH_ASSOC),
-        'transactions'  => [],                       // ← frontend now loads this from Spring Boot
+        'transactions'  => [],
         'latest_repair' => $latestStmt->fetch(PDO::FETCH_ASSOC) ?: null,
     ]);
     exit;
@@ -113,7 +119,6 @@ if ($role === 'customer') {
 // ── Owner ─────────────────────────────────────────────────────────────────────
 if ($role === 'owner') {
 
-    // Get the owner's shop_id — needed by React to call Spring Boot
     $shopStmt = $pdo->prepare("SELECT shop_id FROM shops WHERE owner_id = ? LIMIT 1");
     $shopStmt->execute([$userId]);
     $shopId = (int) ($shopStmt->fetchColumn() ?: 0);
@@ -142,8 +147,6 @@ if ($role === 'owner') {
     ");
     $customersStmt->execute([$userId]);
 
-    // Today's revenue now comes from Spring Boot repair_sales,
-    // but we keep a fallback from sales_transactions for now
     $revenueStmt = $pdo->prepare("
         SELECT COALESCE(SUM(st.total_amount), 0)
         FROM sales_transactions st
@@ -156,13 +159,13 @@ if ($role === 'owner') {
     echo json_encode([
         'success'      => true,
         'stats'        => [
-            'shop_id'         => $shopId,            // ← ADDED: needed by React to call Spring Boot
+            'shop_id'         => $shopId,
             'active_repairs'  => (int)   $activeStmt->fetchColumn(),
             'completed_today' => (int)   $completedTodayStmt->fetchColumn(),
             'total_customers' => (int)   $customersStmt->fetchColumn(),
             'today_revenue'   => (float) $revenueStmt->fetchColumn(),
         ],
-        'transactions' => [],                        // ← frontend now loads this from Spring Boot
+        'transactions' => [],
     ]);
     exit;
 }

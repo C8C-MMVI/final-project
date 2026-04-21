@@ -1,5 +1,5 @@
 // src/pages/OwnerDashboard.jsx
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import StatCard from '../components/dashboard/StatCard';
 import Panel    from '../components/shared/Panel';
 import Badge    from '../components/shared/Badge';
@@ -18,7 +18,6 @@ function fmtDate(d) {
   return new Date(d).toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' });
 }
 
-// ── Enrich a sale with repair details ────────────────────────────────────────
 function enrichSale(sale, repairs, shopName) {
   const repair = repairs.find(r => r.request_id === sale.requestId);
   return {
@@ -184,13 +183,191 @@ function CreateSaleModal({ repair, onClose, onCreated }) {
   );
 }
 
+// ── Revenue Bar Chart ─────────────────────────────────────────────────────────
+function RevenueBarChart({ transactions }) {
+  const monthlyData = useMemo(() => {
+    const now   = new Date();
+    const months = Array.from({ length: 6 }, (_, i) => {
+      const d = new Date(now.getFullYear(), now.getMonth() - (5 - i), 1);
+      return { label: d.toLocaleDateString('en-US', { month: 'short' }), year: d.getFullYear(), month: d.getMonth(), total: 0 };
+    });
+    transactions.forEach(t => {
+      if (!t.soldAt) return;
+      const d = new Date(t.soldAt);
+      const bucket = months.find(m => m.year === d.getFullYear() && m.month === d.getMonth());
+      if (bucket) bucket.total += Number(t.amount) || 0;
+    });
+    return months;
+  }, [transactions]);
+
+  const maxVal = Math.max(...monthlyData.map(m => m.total), 1);
+  const W = 340, H = 140, padL = 48, padB = 28, padT = 12, barW = 32;
+  const chartW = W - padL - 12;
+  const slotW  = chartW / monthlyData.length;
+  const fmt = (v) => v >= 1000 ? `₱${(v/1000).toFixed(1)}k` : `₱${v}`;
+
+  return (
+    <div style={{ padding: '16px 8px 8px' }}>
+      {transactions.length === 0 ? <NoDataMsg label="No sales data yet" /> : (
+        <svg viewBox={`0 0 ${W} ${H}`} style={{ width: '100%', overflow: 'visible' }}>
+          {Array.from({ length: 5 }, (_, i) => {
+            const val = (maxVal / 4) * i;
+            const y   = padT + (H - padT - padB) * (1 - i / 4);
+            return (
+              <g key={i}>
+                <line x1={padL} y1={y} x2={W-8} y2={y} stroke="rgba(26,188,156,0.08)" strokeWidth="1" strokeDasharray="3 3"/>
+                <text x={padL-6} y={y+4} textAnchor="end" fill="rgba(255,255,255,0.3)" fontSize="8" fontFamily="Inter,sans-serif">{fmt(val)}</text>
+              </g>
+            );
+          })}
+          {monthlyData.map((m, i) => {
+            const barH  = m.total === 0 ? 2 : Math.max(4, ((m.total / maxVal) * (H - padT - padB)));
+            const x     = padL + i * slotW + (slotW - barW) / 2;
+            const y     = H - padB - barH;
+            const isMax = m.total === maxVal && m.total > 0;
+            return (
+              <g key={i}>
+                <rect x={x} y={padT} width={barW} height={H-padT-padB} rx="4" fill="rgba(26,188,156,0.04)"/>
+                <rect x={x} y={y} width={barW} height={barH} rx="4" fill={isMax ? 'url(#barGradientPeak)' : 'url(#barGradient)'}/>
+                {m.total > 0 && <text x={x+barW/2} y={y-5} textAnchor="middle" fill="rgba(26,188,156,0.85)" fontSize="8" fontFamily="Inter,sans-serif" fontWeight="600">{fmt(m.total)}</text>}
+                <text x={x+barW/2} y={H-padB+14} textAnchor="middle" fill="rgba(255,255,255,0.45)" fontSize="9" fontFamily="Inter,sans-serif">{m.label}</text>
+              </g>
+            );
+          })}
+          <defs>
+            <linearGradient id="barGradient" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#1abc9c" stopOpacity="0.9"/>
+              <stop offset="100%" stopColor="#0e8a6e" stopOpacity="0.6"/>
+            </linearGradient>
+            <linearGradient id="barGradientPeak" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#2eeed8" stopOpacity="1"/>
+              <stop offset="100%" stopColor="#1abc9c" stopOpacity="0.8"/>
+            </linearGradient>
+          </defs>
+        </svg>
+      )}
+    </div>
+  );
+}
+
+// ── Repairs Status Donut ──────────────────────────────────────────────────────
+function RepairStatusDonut({ repairs }) {
+  const segments = useMemo(() => {
+    const counts = { Pending: repairs.filter(r=>r.status==='Pending').length, 'In Progress': repairs.filter(r=>r.status==='In Progress').length, Completed: repairs.filter(r=>r.status==='Completed').length };
+    const total = Object.values(counts).reduce((a,b)=>a+b,0);
+    const colors = { Pending:'#fb923c','In Progress':'#facc15',Completed:'#1abc9c' };
+    let cumulative = 0;
+    return Object.entries(counts).map(([label,count])=>{
+      const pct=total===0?0:count/total; const start=cumulative; cumulative+=pct;
+      return { label,count,pct,start,color:colors[label] };
+    }).filter(s=>s.count>0);
+  }, [repairs]);
+
+  const total = segments.reduce((a,s)=>a+s.count,0);
+  const cx=70,cy=70,r=52,inner=34,strokeW=r-inner;
+  const describeArc=(startPct,endPct)=>{
+    if(endPct-startPct>=1)endPct=0.9999;
+    const start=startPct*2*Math.PI-Math.PI/2, end=endPct*2*Math.PI-Math.PI/2;
+    const midR=(r+inner)/2;
+    return `M ${cx+midR*Math.cos(start)} ${cy+midR*Math.sin(start)} A ${midR} ${midR} 0 ${(endPct-startPct)>0.5?1:0} 1 ${cx+midR*Math.cos(end)} ${cy+midR*Math.sin(end)}`;
+  };
+
+  return (
+    <div style={{ padding:'12px 8px 8px' }}>
+      {total===0?<NoDataMsg label="No repair data yet"/>:(
+        <div style={{ display:'flex',alignItems:'center',gap:20 }}>
+          <svg viewBox="0 0 140 140" style={{ width:140,flexShrink:0 }}>
+            <circle cx={cx} cy={cy} r={(r+inner)/2} fill="none" stroke="rgba(26,188,156,0.07)" strokeWidth={strokeW}/>
+            {segments.map((s,i)=><path key={i} d={describeArc(s.start,s.start+s.pct)} fill="none" stroke={s.color} strokeWidth={strokeW-2} strokeLinecap="butt" opacity="0.9"/>)}
+            <text x={cx} y={cy-6} textAnchor="middle" fill="#fff" fontSize="20" fontFamily="Rajdhani,sans-serif" fontWeight="700">{total}</text>
+            <text x={cx} y={cy+10} textAnchor="middle" fill="rgba(255,255,255,0.4)" fontSize="8" fontFamily="Inter,sans-serif">TOTAL</text>
+          </svg>
+          <div style={{ display:'flex',flexDirection:'column',gap:10,flex:1 }}>
+            {segments.map((s,i)=>(
+              <div key={i} style={{ display:'flex',alignItems:'center',gap:8 }}>
+                <div style={{ width:10,height:10,borderRadius:'50%',background:s.color,flexShrink:0 }}/>
+                <div style={{ flex:1 }}>
+                  <div style={{ fontSize:'0.75rem',color:'rgba(255,255,255,0.7)',fontWeight:500 }}>{s.label}</div>
+                  <div style={{ display:'flex',alignItems:'center',gap:6,marginTop:2 }}>
+                    <div style={{ flex:1,height:3,borderRadius:99,background:'rgba(255,255,255,0.06)' }}>
+                      <div style={{ width:`${s.pct*100}%`,height:'100%',borderRadius:99,background:s.color }}/>
+                    </div>
+                    <span style={{ fontSize:'0.7rem',color:s.color,fontWeight:700,minWidth:24 }}>{s.count}</span>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Payment Method Breakdown ──────────────────────────────────────────────────
+function PaymentMethodChart({ transactions }) {
+  const data = useMemo(() => {
+    const counts = {};
+    transactions.forEach(t => { const m=t.paymentMethod||'Unknown'; counts[m]=(counts[m]||0)+Number(t.amount||0); });
+    const total = Object.values(counts).reduce((a,b)=>a+b,0);
+    const colors = ['#1abc9c','#3b82f6','#a855f7','#f59e0b','#ef4444'];
+    return Object.entries(counts).sort((a,b)=>b[1]-a[1]).map(([label,value],i)=>({ label,value,pct:total?value/total:0,color:colors[i%colors.length] }));
+  }, [transactions]);
+
+  if (data.length===0) return <NoDataMsg label="No payment data yet"/>;
+  return (
+    <div style={{ padding:'12px 16px 8px',display:'flex',flexDirection:'column',gap:10 }}>
+      {data.map((d,i)=>(
+        <div key={i}>
+          <div style={{ display:'flex',justifyContent:'space-between',marginBottom:4 }}>
+            <span style={{ fontSize:'0.76rem',color:'rgba(255,255,255,0.7)' }}>{d.label}</span>
+            <span style={{ fontSize:'0.76rem',color:d.color,fontWeight:700 }}>₱{Number(d.value).toLocaleString('en-PH',{minimumFractionDigits:2})}</span>
+          </div>
+          <div style={{ height:6,borderRadius:99,background:'rgba(255,255,255,0.06)' }}>
+            <div style={{ width:`${d.pct*100}%`,height:'100%',borderRadius:99,background:d.color,transition:'width 0.6s ease' }}/>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ── Report KPIs ───────────────────────────────────────────────────────────────
+function ReportKPIs({ transactions, repairs }) {
+  const totalRevenue   = transactions.reduce((s,t)=>s+Number(t.amount||0),0);
+  const avgSale        = transactions.length ? totalRevenue/transactions.length : 0;
+  const completionRate = repairs.length ? ((repairs.filter(r=>r.status==='Completed').length/repairs.length)*100).toFixed(0) : 0;
+  const kpis = [
+    { label:'Total Revenue',   value:`₱${totalRevenue.toLocaleString('en-PH',{minimumFractionDigits:2})}`, color:'#1abc9c' },
+    { label:'Avg. Sale Value', value:`₱${avgSale.toLocaleString('en-PH',{minimumFractionDigits:2})}`,      color:'#3b82f6' },
+    { label:'Completion Rate', value:`${completionRate}%`,                                                   color:'#facc15' },
+    { label:'Total Sales',     value:transactions.length,                                                     color:'#a855f7' },
+  ];
+  return (
+    <div style={{ display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(140px,1fr))',gap:12,marginBottom:20 }}>
+      {kpis.map((k,i)=>(
+        <div key={i} style={{ background:'var(--navy-mid,#0d1f38)',border:`1px solid ${k.color}22`,borderRadius:10,padding:'14px 18px' }}>
+          <div style={{ color:k.color,fontSize:'1.25rem',fontWeight:700,fontFamily:'Rajdhani,sans-serif' }}>{k.value}</div>
+          <div style={{ color:'var(--muted)',fontSize:'0.7rem',marginTop:3 }}>{k.label}</div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function NoDataMsg({ label }) {
+  return <div style={{ padding:'36px 20px',textAlign:'center',color:'var(--muted)',fontSize:'0.8rem',opacity:0.6 }}>{label}</div>;
+}
+
 // ── Main Component ────────────────────────────────────────────────────────────
 export default function OwnerDashboard({ setPage, activeSection = 'dashboard', setActiveSection }) {
   const [repairs,      setRepairs]      = useState([]);
   const [technicians,  setTechnicians]  = useState([]);
   const [transactions, setTransactions] = useState([]);
+  const [customers,    setCustomers]    = useState([]);
   const [stats,        setStats]        = useState(null);
   const [loading,      setLoading]      = useState(true);
+  const [custLoading,  setCustLoading]  = useState(false);
   const [error,        setError]        = useState(null);
   const [toast,        setToast]        = useState(null);
   const [saleRepair,   setSaleRepair]   = useState(null);
@@ -203,8 +380,7 @@ export default function OwnerDashboard({ setPage, activeSection = 'dashboard', s
   };
 
   const { downloadReceipt, downloadAllReceipts } = useReceiptDownload(shopInfo);
-
-  const showToast = (msg, isError = false) => { setToast({ msg, isError }); setTimeout(() => setToast(null), 3000); };
+  const showToast = (msg, isError=false) => { setToast({msg,isError}); setTimeout(()=>setToast(null),3000); };
 
   const fetchRepairs = useCallback(async () => {
     try { const res=await fetch('/api/repairs.php',{credentials:'include'}); const data=await res.json(); if(data.success)setRepairs(data.repairs??[]); } catch {}
@@ -219,6 +395,18 @@ export default function OwnerDashboard({ setPage, activeSection = 'dashboard', s
     if(!sid)return;
     try { const res=await getSalesByShop(sid); if(res.ok){const data=await res.json();setTransactions(data??[]);} } catch {}
   }, []);
+
+  // ── Fetch shop customers (owner-scoped) ───────────────────────────────────
+  const fetchCustomers = useCallback(async () => {
+    setCustLoading(true);
+    try {
+      const res  = await fetch('/api/users.php', { credentials: 'include' });
+      const data = await res.json();
+      if (data.success) setCustomers(data.users ?? []);
+    } catch {}
+    finally { setCustLoading(false); }
+  }, []);
+
   const loadAll = useCallback(async () => {
     setLoading(true); setError(null);
     try { await Promise.all([fetchRepairs(),fetchTechnicians(),fetchDashboard()]); }
@@ -229,11 +417,14 @@ export default function OwnerDashboard({ setPage, activeSection = 'dashboard', s
   useEffect(()=>{loadAll();},[loadAll]);
   useEffect(()=>{if(shopId)fetchSales(shopId);},[shopId,fetchSales]);
 
+  // Load customers when that section is first visited
+  useEffect(()=>{
+    if(activeSection==='customers' && customers.length===0) fetchCustomers();
+  },[activeSection]);
+
   const handleAssigned    = () => { showToast('Technician assigned successfully.'); fetchRepairs(); };
   const handleSaleCreated = () => { showToast('Sale created successfully!'); if(shopId)fetchSales(shopId); };
   const handleTab         = (k) => { if(setActiveSection)setActiveSection(k); };
-
-  // Enrich sale with repair details for receipt
   const getSaleForReceipt = (sale) => enrichSale(sale, repairs, shopInfo.name);
 
   const statCards = stats ? [
@@ -244,10 +435,11 @@ export default function OwnerDashboard({ setPage, activeSection = 'dashboard', s
   ] : [];
 
   const tabs = [
-    { id:'dashboard', label:'Dashboard'            },
-    { id:'repairs',   label:'Repairs / Job Orders' },
-    { id:'members',   label:'Member Management'    },
-    { id:'reports',   label:'Reports / Analytics'  },
+    { id:'dashboard',  label:'Dashboard'            },
+    { id:'repairs',    label:'Repairs / Job Orders' },
+    { id:'customers',  label:'Customers'            },
+    { id:'members',    label:'Member Management'    },
+    { id:'reports',    label:'Reports / Analytics'  },
   ];
 
   return (
@@ -278,7 +470,6 @@ export default function OwnerDashboard({ setPage, activeSection = 'dashboard', s
             {loading?<div className={styles.loadingText}>Loading dashboard…</div>
               :error?<div className={styles.errorText}>{error}</div>
               :<div className={styles.cardsGrid}>{statCards.map((s,i)=><StatCard key={i} {...s}/>)}</div>}
-
             <Panel title="Recent Repair Jobs" linkLabel="View all" onLink={()=>handleTab('repairs')}>
               {loading?<Loader/>:repairs.length===0?<Empty msg="No repairs found."/>:(
                 <table className={styles.table}>
@@ -297,7 +488,6 @@ export default function OwnerDashboard({ setPage, activeSection = 'dashboard', s
                 </table>
               )}
             </Panel>
-
             <Panel title="Recent Sales" linkLabel="View all" onLink={()=>handleTab('reports')}>
               {transactions.length===0?<Empty msg="No sales yet."/>:(
                 <table className={styles.table}>
@@ -310,9 +500,7 @@ export default function OwnerDashboard({ setPage, activeSection = 'dashboard', s
                         <td className={styles.amountCol}>₱{Number(t.amount).toLocaleString('en-PH',{minimumFractionDigits:2})}</td>
                         <td>{t.paymentMethod}</td>
                         <td className={styles.mutedCol}>{fmtDate(t.soldAt)}</td>
-                        <td>
-                          <button onClick={()=>downloadReceipt(getSaleForReceipt(t))} style={{background:'transparent',border:'1px solid rgba(26,188,156,0.3)',color:'var(--teal)',fontSize:'0.72rem',fontWeight:700,padding:'3px 10px',borderRadius:6,cursor:'pointer'}}>PDF</button>
-                        </td>
+                        <td><button onClick={()=>downloadReceipt(getSaleForReceipt(t))} style={{background:'transparent',border:'1px solid rgba(26,188,156,0.3)',color:'var(--teal)',fontSize:'0.72rem',fontWeight:700,padding:'3px 10px',borderRadius:6,cursor:'pointer'}}>PDF</button></td>
                       </tr>
                     ))}
                   </tbody>
@@ -355,9 +543,64 @@ export default function OwnerDashboard({ setPage, activeSection = 'dashboard', s
                         <td><Badge status={repairBadge[r.status]??'pending'}/></td>
                         <td><AssignCell repair={r} technicians={technicians} onAssigned={handleAssigned}/></td>
                         <td>
-                          {r.status==='Completed'?(
-                            <button onClick={()=>setSaleRepair(r)} style={{background:'var(--teal)',color:'#0a1628',border:'none',fontSize:'0.72rem',fontWeight:700,padding:'4px 12px',borderRadius:7,cursor:'pointer',whiteSpace:'nowrap'}}>Create Sale</button>
-                          ):<span style={{color:'var(--muted)',fontSize:'0.75rem'}}>—</span>}
+                          {r.status==='Completed'
+                            ?<button onClick={()=>setSaleRepair(r)} style={{background:'var(--teal)',color:'#0a1628',border:'none',fontSize:'0.72rem',fontWeight:700,padding:'4px 12px',borderRadius:7,cursor:'pointer',whiteSpace:'nowrap'}}>Create Sale</button>
+                            :<span style={{color:'var(--muted)',fontSize:'0.75rem'}}>—</span>}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </Panel>
+          </>
+        )}
+
+        {/* ── CUSTOMERS ── */}
+        {activeSection==='customers' && (
+          <>
+            <SectionHeader title="Customers"/>
+            <div style={{display:'flex',gap:12,marginBottom:20,flexWrap:'wrap'}}>
+              {[
+                {label:'Total Customers', value:customers.length,                                                     color:'var(--teal)'},
+                {label:'Active Repairs',  value:customers.reduce((s,c)=>s+Number(c.active_repairs||0),0),             color:'#fb923c'  },
+                {label:'Jobs Completed',  value:customers.reduce((s,c)=>s+Number(c.completed_repairs||0),0),          color:'#4ade80'  },
+              ].map(s=>(
+                <div key={s.label} style={{background:'var(--navy-mid,#0d1f38)',border:'1px solid var(--navy-border)',borderRadius:10,padding:'10px 18px',textAlign:'center',minWidth:110}}>
+                  <div style={{color:s.color,fontSize:'1.3rem',fontWeight:700,fontFamily:'Rajdhani,sans-serif'}}>{s.value}</div>
+                  <div style={{color:'var(--muted)',fontSize:'0.7rem',marginTop:2}}>{s.label}</div>
+                </div>
+              ))}
+            </div>
+            <Panel title="Shop Customers" linkLabel={`${customers.length} customers`}>
+              {custLoading?<Loader/>:customers.length===0?<Empty msg="No customers have visited your shop yet."/>:(
+                <table className={styles.table}>
+                  <thead>
+                    <tr>
+                      <th>Customer</th>
+                      <th>Email</th>
+                      <th>Total Repairs</th>
+                      <th>Completed</th>
+                      <th>Active</th>
+                      <th>Last Visit</th>
+                      <th>Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {customers.map((c,i)=>(
+                      <tr key={c.user_id??i}>
+                        <td className={styles.boldCol}>{c.username}</td>
+                        <td className={styles.mutedCol}>{c.email||'—'}</td>
+                        <td style={{color:'var(--teal)',fontWeight:600}}>{c.total_repairs}</td>
+                        <td style={{color:'#4ade80'}}>{c.completed_repairs}</td>
+                        <td style={{color:Number(c.active_repairs)>0?'#fb923c':'var(--muted)'}}>{c.active_repairs}</td>
+                        <td className={styles.mutedCol}>{fmtDate(c.last_visit)}</td>
+                        <td>
+                          <span style={{
+                            background: c.status==='active'?'rgba(26,188,156,0.12)':'rgba(239,68,68,0.12)',
+                            color: c.status==='active'?'#1abc9c':'#ef4444',
+                            padding:'2px 10px',borderRadius:12,fontSize:'0.7rem',fontWeight:600,textTransform:'capitalize',
+                          }}>{c.status}</span>
                         </td>
                       </tr>
                     ))}
@@ -398,23 +641,21 @@ export default function OwnerDashboard({ setPage, activeSection = 'dashboard', s
         {activeSection==='reports' && (
           <>
             <SectionHeader title="Reports / Analytics"/>
-            <div className={styles.twoCol}>
-              <Panel title="Revenue This Month"><EmptyChart label="Charts coming soon" icon="bar"/></Panel>
-              <Panel title="Repairs by Status"><EmptyChart label="Charts coming soon" icon="pie"/></Panel>
+            <ReportKPIs transactions={transactions} repairs={repairs}/>
+            <div className={styles.twoCol} style={{marginBottom:20}}>
+              <Panel title="Revenue — Last 6 Months"><RevenueBarChart transactions={transactions}/></Panel>
+              <Panel title="Repairs by Status"><RepairStatusDonut repairs={repairs}/></Panel>
             </div>
-
+            <Panel title="Revenue by Payment Method" style={{marginBottom:20}}>
+              <PaymentMethodChart transactions={transactions}/>
+            </Panel>
             <Panel title="All Sales" linkLabel={`${transactions.length} records`}>
               <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'10px 0 14px',borderBottom:'1px solid rgba(26,188,156,0.08)',marginBottom:4,flexWrap:'wrap',gap:10}}>
                 <span style={{color:'var(--muted)',fontSize:'0.78rem'}}>
                   {transactions.length>0?`${transactions.length} sale${transactions.length!==1?'s':''} found`:'No sales yet'}
                 </span>
-                <DownloadButton
-                  onClick={()=>downloadAllReceipts(transactions.map(t=>getSaleForReceipt(t)))}
-                  disabled={transactions.length===0}
-                  label="Download All Receipts (PDF)"
-                />
+                <DownloadButton onClick={()=>downloadAllReceipts(transactions.map(t=>getSaleForReceipt(t)))} disabled={transactions.length===0} label="Download All Receipts (PDF)"/>
               </div>
-
               {transactions.length===0?<Empty msg="No sales yet."/>:(
                 <table className={styles.table}>
                   <thead><tr><th>Sale #</th><th>Repair #</th><th>Amount</th><th>Method</th><th>Date</th><th>Items</th><th>Receipt</th></tr></thead>
@@ -427,9 +668,7 @@ export default function OwnerDashboard({ setPage, activeSection = 'dashboard', s
                         <td>{t.paymentMethod}</td>
                         <td className={styles.mutedCol}>{fmtDate(t.soldAt)}</td>
                         <td className={styles.mutedCol}>{t.items?.length??0} item(s)</td>
-                        <td>
-                          <button onClick={()=>downloadReceipt(getSaleForReceipt(t))} style={{background:'transparent',border:'1px solid rgba(26,188,156,0.3)',color:'var(--teal)',fontSize:'0.72rem',fontWeight:700,padding:'3px 10px',borderRadius:6,cursor:'pointer'}}>PDF</button>
-                        </td>
+                        <td><button onClick={()=>downloadReceipt(getSaleForReceipt(t))} style={{background:'transparent',border:'1px solid rgba(26,188,156,0.3)',color:'var(--teal)',fontSize:'0.72rem',fontWeight:700,padding:'3px 10px',borderRadius:6,cursor:'pointer'}}>PDF</button></td>
                       </tr>
                     ))}
                   </tbody>
@@ -446,13 +685,3 @@ export default function OwnerDashboard({ setPage, activeSection = 'dashboard', s
 function SectionHeader({title}){return <div className={styles.sectionPageHeader}><h2>{title}</h2></div>;}
 function Loader(){return <div className={styles.loadingText} style={{padding:'1rem'}}>Loading…</div>;}
 function Empty({msg}){return <div className={styles.emptyText} style={{padding:'1rem'}}>{msg}</div>;}
-function EmptyChart({label,icon}){
-  return(
-    <div className={styles.emptyChart}>
-      {icon==='bar'
-        ?<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
-        :<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><circle cx="12" cy="12" r="10"/><path d="M12 8v4l3 3"/></svg>}
-      <div>{label}</div>
-    </div>
-  );
-}

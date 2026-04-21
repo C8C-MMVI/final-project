@@ -18,7 +18,9 @@ if ($role === 'admin') {
     $totalUsers  = $pdo->query("SELECT COUNT(*) FROM users")->fetchColumn();
     $activeShops = $pdo->query("SELECT COUNT(*) FROM shops")->fetchColumn();
     $openRepairs = $pdo->query("SELECT COUNT(*) FROM repair_requests WHERE status != 'Completed'")->fetchColumn();
-    $totalRev    = $pdo->query("SELECT COALESCE(SUM(total_amount), 0) FROM sales_transactions")->fetchColumn();
+
+    // ── FIXED: use repair_sales instead of sales_transactions ──
+    $totalRev = $pdo->query("SELECT COALESCE(SUM(amount), 0) FROM repair_sales")->fetchColumn();
 
     $activity = $pdo->query("
         SELECT
@@ -61,7 +63,6 @@ if ($role === 'customer') {
     ");
     $completedStmt->execute([$userId]);
 
-    // ── repairs list — now includes technician_name ───────────────────────
     $repairsStmt = $pdo->prepare("
         SELECT
             rr.request_id,
@@ -81,7 +82,6 @@ if ($role === 'customer') {
     ");
     $repairsStmt->execute([$userId]);
 
-    // ── latest active repair — now includes technician_name ───────────────
     $latestStmt = $pdo->prepare("
         SELECT
             rr.request_id,
@@ -101,13 +101,21 @@ if ($role === 'customer') {
     ");
     $latestStmt->execute([$userId]);
 
+    // ── FIXED: query repair_sales for customer's total spent ──
+    $spentStmt = $pdo->prepare("
+        SELECT COALESCE(SUM(rs.amount), 0)
+        FROM repair_sales rs
+        WHERE rs.customer_id = ?
+    ");
+    $spentStmt->execute([$userId]);
+
     echo json_encode([
         'success'       => true,
         'stats'         => [
             'customer_id'       => $userId,
-            'active_repairs'    => (int) $activeStmt->fetchColumn(),
-            'completed_repairs' => (int) $completedStmt->fetchColumn(),
-            'total_spent'       => 0,
+            'active_repairs'    => (int)   $activeStmt->fetchColumn(),
+            'completed_repairs' => (int)   $completedStmt->fetchColumn(),
+            'total_spent'       => (float) $spentStmt->fetchColumn(),
         ],
         'repairs'       => $repairsStmt->fetchAll(PDO::FETCH_ASSOC),
         'transactions'  => [],
@@ -119,9 +127,10 @@ if ($role === 'customer') {
 // ── Owner ─────────────────────────────────────────────────────────────────────
 if ($role === 'owner') {
 
-    $shopStmt = $pdo->prepare("SELECT shop_id FROM shops WHERE owner_id = ? LIMIT 1");
+    $shopStmt = $pdo->prepare("SELECT shop_id, shop_name, address, contact_number FROM shops WHERE owner_id = ? LIMIT 1");
     $shopStmt->execute([$userId]);
-    $shopId = (int) ($shopStmt->fetchColumn() ?: 0);
+    $shop   = $shopStmt->fetch(PDO::FETCH_ASSOC);
+    $shopId = (int) ($shop['shop_id'] ?? 0);
 
     $activeStmt = $pdo->prepare("
         SELECT COUNT(*) FROM repair_requests rr
@@ -147,19 +156,23 @@ if ($role === 'owner') {
     ");
     $customersStmt->execute([$userId]);
 
+    // ── FIXED: was querying sales_transactions.total_amount (table doesn't exist)
+    //           now queries repair_sales.amount + sold_at ──────────────────────
     $revenueStmt = $pdo->prepare("
-        SELECT COALESCE(SUM(st.total_amount), 0)
-        FROM sales_transactions st
-        JOIN shops s ON s.shop_id = st.shop_id
-        WHERE s.owner_id = ?
-          AND DATE(st.transaction_date) = CURRENT_DATE
+        SELECT COALESCE(SUM(rs.amount), 0)
+        FROM repair_sales rs
+        WHERE rs.shop_id = ?
+          AND rs.sold_at = CURRENT_DATE
     ");
-    $revenueStmt->execute([$userId]);
+    $revenueStmt->execute([$shopId]);
 
     echo json_encode([
-        'success'      => true,
-        'stats'        => [
+        'success' => true,
+        'stats'   => [
             'shop_id'         => $shopId,
+            'shop_name'       => $shop['shop_name']       ?? null,
+            'shop_address'    => $shop['address']          ?? null,
+            'shop_phone'      => $shop['contact_number']   ?? null,
             'active_repairs'  => (int)   $activeStmt->fetchColumn(),
             'completed_today' => (int)   $completedTodayStmt->fetchColumn(),
             'total_customers' => (int)   $customersStmt->fetchColumn(),

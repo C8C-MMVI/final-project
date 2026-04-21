@@ -22,6 +22,7 @@ const titleMap = {
   transactions:   { admin: 'Transactions',    owner: 'Transactions', technician: '',             customer: 'My Transactions' },
   reviews:        { admin: '',                owner: '',             technician: 'Reviews',      customer: ''               },
   profile:        { admin: 'My Profile',      owner: 'My Profile',   technician: 'My Profile',   customer: 'My Profile'     },
+  customers: { admin: '', owner: 'Customers', technician: '', customer: '' },
   // ── FIX: added missing customer sections ─────────────────────────────
   notifications:  { admin: 'Notifications',   owner: 'Notifications', technician: 'Notifications', customer: 'Notifications' },
   help:           { admin: 'Help & FAQs',      owner: 'Help & FAQs',   technician: 'Help & FAQs',   customer: 'Help & FAQs'   },
@@ -41,6 +42,7 @@ const breadcrumbMap = {
   // ── FIX: added missing customer sections ─────────────────────────────
   notifications:  'TechnoLogs / Notifications',
   help:           'TechnoLogs / Help & FAQs',
+  customers: 'TechnoLogs / Customers',
 };
 
 // ── Quick-links per role ──────────────────────────────────────────────────

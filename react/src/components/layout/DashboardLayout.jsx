@@ -7,18 +7,18 @@ import styles  from './DashboardLayout.module.css';
 
 const SECTION_MAP = {
   admin: {
-    'Dashboard':       'dashboard',       // ← was 'Dashboard'
-    'User Management': 'userManagement',  // ← was 'User Management'
-    'Shop Requests':   'shopRequests',    // ← was 'Shop Requests'
-    'System Logs':     'systemLogs',      // ← was 'System Logs'
+    'Dashboard':       'dashboard',
+    'User Management': 'userManagement',
+    'Shop Requests':   'shopRequests',
+    'System Logs':     'systemLogs',
   },
   owner: {
     'Dashboard':             'dashboard',
     'Repairs / Job Orders':  'repairs',
     'Inventory':             'inventory',
-    'Customers':             'customers',
+    'Customers':             'customers',   // ← own section now
     'Reports / Analytics':   'reports',
-    'Member Management':     'members',
+    'Member Management':     'members',     // ← stays as members
   },
   technician: {
     'Dashboard':       'dashboard',

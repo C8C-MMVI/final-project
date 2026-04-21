@@ -53,6 +53,7 @@ if ($method === 'GET') {
                 rr.technician_notes,
                 rr.created_at,
                 rr.technician_id,
+                rr.customer_id,
                 cu.username  AS customer_name,
                 cu.phone     AS customer_phone,
                 tu.username  AS technician_name,
@@ -95,6 +96,7 @@ if ($method === 'GET') {
                 rr.technician_notes,
                 rr.created_at,
                 rr.technician_id,
+                rr.customer_id,
                 cu.username  AS customer_name,
                 tu.username  AS technician_name,
                 s.shop_name

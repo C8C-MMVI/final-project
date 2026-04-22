@@ -9,6 +9,7 @@ if (!isset($_SESSION['user_id'])) {
 }
 
 require_once __DIR__ . '/../db_config.php';
+require_once __DIR__ . '/../includes/notify.php';
 
 $method = $_SERVER['REQUEST_METHOD'];
 $role   = $_SESSION['role'];
@@ -140,10 +141,16 @@ if ($method === 'POST') {
         exit;
     }
 
-    // Verify shop exists
-    $shopCheck = $pdo->prepare("SELECT shop_id FROM shops WHERE shop_id = ?");
+    // Verify shop exists and get shop info for notifications
+    $shopCheck = $pdo->prepare("
+        SELECT s.shop_id, s.shop_name, s.owner_id
+        FROM shops s
+        WHERE s.shop_id = ?
+    ");
     $shopCheck->execute([$shopId]);
-    if (!$shopCheck->fetch()) {
+    $shop = $shopCheck->fetch(PDO::FETCH_ASSOC);
+
+    if (!$shop) {
         http_response_code(422);
         echo json_encode(['success' => false, 'message' => 'Selected shop does not exist.']);
         exit;
@@ -154,11 +161,22 @@ if ($method === 'POST') {
         VALUES (?, ?, ?, ?, 'Pending', NOW())
     ");
     $stmt->execute([$customerId, $shopId, $deviceType, $issueDesc]);
+    $requestId = (int) $pdo->lastInsertId();
+
+    // ── Notify shop owner a new repair request came in ────────────────────
+    notify($pdo, $shop['owner_id'],
+        "New repair request #$requestId received for a $deviceType at {$shop['shop_name']}."
+    );
+
+    // ── Notify the customer their request was submitted ───────────────────
+    notify($pdo, $customerId,
+        "Your repair request #$requestId for $deviceType has been submitted successfully. Status: Pending."
+    );
 
     echo json_encode([
         'success'    => true,
         'message'    => 'Repair request submitted successfully.',
-        'request_id' => $pdo->lastInsertId(),
+        'request_id' => $requestId,
     ]);
     exit;
 }
@@ -174,8 +192,20 @@ if ($method === 'PATCH') {
     }
 
     $requestId = (int) $data['request_id'];
-    $fields    = [];
-    $params    = [];
+
+    // Fetch current repair info for notifications
+    $repairStmt = $pdo->prepare("
+        SELECT rr.customer_id, rr.technician_id, rr.device_type, rr.status,
+               s.shop_name
+        FROM repair_requests rr
+        JOIN shops s ON s.shop_id = rr.shop_id
+        WHERE rr.request_id = ?
+    ");
+    $repairStmt->execute([$requestId]);
+    $repair = $repairStmt->fetch(PDO::FETCH_ASSOC);
+
+    $fields = [];
+    $params = [];
 
     // Status update
     if (isset($data['status'])) {
@@ -235,6 +265,34 @@ if ($method === 'PATCH') {
     $params[] = $requestId;
     $stmt = $pdo->prepare('UPDATE repair_requests SET ' . implode(', ', $fields) . ' WHERE request_id = ?');
     $stmt->execute($params);
+
+    // ── Notifications after update ────────────────────────────────────────
+
+    // Status changed — notify the customer
+    if (isset($data['status']) && $repair) {
+        $newStatus  = $data['status'];
+        $deviceType = $repair['device_type'];
+        notify($pdo, $repair['customer_id'],
+            "Your repair #$requestId ($deviceType) status has been updated to: $newStatus."
+        );
+
+        // If marked Completed, also notify the technician
+        if ($newStatus === 'Completed' && $repair['technician_id']) {
+            notify($pdo, $repair['technician_id'],
+                "Repair job #$requestId ($deviceType) has been marked as Completed."
+            );
+        }
+    }
+
+    // Technician assigned — notify the technician
+    if (array_key_exists('technician_id', $data) && $data['technician_id'] && $repair) {
+        $techId     = (int) $data['technician_id'];
+        $deviceType = $repair['device_type'];
+        $shopName   = $repair['shop_name'];
+        notify($pdo, $techId,
+            "You have been assigned to repair job #$requestId ($deviceType) at $shopName."
+        );
+    }
 
     echo json_encode(['success' => true, 'message' => 'Repair updated successfully.']);
     exit;

@@ -9,6 +9,7 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
 }
 
 require_once __DIR__ . '/../db_config.php';
+require_once __DIR__ . '/../includes/notify.php';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $body      = json_decode(file_get_contents('php://input'), true);
@@ -22,12 +23,34 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     $newStatus = $action === 'approve' ? 'approved' : 'rejected';
+
     $stmt = $pdo->prepare("
         UPDATE shop_requests
         SET status = ?, reviewed_at = NOW(), reviewed_by = ?
         WHERE request_id = ?
     ");
     $stmt->execute([$newStatus, $_SESSION['user_id'], $requestId]);
+
+    // ── Fetch the owner's user_id and shop name to notify them ───────────
+    $infoStmt = $pdo->prepare("
+        SELECT sr.shop_name, sr.user_id
+        FROM shop_requests sr
+        WHERE sr.request_id = ?
+    ");
+    $infoStmt->execute([$requestId]);
+    $info = $infoStmt->fetch(PDO::FETCH_ASSOC);
+
+    if ($info) {
+        if ($action === 'approve') {
+            notify($pdo, $info['user_id'],
+                "Congratulations! Your shop \"{$info['shop_name']}\" has been approved. You can now start accepting repair requests."
+            );
+        } else {
+            notify($pdo, $info['user_id'],
+                "Your shop registration request for \"{$info['shop_name']}\" was not approved. Please contact support for more information."
+            );
+        }
+    }
 
     echo json_encode(['success' => true, 'status' => $newStatus]);
     exit;

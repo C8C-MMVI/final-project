@@ -16,9 +16,9 @@ const SECTION_MAP = {
     'Dashboard':             'dashboard',
     'Repairs / Job Orders':  'repairs',
     'Inventory':             'inventory',
-    'Customers':             'customers',   // ← own section now
+    'Customers':             'customers',
     'Reports / Analytics':   'reports',
-    'Member Management':     'members',     // ← stays as members
+    'Member Management':     'members',
   },
   technician: {
     'Dashboard':       'dashboard',
@@ -34,6 +34,14 @@ const SECTION_MAP = {
     'Help & FAQs':     'help',
   },
 };
+
+// Pages that are sections rendered inside the dashboard component,
+// not standalone page components in pageMap.
+const SECTION_KEYS = new Set([
+  'dashboard', 'repairs', 'transactions', 'notifications',
+  'help', 'userManagement', 'shopRequests', 'systemLogs',
+  'reports', 'reviews', 'customers', 'inventory',
+]);
 
 const DEFAULT_SECTION = {
   admin:      'dashboard',
@@ -56,27 +64,26 @@ export default function DashboardLayout({ role, username, children, pageMap, onL
   };
 
   const handleNavigate = (pageKey, label) => {
-    const mapped = label ? (SECTION_MAP[role] ?? {})[label] : null;
-  
-    // If it's a standalone page (members, profile, repairs), load it directly
-    const standalonePages = Object.keys(pageMap ?? {}).filter(k => k !== 'dashboard');
-    if (standalonePages.includes(pageKey) && !mapped) {
-      setPage(pageKey);
+    // 1. If called with a label (from Sidebar), map label → section key first
+    const mappedFromLabel = label ? (SECTION_MAP[role] ?? {})[label] : null;
+    const key = mappedFromLabel ?? pageKey;
+
+    // 2. If key is a known section (rendered inside the dashboard), switch section
+    if (SECTION_KEYS.has(key)) {
+      setSection(key);
+      setPage('dashboard');
       return;
     }
-  
-    if (mapped) {
-      // 'members' for owner is a standalone page, not a section inside OwnerDashboard
-      if (pageKey === 'members') {
-        setPage('members');
-        setSection('members');
-        return;
-      }
-      setSection(mapped);
-      setPage('dashboard');
-    } else {
-      setPage(pageKey);
+
+    // 3. If key exists in pageMap (standalone page component), load it
+    if (pageMap?.[key]) {
+      setPage(key);
+      return;
     }
+
+    // 4. Fallback — treat as section anyway
+    setSection(key);
+    setPage('dashboard');
   };
 
   const Content = loggingOut

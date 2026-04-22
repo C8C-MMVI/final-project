@@ -9,6 +9,7 @@ if (!isset($_SESSION['user_id'])) {
 }
 
 require_once __DIR__ . '/../db_config.php';
+require_once __DIR__ . '/../includes/notify.php';
 
 $method = $_SERVER['REQUEST_METHOD'];
 $role   = $_SESSION['role'];
@@ -90,11 +91,24 @@ if ($method === 'POST') {
         VALUES (?, ?, ?, ?, ?, NOW())
     ");
     $stmt->execute([$shopId, $customerId, $userId, $totalAmount, $paymentMethod]);
+    $transactionId = (int) $pdo->lastInsertId();
+
+    // ── Fetch shop name for the notification message ──────────────────────
+    $shopStmt = $pdo->prepare("SELECT shop_name FROM shops WHERE shop_id = ?");
+    $shopStmt->execute([$shopId]);
+    $shopName = $shopStmt->fetchColumn() ?: 'the shop';
+
+    $formattedAmount = number_format($totalAmount, 2);
+
+    // ── Notify customer their payment was recorded ────────────────────────
+    notify($pdo, $customerId,
+        "Payment of ₱$formattedAmount via $paymentMethod has been recorded at $shopName. Transaction #$transactionId."
+    );
 
     echo json_encode([
         'success'        => true,
         'message'        => 'Transaction recorded.',
-        'transaction_id' => $pdo->lastInsertId(),
+        'transaction_id' => $transactionId,
     ]);
     exit;
 }

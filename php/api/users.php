@@ -60,10 +60,11 @@ if ($method === 'POST') {
         exit;
     }
 
-    $allowedRoles = ['admin', 'owner', 'technician', 'customer'];
+    // ── Restricted to internal roles only (owner & customer must use normal flows)
+    $allowedRoles = ['admin', 'technician'];
     if (!in_array($newRole, $allowedRoles)) {
         http_response_code(422);
-        echo json_encode(['success' => false, 'message' => 'Invalid role.']);
+        echo json_encode(['success' => false, 'message' => 'Invalid role. Only technician or admin accounts can be created here.']);
         exit;
     }
 
@@ -92,10 +93,27 @@ if ($method === 'POST') {
     ");
     $stmt->execute([$username, $email ?: null, $hash, $newRole]);
 
+    $newUserId = $pdo->lastInsertId();
+
+    // ── Audit log
+    try {
+        $logStmt = $pdo->prepare("
+            INSERT INTO system_logs (user_id, action, log_type, ip_address, created_at)
+            VALUES (?, ?, 'info', ?, NOW())
+        ");
+        $logStmt->execute([
+            $_SESSION['user_id'],
+            "Admin created new {$newRole} account: {$username}",
+            $_SERVER['REMOTE_ADDR'] ?? null,
+        ]);
+    } catch (PDOException $e) {
+        // Log failure should not block the response
+    }
+
     echo json_encode([
         'success' => true,
         'message' => 'Member added successfully.',
-        'user_id' => $pdo->lastInsertId(),
+        'user_id' => $newUserId,
     ]);
     exit;
 }
@@ -123,8 +141,29 @@ if ($method === 'DELETE') {
         exit;
     }
 
+    // ── Fetch username before deleting for the audit log
+    $fetchUser = $pdo->prepare("SELECT username, role FROM users WHERE user_id = ?");
+    $fetchUser->execute([$targetId]);
+    $targetUser = $fetchUser->fetch();
+
     $stmt = $pdo->prepare("DELETE FROM users WHERE user_id = ?");
     $stmt->execute([$targetId]);
+
+    // ── Audit log
+    try {
+        $logStmt = $pdo->prepare("
+            INSERT INTO system_logs (user_id, action, log_type, ip_address, created_at)
+            VALUES (?, ?, 'warn', ?, NOW())
+        ");
+        $logStmt->execute([
+            $_SESSION['user_id'],
+            "Admin deleted user: " . ($targetUser['username'] ?? "ID {$targetId}") . " (role: " . ($targetUser['role'] ?? 'unknown') . ")",
+            $_SERVER['REMOTE_ADDR'] ?? null,
+        ]);
+    } catch (PDOException $e) {
+        // Log failure should not block the response
+    }
+
     echo json_encode(['success' => true, 'message' => 'User deleted.']);
     exit;
 }

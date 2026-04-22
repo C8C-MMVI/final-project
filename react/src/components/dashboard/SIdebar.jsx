@@ -8,12 +8,16 @@ const NAV_ITEMS = {
     { label: 'Track Repair', href: '/customer/track',        icon: '📡' },
   ],
   owner: [
-    { label: 'Dashboard',            href: '/owner',                 icon: '⬡'  },
-    { label: 'Repairs / Job Orders', href: '/owner/repairs',         icon: '🔧' },
-    { label: 'Customers',            href: '/owner/customers',       icon: '👥' },
-    { label: 'Reports / Analytics',  href: '/owner/reports',         icon: '📊' },
-    { label: 'Member Management',    href: '/owner/members',         icon: '🪪' },
-  ],
+    { section: 'Main' },
+    { label: 'Dashboard',             page: 'dashboard', icon: <IconGrid />     },
+    { section: 'Shop' },
+    { label: 'Repairs / Job Orders',  page: 'repairs',   icon: <IconTool />    },
+    { label: 'Customers',             page: 'customers', icon: <IconUsers />    },
+    { section: 'Insights' },
+    { label: 'Reports / Analytics',   page: 'reports',   icon: <IconChart />   },
+    { section: 'Team' },
+    { label: 'Member Management',     page: 'members',   icon: <IconUserPlus />},
+  ],  
 };
 
 export default function Sidebar({ role = 'customer', open, onClose, collapsed }) {

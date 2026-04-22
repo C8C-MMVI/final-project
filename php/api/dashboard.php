@@ -162,7 +162,7 @@ if ($role === 'owner') {
         SELECT COALESCE(SUM(rs.amount), 0)
         FROM repair_sales rs
         WHERE rs.shop_id = ?
-          AND rs.sold_at = CURRENT_DATE
+          AND DATE(rs.sold_at) = CURRENT_DATE
     ");
     $revenueStmt->execute([$shopId]);
 

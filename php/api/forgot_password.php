@@ -40,7 +40,7 @@ if (empty($email) || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
 
 try {
     // ✅ column is `id`, not `user_id`
-    $stmt = $pdo->prepare("SELECT id FROM users WHERE email = ? AND status = 'active' LIMIT 1");
+    $stmt = $pdo->prepare("SELECT user_id FROM users WHERE email = ? AND status = 'active' LIMIT 1");
     $stmt->execute([$email]);
     $user = $stmt->fetch();
 } catch (PDOException $e) {
@@ -58,7 +58,7 @@ if (!$user) {
 try {
     // Invalidate any existing unused tokens for this user
     $pdo->prepare("UPDATE password_resets SET used = true WHERE user_id = ? AND used = false")
-        ->execute([$user['id']]);
+        ->execute([$user['user_id']]);
 
     // Generate a secure random token
     $rawToken  = bin2hex(random_bytes(32)); // 64-char hex
@@ -67,7 +67,7 @@ try {
     // ✅ uses `token` column (not `token_hash`)
     $pdo->prepare(
         "INSERT INTO password_resets (user_id, token, expires_at, used) VALUES (?, ?, ?, false)"
-    )->execute([$user['id'], $rawToken, $expiresAt]);
+    )->execute([$user['user_id'], $rawToken, $expiresAt]);
 
 } catch (PDOException $e) {
     error_log('forgot_password insert failed: ' . $e->getMessage());

@@ -107,12 +107,12 @@ try {
     $hashedPassword = password_hash($password, PASSWORD_DEFAULT);
 
     // ✅ column is `id`, not `user_id`
-    $pdo->prepare('UPDATE users SET password = ? WHERE id = ?')
+    $pdo->prepare('UPDATE users SET password = ? WHERE user_id = ?')
         ->execute([$hashedPassword, $reset['user_id']]);
 
     // ✅ PostgreSQL boolean is `true`, not 1
     $pdo->prepare('UPDATE password_resets SET used = true WHERE id = ?')
-        ->execute([$reset['id']]);
+    ->execute([$hashedPassword, $reset['user_id']]);
 
 } catch (PDOException $e) {
     error_log('reset_password POST update failed: ' . $e->getMessage());

@@ -57,7 +57,21 @@ export default function DashboardLayout({ role, username, children, pageMap, onL
 
   const handleNavigate = (pageKey, label) => {
     const mapped = label ? (SECTION_MAP[role] ?? {})[label] : null;
+  
+    // If it's a standalone page (members, profile, repairs), load it directly
+    const standalonePages = Object.keys(pageMap ?? {}).filter(k => k !== 'dashboard');
+    if (standalonePages.includes(pageKey) && !mapped) {
+      setPage(pageKey);
+      return;
+    }
+  
     if (mapped) {
+      // 'members' for owner is a standalone page, not a section inside OwnerDashboard
+      if (pageKey === 'members') {
+        setPage('members');
+        setSection('members');
+        return;
+      }
       setSection(mapped);
       setPage('dashboard');
     } else {

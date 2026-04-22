@@ -1,14 +1,12 @@
 import { useState, useEffect } from 'react';
-import Panel  from '../components/shared/Panel';
-import styles  from '../components/layout/DashboardLayout.module.css';
-
-const cStyles = styles; 
+import Panel from '../components/shared/Panel';
+import styles from './OwnerDashboard.module.css';
 
 export default function MembersPage({ setPage }) {
   const [members, setMembers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error,   setError]   = useState(null);
-  const [form,    setForm]    = useState({ username: '', email: '', role: 'technician', password: '' });
+  const [form,    setForm]    = useState({ username: '', email: '', password: '' });
   const [saving,  setSaving]  = useState(false);
   const [toast,   setToast]   = useState(null);
 
@@ -19,12 +17,10 @@ export default function MembersPage({ setPage }) {
 
   const fetchMembers = () => {
     setLoading(true);
-    fetch('/api/users.php', {
-      credentials: 'include',                         // ← FIXED: send session cookie
-    })
+    fetch('/api/technicians.php', { credentials: 'include' })
       .then(r => r.json())
       .then(data => {
-        if (data.success) setMembers(data.users ?? []);
+        if (data.success) setMembers(data.technicians ?? []);
         else setError(data.message);
       })
       .catch(() => setError('Cannot connect to server.'))
@@ -37,16 +33,16 @@ export default function MembersPage({ setPage }) {
     e.preventDefault();
     setSaving(true);
     try {
-      const res  = await fetch('/api/users.php', {
+      const res  = await fetch('/api/technicians.php', {
         method:      'POST',
-        credentials: 'include',                       // ← FIXED: send session cookie
+        credentials: 'include',
         headers:     { 'Content-Type': 'application/json' },
         body:        JSON.stringify(form),
       });
       const data = await res.json();
       if (data.success) {
-        showToast('✓ Member added successfully.');
-        setForm({ username: '', email: '', role: 'technician', password: '' });
+        showToast('✓ Technician added successfully.');
+        setForm({ username: '', email: '', password: '' });
         fetchMembers();
       } else {
         showToast('⚠ ' + data.message, true);
@@ -58,18 +54,18 @@ export default function MembersPage({ setPage }) {
     }
   };
 
-  const handleDelete = async (userId, username) => {
-    if (!window.confirm(`Remove member "${username}"?`)) return;
+  const handleRemove = async (userId, username) => {
+    if (!window.confirm(`Remove "${username}" from your shop?`)) return;
     try {
-      const res  = await fetch('/api/users.php', {
+      const res  = await fetch('/api/technicians.php', {
         method:      'DELETE',
-        credentials: 'include',                       // ← FIXED: send session cookie
+        credentials: 'include',
         headers:     { 'Content-Type': 'application/json' },
         body:        JSON.stringify({ user_id: userId }),
       });
       const data = await res.json();
       if (data.success) {
-        showToast('✓ Member removed.');
+        showToast('✓ Technician removed.');
         fetchMembers();
       } else {
         showToast('⚠ ' + data.message, true);
@@ -79,143 +75,137 @@ export default function MembersPage({ setPage }) {
     }
   };
 
-  const inputStyle = {
-    padding: '8px 12px',
-    borderRadius: '6px',
-    border: '1px solid var(--color-border)',
-    background: 'var(--color-bg-primary)',
-    color: 'var(--color-text-primary)',
-    fontSize: '14px',
-    width: '100%',
+  const inp = {
+    width: '100%', padding: '8px 12px', borderRadius: '7px',
+    border: '1px solid rgba(26,188,156,0.15)',
+    background: 'var(--navy-dark, #0a1628)',
+    color: '#fff', fontSize: '0.82rem', outline: 'none',
+    boxSizing: 'border-box',
   };
-
-  const labelStyle = {
-    fontSize: '12px',
-    fontWeight: 600,
-    color: 'var(--text-muted)',
-    marginBottom: '4px',
-    display: 'block',
-  };
-
-  const roleBadgeColor = {
-    admin:      { bg: '#ede9fe', color: '#7c3aed' },
-    owner:      { bg: '#fff7ed', color: '#c2410c' },
-    technician: { bg: '#f0fdf4', color: '#15803d' },
-    customer:   { bg: '#eff6ff', color: '#1d4ed8' },
+  const lbl = {
+    display: 'block', fontSize: '0.72rem', fontWeight: 600,
+    color: 'rgba(255,255,255,0.45)', marginBottom: '4px',
+    textTransform: 'uppercase', letterSpacing: '0.06em',
   };
 
   return (
-    <main className={styles.content}>
+    <div className={styles.content}>
 
+      {/* Toast */}
       {toast && (
         <div style={{
-          padding: '12px 20px',
-          marginBottom: '1rem',
-          borderRadius: '8px',
-          background: toast.isError ? '#fee2e2' : '#dcfce7',
-          color:      toast.isError ? '#dc2626' : '#16a34a',
-          fontWeight: 500,
-          fontSize: '14px',
+          marginBottom: '1rem', padding: '12px 18px', borderRadius: '8px',
+          background: toast.isError ? 'rgba(239,68,68,0.12)' : 'rgba(26,188,156,0.12)',
+          border: `1px solid ${toast.isError ? '#ef4444' : 'var(--teal, #1abc9c)'}`,
+          color: toast.isError ? '#ef4444' : 'var(--teal, #1abc9c)',
+          fontSize: '0.82rem', fontWeight: 500,
         }}>
           {toast.msg}
         </div>
       )}
 
-      <div className={cStyles.twoCol}>
+      {/* Page Header */}
+      <div className={styles.sectionPageHeader}>
+        <h2>Member Management</h2>
+      </div>
 
-        {/* ── Add Member Form ── */}
-        <Panel title="Add New Member" onLink={() => setPage('dashboard')} linkLabel="← Back">
-          <form onSubmit={handleAdd} style={{ padding: '1rem', display: 'flex', flexDirection: 'column', gap: '14px' }}>
+      <div className={styles.twoCol}>
 
-            <div><label style={labelStyle}>Username</label>
-              <input style={inputStyle} type="text" placeholder="Enter username"
-                value={form.username} onChange={e => setForm(f => ({ ...f, username: e.target.value }))} required />
+        {/* ── Add Technician Form ── */}
+        <Panel title="Add Technician">
+          <form onSubmit={handleAdd} style={{
+            padding: '20px', display: 'flex',
+            flexDirection: 'column', gap: '14px',
+          }}>
+            <div>
+              <label style={lbl}>Username</label>
+              <input style={inp} type="text" placeholder="Enter username"
+                value={form.username}
+                onChange={e => setForm(f => ({ ...f, username: e.target.value }))}
+                required />
             </div>
-
-            <div><label style={labelStyle}>Email</label>
-              <input style={inputStyle} type="email" placeholder="Enter email"
-                value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} required />
+            <div>
+              <label style={lbl}>Email</label>
+              <input style={inp} type="email" placeholder="Enter email"
+                value={form.email}
+                onChange={e => setForm(f => ({ ...f, email: e.target.value }))}
+                required />
             </div>
-
-            <div><label style={labelStyle}>Role</label>
-              <select style={inputStyle} value={form.role}
-                onChange={e => setForm(f => ({ ...f, role: e.target.value }))}>
-                <option value="technician">Technician</option>
-                <option value="owner">Shop Owner</option>
-                <option value="admin">System Admin</option>
-                <option value="customer">Customer</option>
-              </select>
+            <div>
+              <label style={lbl}>Password</label>
+              <input style={inp} type="password" placeholder="Set password (min. 8 characters)"
+                value={form.password}
+                onChange={e => setForm(f => ({ ...f, password: e.target.value }))}
+                required />
             </div>
-
-            <div><label style={labelStyle}>Password</label>
-              <input style={inputStyle} type="password" placeholder="Set password"
-                value={form.password} onChange={e => setForm(f => ({ ...f, password: e.target.value }))} required />
-            </div>
-
             <button type="submit" disabled={saving} style={{
               padding: '10px', borderRadius: '8px', border: 'none',
-              background: 'var(--accent)', color: '#fff',
-              fontWeight: 600, fontSize: '14px', cursor: 'pointer',
-              opacity: saving ? 0.7 : 1,
+              background: 'var(--teal, #1abc9c)', color: '#0a1628',
+              fontWeight: 700, fontSize: '0.85rem', cursor: 'pointer',
+              opacity: saving ? 0.6 : 1, transition: 'opacity 0.2s',
+              marginTop: '4px',
             }}>
-              {saving ? 'Adding…' : '+ Add Member'}
+              {saving ? 'Adding…' : '+ Add Technician'}
             </button>
-
           </form>
         </Panel>
 
-        {/* ── Members List ── */}
-        <Panel title="All Members">
+        {/* ── Technicians List ── */}
+        <Panel title="Shop Technicians" linkLabel={`${members.length} total`}>
           {loading ? (
-            <div style={{ padding: '1rem' }}>Loading members…</div>
+            <div className={styles.loadingText} style={{ padding: '1rem' }}>
+              Loading technicians…
+            </div>
           ) : error ? (
-            <div style={{ padding: '1rem', color: '#ef4444' }}>{error}</div>
+            <div className={styles.errorText} style={{ padding: '1rem' }}>{error}</div>
           ) : members.length === 0 ? (
-            <div style={{ padding: '1rem', color: 'var(--text-muted)' }}>No members found.</div>
+            <div className={styles.emptyText} style={{ padding: '1rem' }}>
+              No technicians in your shop yet.
+            </div>
           ) : (
-            <table className={cStyles.table}>
+            <table className={styles.table}>
               <thead>
-                <tr><th>Username</th><th>Email</th><th>Role</th><th></th></tr>
+                <tr>
+                  <th>Username</th>
+                  <th>Email</th>
+                  <th>Jobs Done</th>
+                  <th>Active</th>
+                  <th></th>
+                </tr>
               </thead>
               <tbody>
-                {members.map((m, i) => {
-                  const badge = roleBadgeColor[m.role] ?? roleBadgeColor.customer;
-                  return (
-                    <tr key={m.user_id ?? i}>
-                      <td className={cStyles.bold}>{m.username}</td>
-                      <td className={cStyles.muted}>{m.email}</td>
-                      <td>
-                        <span style={{
-                          background: badge.bg, color: badge.color,
-                          padding: '2px 10px', borderRadius: '12px',
-                          fontSize: '11px', fontWeight: 600,
-                          textTransform: 'capitalize',
+                {members.map((m, i) => (
+                  <tr key={m.user_id ?? i}>
+                    <td className={styles.boldCol}>{m.username}</td>
+                    <td className={styles.mutedCol}>{m.email ?? '—'}</td>
+                    <td className={styles.idCol}>{m.jobs_done ?? 0}</td>
+                    <td style={{
+                      color: Number(m.active_jobs) > 0 ? '#facc15' : 'rgba(255,255,255,0.45)',
+                      fontWeight: 600,
+                    }}>
+                      {m.active_jobs ?? 0}
+                    </td>
+                    <td>
+                      <button
+                        onClick={() => handleRemove(m.user_id, m.username)}
+                        style={{
+                          padding: '4px 12px', borderRadius: '6px',
+                          border: '1px solid rgba(239,68,68,0.4)',
+                          background: 'rgba(239,68,68,0.1)',
+                          color: '#ef4444', fontSize: '0.75rem',
+                          fontWeight: 600, cursor: 'pointer',
                         }}>
-                          {m.role}
-                        </span>
-                      </td>
-                      <td>
-                        <button
-                          onClick={() => handleDelete(m.user_id, m.username)}
-                          style={{
-                            padding: '4px 10px', borderRadius: '6px',
-                            border: '1px solid #fca5a5', background: '#fee2e2',
-                            color: '#dc2626', fontSize: '12px',
-                            fontWeight: 600, cursor: 'pointer',
-                          }}
-                        >
-                          Remove
-                        </button>
-                      </td>
-                    </tr>
-                  );
-                })}
+                        Remove
+                      </button>
+                    </td>
+                  </tr>
+                ))}
               </tbody>
             </table>
           )}
         </Panel>
 
       </div>
-    </main>
+    </div>
   );
 }

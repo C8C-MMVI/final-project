@@ -400,9 +400,9 @@ export default function OwnerDashboard({ setPage, activeSection = 'dashboard', s
   const fetchCustomers = useCallback(async () => {
     setCustLoading(true);
     try {
-      const res  = await fetch('/api/users.php', { credentials: 'include' });
+      const res  = await fetch('/api/customers.php', { credentials: 'include' });
       const data = await res.json();
-      if (data.success) setCustomers(data.users ?? []);
+      if (data.success) setCustomers(data.customers ?? []);
     } catch {}
     finally { setCustLoading(false); }
   }, []);

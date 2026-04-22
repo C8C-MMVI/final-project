@@ -94,8 +94,6 @@ function AddUserModal({ onClose, onSuccess }) {
             <select className={styles.formSelect} value={form.role}
               onChange={e => set('role', e.target.value)}>
               <option value="technician">Technician</option>
-              <option value="owner">Owner</option>
-              <option value="customer">Customer</option>
               <option value="admin">Admin</option>
             </select>
           </div>

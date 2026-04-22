@@ -19,12 +19,12 @@ if ($role === 'admin') {
     $activeShops = $pdo->query("SELECT COUNT(*) FROM shops")->fetchColumn();
     $openRepairs = $pdo->query("SELECT COUNT(*) FROM repair_requests WHERE status != 'Completed'")->fetchColumn();
 
-    // ── FIXED: use repair_sales instead of sales_transactions ──
     $totalRev = $pdo->query("SELECT COALESCE(SUM(amount), 0) FROM repair_sales")->fetchColumn();
 
+    // FIX: was "cu.username AS customer" — frontend maps a.username so alias must be "username"
     $activity = $pdo->query("
         SELECT
-            cu.username AS customer,
+            cu.username   AS username,
             rr.device_type,
             rr.status,
             rr.created_at,
@@ -36,6 +36,58 @@ if ($role === 'admin') {
         LIMIT 10
     ")->fetchAll(PDO::FETCH_ASSOC);
 
+    // ── Alerts: pull latest unread admin notifications ────────────────────────
+    $adminId = (int) $_SESSION['user_id'];
+    $alertsStmt = $pdo->prepare("
+        SELECT
+            notification_id,
+            message,
+            is_read,
+            created_at
+        FROM notifications
+        WHERE user_id = ?
+        ORDER BY created_at DESC
+        LIMIT 10
+    ");
+    $alertsStmt->execute([$adminId]);
+    $rawAlerts = $alertsStmt->fetchAll(PDO::FETCH_ASSOC);
+
+    // Map notifications to alert shape expected by AlertItem
+    $alerts = array_map(function ($n) {
+        // Derive type from keywords in the message
+        $msg = strtolower($n['message']);
+        if (str_contains($msg, 'login') || str_contains($msg, 'fail') || str_contains($msg, 'error') || str_contains($msg, 'danger')) {
+            $type = 'danger';
+        } elseif (str_contains($msg, 'pending') || str_contains($msg, 'request') || str_contains($msg, 'warn')) {
+            $type = 'warn';
+        } else {
+            $type = 'info';
+        }
+
+        // Human-readable relative time
+        $created  = new DateTime($n['created_at']);
+        $now      = new DateTime();
+        $diff     = $now->diff($created);
+        if ($diff->days >= 1) {
+            $time = $diff->days . 'd ago';
+        } elseif ($diff->h >= 1) {
+            $time = $diff->h . 'h ago';
+        } elseif ($diff->i >= 1) {
+            $time = $diff->i . 'm ago';
+        } else {
+            $time = 'just now';
+        }
+
+        return [
+            'notification_id' => (int) $n['notification_id'],
+            'title'           => $n['message'],
+            'sub'             => $n['is_read'] ? 'Read' : 'Unread',
+            'type'            => $type,
+            'time'            => $time,
+            'is_read'         => (bool) $n['is_read'],
+        ];
+    }, $rawAlerts);
+
     echo json_encode([
         'success'  => true,
         'stats'    => [
@@ -45,6 +97,7 @@ if ($role === 'admin') {
             'total_revenue' => (float) $totalRev,
         ],
         'activity' => $activity,
+        'alerts'   => $alerts,
     ]);
     exit;
 }
@@ -101,7 +154,6 @@ if ($role === 'customer') {
     ");
     $latestStmt->execute([$userId]);
 
-    // ── FIXED: query repair_sales for customer's total spent ──
     $spentStmt = $pdo->prepare("
         SELECT COALESCE(SUM(rs.amount), 0)
         FROM repair_sales rs
@@ -156,8 +208,6 @@ if ($role === 'owner') {
     ");
     $customersStmt->execute([$userId]);
 
-    // ── FIXED: was querying sales_transactions.total_amount (table doesn't exist)
-    //           now queries repair_sales.amount + sold_at ──────────────────────
     $revenueStmt = $pdo->prepare("
         SELECT COALESCE(SUM(rs.amount), 0)
         FROM repair_sales rs

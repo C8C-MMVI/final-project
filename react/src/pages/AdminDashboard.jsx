@@ -40,6 +40,21 @@ function TableSkeleton({ cols = 4, rows = 5 }) {
   );
 }
 
+// ── Alert Skeleton ────────────────────────────────────────────────────────────
+function AlertSkeleton() {
+  return (
+    <div className={styles.skeletonWrap}>
+      {Array.from({ length: 4 }).map((_, i) => (
+        <div key={i} className={styles.skeletonRow}>
+          {Array.from({ length: 3 }).map((_, j) => (
+            <div key={j} className={styles.skeletonCell} />
+          ))}
+        </div>
+      ))}
+    </div>
+  );
+}
+
 // ── Add User Modal ────────────────────────────────────────────────────────────
 function AddUserModal({ onClose, onSuccess }) {
   const [form,    setForm]    = useState({ username: '', email: '', password: '', role: 'technician' });
@@ -110,9 +125,9 @@ function AddUserModal({ onClose, onSuccess }) {
 }
 
 // ── Badge variant maps ────────────────────────────────────────────────────────
-const roleBadge = { owner: 'progress', technician: 'pending', customer: 'completed', admin: 'cancelled' };
-const shopBadge = { approved: 'completed', pending: 'pending', rejected: 'cancelled' };
-const logBadge  = { danger: 'cancelled', warn: 'pending', info: 'completed' };
+const shopBadge   = { approved: 'completed', pending: 'pending', rejected: 'cancelled' };
+const logBadge    = { danger: 'cancelled', warn: 'pending', info: 'completed' };
+const repairBadge = { 'Pending': 'pending', 'In Progress': 'progress', 'Completed': 'completed' };
 
 const statusLabel = {
   'Pending':     'Submitted repair request',
@@ -120,9 +135,10 @@ const statusLabel = {
   'Completed':   'Completed job',
 };
 
-// ── Nav items ─────────────────────────────────────────────────────────────────
+// ── Nav items — includes Repairs tab ─────────────────────────────────────────
 const navItems = [
   { label: 'Dashboard',       key: 'dashboard'      },
+  { label: 'Repairs',         key: 'repairs'        },
   { label: 'User Management', key: 'userManagement' },
   { label: 'Shop Requests',   key: 'shopRequests'   },
   { label: 'System Logs',     key: 'systemLogs'     },
@@ -134,16 +150,21 @@ export default function AdminDashboard({ setPage, activeSection = 'dashboard', s
   // data
   const [stats,        setStats]        = useState(null);
   const [activity,     setActivity]     = useState([]);
+  const [alerts,       setAlerts]       = useState([]);
   const [users,        setUsers]        = useState([]);
   const [shopRequests, setShopRequests] = useState([]);
   const [logs,         setLogs]         = useState([]);
+  const [repairs,      setRepairs]      = useState([]);
 
   // loading
-  const [loadingDash,  setLoadingDash]  = useState(true);
-  const [loadingUsers, setLoadingUsers] = useState(false);
-  const [loadingShops, setLoadingShops] = useState(false);
-  const [loadingLogs,  setLoadingLogs]  = useState(false);
-  const [dashError,    setDashError]    = useState('');
+  const [loadingDash,    setLoadingDash]    = useState(true);
+  const [loadingAlerts,  setLoadingAlerts]  = useState(true);
+  const [loadingUsers,   setLoadingUsers]   = useState(false);
+  const [loadingShops,   setLoadingShops]   = useState(false);
+  const [loadingLogs,    setLoadingLogs]    = useState(false);
+  const [loadingRepairs, setLoadingRepairs] = useState(false);
+  const [dashError,      setDashError]      = useState('');
+  const [alertsError,    setAlertsError]    = useState('');
 
   // action state
   const [showAddUser, setShowAddUser] = useState(false);
@@ -151,14 +172,22 @@ export default function AdminDashboard({ setPage, activeSection = 'dashboard', s
   const [updatingId,  setUpdatingId]  = useState(null);
   const [approvingId, setApprovingId] = useState(null);
 
-  // ── Dashboard data ─────────────────────────────────────────────────────────
+  // ── Dashboard stats + activity ─────────────────────────────────────────────
   useEffect(() => {
     const controller = new AbortController();
     fetch('/api/dashboard.php', { credentials: 'include', signal: controller.signal })
       .then(r => r.json())
       .then(d => {
-        if (d.success) { setStats(d.stats); setActivity(d.activity ?? []); }
-        else setDashError(d.message);
+        if (d.success) {
+          setStats(d.stats);
+          setActivity(d.activity ?? []);
+          if (Array.isArray(d.alerts)) {
+            setAlerts(d.alerts);
+            setLoadingAlerts(false);
+          }
+        } else {
+          setDashError(d.message);
+        }
       })
       .catch(err => {
         if (err.name === 'AbortError') return;
@@ -168,7 +197,82 @@ export default function AdminDashboard({ setPage, activeSection = 'dashboard', s
     return () => controller.abort();
   }, []);
 
+  // ── Alerts from notifications endpoint ────────────────────────────────────
+  useEffect(() => {
+    const controller = new AbortController();
+    fetch('/api/notifications.php', { credentials: 'include', signal: controller.signal })
+      .then(r => r.json())
+      .then(d => {
+        if (d.success && Array.isArray(d.notifications)) {
+          const mapped = d.notifications.map(n => {
+            const msg = (n.message ?? '').toLowerCase();
+            let type = 'info';
+            if (msg.includes('login') || msg.includes('fail') || msg.includes('error') || msg.includes('danger')) {
+              type = 'danger';
+            } else if (msg.includes('pending') || msg.includes('request') || msg.includes('warn')) {
+              type = 'warn';
+            }
+            const diff  = Date.now() - new Date(n.created_at).getTime();
+            const mins  = Math.floor(diff / 60000);
+            const hours = Math.floor(diff / 3600000);
+            const days  = Math.floor(diff / 86400000);
+            let time = 'just now';
+            if (days >= 1)       time = `${days}d ago`;
+            else if (hours >= 1) time = `${hours}h ago`;
+            else if (mins >= 1)  time = `${mins}m ago`;
+            return {
+              notification_id: n.notification_id,
+              title:   n.message,
+              sub:     n.is_read ? 'Read' : 'Unread',
+              type,
+              time,
+              is_read: n.is_read,
+            };
+          });
+          setAlerts(mapped);
+        } else {
+          setAlertsError(d.message ?? 'Failed to load alerts.');
+        }
+      })
+      .catch(err => {
+        if (err.name === 'AbortError') return;
+        setAlertsError('Cannot load alerts.');
+      })
+      .finally(() => setLoadingAlerts(false));
+    return () => controller.abort();
+  }, []);
+
+  // ── Mark alert as read ────────────────────────────────────────────────────
+  const handleMarkRead = async (notificationId) => {
+    try {
+      await fetch(`/api/notifications.php?action=read&id=${notificationId}`, {
+        method: 'PATCH', credentials: 'include',
+      });
+      setAlerts(prev => prev.map(a =>
+        a.notification_id === notificationId ? { ...a, is_read: true, sub: 'Read' } : a
+      ));
+    } catch {}
+  };
+
+  const handleMarkAllRead = async () => {
+    try {
+      await fetch('/api/notifications.php?action=read_all', {
+        method: 'PATCH', credentials: 'include',
+      });
+      setAlerts(prev => prev.map(a => ({ ...a, is_read: true, sub: 'Read' })));
+    } catch {}
+  };
+
   // ── Fetch functions ────────────────────────────────────────────────────────
+  const fetchRepairs = () => {
+    setLoadingRepairs(true);
+    fetch('/api/repairs.php', { credentials: 'include' })
+      .then(r => r.json())
+      .then(d => { if (d.success) setRepairs(d.repairs ?? []); })
+      .catch(() => {})
+      .finally(() => setLoadingRepairs(false));
+  };
+
   const fetchUsers = () => {
     setLoadingUsers(true);
     fetch('/api/users.php', { credentials: 'include' })
@@ -198,6 +302,7 @@ export default function AdminDashboard({ setPage, activeSection = 'dashboard', s
 
   // ── React to sidebar-driven section changes (lazy load) ───────────────────
   useEffect(() => {
+    if (activeSection === 'repairs'        && repairs.length === 0)      fetchRepairs();
     if (activeSection === 'userManagement' && users.length === 0)        fetchUsers();
     if (activeSection === 'shopRequests'   && shopRequests.length === 0) fetchShops();
     if (activeSection === 'systemLogs'     && logs.length === 0)         fetchLogs();
@@ -206,6 +311,7 @@ export default function AdminDashboard({ setPage, activeSection = 'dashboard', s
   // ── Section switch via internal tabs ──────────────────────────────────────
   const handleSection = (key) => {
     if (setActiveSection) setActiveSection(key);
+    if (key === 'repairs'        && repairs.length === 0)      fetchRepairs();
     if (key === 'userManagement' && users.length === 0)        fetchUsers();
     if (key === 'shopRequests'   && shopRequests.length === 0) fetchShops();
     if (key === 'systemLogs'     && logs.length === 0)         fetchLogs();
@@ -267,6 +373,8 @@ export default function AdminDashboard({ setPage, activeSection = 'dashboard', s
     { label: 'Total Revenue', value: `₱${Number(stats.total_revenue).toLocaleString()}`, sub: 'All time',               color: 'purple' },
   ] : [];
 
+  const unreadCount = alerts.filter(a => !a.is_read).length;
+
   // ════════════════════════════════════════════════════════════════════════════
   return (
     <div className={styles.wrapper}>
@@ -298,8 +406,9 @@ export default function AdminDashboard({ setPage, activeSection = 'dashboard', s
           )}
 
           <div className={styles.twoCol}>
+            {/* ── Recent Activity — View all → now goes to Repairs tab ── */}
             <Panel title="Recent Activity" linkLabel="View all →"
-              onLink={() => handleSection('userManagement')}>
+              onLink={() => handleSection('repairs')}>
               {loadingDash ? <TableSkeleton cols={4} rows={5} /> :
                activity.length === 0 ? <div className={styles.empty}>No recent activity.</div> : (
                 <table className={styles.table}>
@@ -318,17 +427,84 @@ export default function AdminDashboard({ setPage, activeSection = 'dashboard', s
               )}
             </Panel>
 
-            <Panel title="Alerts">
-              <div className={styles.alertList}>
-                {[
-                  { title: 'Shop pending approval',   sub: 'Check Shop Requests for new submissions', type: 'warn',   time: 'now'    },
-                  { title: 'Unusual login detected',  sub: 'Review System Logs for details',          type: 'danger', time: '5h ago' },
-                  { title: 'System backup completed', sub: 'Daily backup at 2:00 AM',                 type: 'info',   time: '6h ago' },
-                  { title: 'New technician added',    sub: 'Check User Management',                   type: 'info',   time: '1d ago' },
-                ].map((al, i) => <AlertItem key={i} {...al} />)}
-              </div>
+            {/* ── Alerts (dynamic) ── */}
+            <Panel
+              title={`Alerts${unreadCount > 0 ? ` (${unreadCount} unread)` : ''}`}
+              linkLabel={unreadCount > 0 ? 'Mark all read' : undefined}
+              onLink={unreadCount > 0 ? handleMarkAllRead : undefined}
+            >
+              {loadingAlerts ? (
+                <AlertSkeleton />
+              ) : alertsError ? (
+                <div className={styles.errorMsg}>{alertsError}</div>
+              ) : alerts.length === 0 ? (
+                <div className={styles.empty}>No alerts.</div>
+              ) : (
+                <div className={styles.alertList}>
+                  {alerts.map((al) => (
+                    <div
+                      key={al.notification_id}
+                      onClick={() => !al.is_read && handleMarkRead(al.notification_id)}
+                      style={{ cursor: al.is_read ? 'default' : 'pointer', opacity: al.is_read ? 0.6 : 1 }}
+                    >
+                      <AlertItem title={al.title} sub={al.sub} type={al.type} time={al.time} />
+                    </div>
+                  ))}
+                </div>
+              )}
             </Panel>
           </div>
+        </div>
+      )}
+
+      {/* ═══ REPAIRS ═══ */}
+      {activeSection === 'repairs' && (
+        <div className={styles.section}>
+          <div className={styles.sectionPageHeader}>
+            <h2 className={styles.sectionTitle}>All Repairs</h2>
+            <span className={styles.muted} style={{ fontSize: '0.78rem' }}>{repairs.length} total</span>
+          </div>
+
+          <Panel title="Repair Requests">
+            {loadingRepairs ? <TableSkeleton cols={8} rows={6} /> :
+             repairs.length === 0 ? <div className={styles.empty}>No repair requests found.</div> : (
+              <table className={styles.table}>
+                <thead>
+                  <tr>
+                    <th>#</th>
+                    <th>Customer</th>
+                    <th>Technician</th>
+                    <th>Shop</th>
+                    <th>Device</th>
+                    <th>Issue</th>
+                    <th>Date</th>
+                    <th>Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {repairs.map(r => (
+                    <tr key={r.request_id}>
+                      <td className={styles.muted}>#{r.request_id}</td>
+                      <td className={styles.bold}>{r.customer_name}</td>
+                      <td className={styles.teal}>{r.technician_name ?? '—'}</td>
+                      <td>{r.shop_name}</td>
+                      <td>{r.device_type}</td>
+                      <td className={styles.muted}
+                        style={{ maxWidth: '180px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {r.issue_description}
+                      </td>
+                      <td className={styles.muted}>{new Date(r.created_at).toLocaleDateString()}</td>
+                      <td>
+                        <Badge variant={repairBadge[r.status] ?? 'pending'}>
+                          {r.status}
+                        </Badge>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </Panel>
         </div>
       )}
 

@@ -13,6 +13,7 @@ const roleConfig = {
 const LABEL_TO_SECTION = {
   // admin
   'Dashboard':             'dashboard',
+  'Repairs':               'repairs',       // ← added
   'User Management':       'userManagement',
   'Shop Requests':         'shopRequests',
   'System Logs':           'systemLogs',
@@ -38,6 +39,7 @@ const NAV = {
     { section: 'Main' },
     { label: 'Dashboard',       page: 'dashboard',      icon: <IconGrid />     },
     { section: 'Platform' },
+    { label: 'Repairs',         page: 'repairs',        icon: <IconTool />     }, // ← added
     { label: 'User Management', page: 'userManagement', icon: <IconUserPlus /> },
     { label: 'Shop Requests',   page: 'shopRequests',   icon: <IconHome />     },
     { label: 'System Logs',     page: 'systemLogs',     icon: <IconDoc />      },

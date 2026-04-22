@@ -55,7 +55,7 @@ export default function RepairsPage({ setPage, role }) {
                   <td>{r.device_type}</td>
                   <td>{r.issue_description}</td>
                   <td className={styles.muted}>{new Date(r.created_at).toLocaleDateString()}</td>  {/* ← was cStyles */}
-                  <td><Badge status={statusLabel[r.status] ?? 'pending'} /></td>
+                  <td><Badge variant={statusLabel[r.status] ?? 'pending'} /></td>
                 </tr>
               ))}
             </tbody>

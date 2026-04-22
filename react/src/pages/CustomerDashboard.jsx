@@ -11,7 +11,6 @@ const deviceName = r => r.device      ?? r.device_type;
 const issueText  = r => r.issue       ?? r.issue_description;
 const fmtDate    = d => new Date(d).toLocaleDateString('en-US',{month:'short',day:'2-digit',year:'numeric'});
 
-// ── Enrich sale with repair details for receipt ───────────────────────────────
 function enrichSale(sale, repairs) {
   const repair = repairs.find(r =>
     (r.repair_id ?? r.request_id) === sale.requestId ||
@@ -53,6 +52,7 @@ function Badge({status,label}){
   const cls={pending:s.badgePending,progress:s.badgeProgress,done:s.badgeDone,cancelled:s.badgeCancelled}[status]??s.badgePending;
   return <span className={`${s.badge} ${cls}`}>{label}</span>;
 }
+
 function Panel({title,metaLabel,onMeta,children}){
   return(
     <div className={s.panel}>
@@ -65,7 +65,6 @@ function Panel({title,metaLabel,onMeta,children}){
   );
 }
 
-// ── Download Button ───────────────────────────────────────────────────────────
 function DownloadButton({onClick,disabled,label='Download'}){
   const [busy,setBusy]=useState(false);
   const handleClick=async()=>{setBusy(true);try{await onClick();}finally{setTimeout(()=>setBusy(false),800);}};
@@ -92,7 +91,6 @@ function DownloadButton({onClick,disabled,label='Download'}){
   );
 }
 
-// ── Repair Request Form ───────────────────────────────────────────────────────
 function RepairRequestForm({onSuccess}){
   const [form,setForm]=useState({shop_id:'',device_type:'',issue:'',issue_description:''});
   const [shops,setShops]=useState([]);
@@ -148,7 +146,6 @@ function RepairRequestForm({onSuccess}){
   );
 }
 
-// ── Repair Timeline ───────────────────────────────────────────────────────────
 function RepairTimeline({repair}){
   const timeline=buildTimeline(repair);
   return(
@@ -172,6 +169,236 @@ function RepairTimeline({repair}){
   );
 }
 
+// ── Notifications Section ─────────────────────────────────────────────────────
+function NotificationsSection() {
+  const [notifications, setNotifications] = useState([]);
+  const [loading, setLoading]             = useState(true);
+  const [markingAll, setMarkingAll]       = useState(false);
+
+  const fetchNotifications = useCallback(async () => {
+    try {
+      const res  = await fetch('/api/notifications.php', { credentials: 'include' });
+      const data = await res.json();
+      if (data.success) setNotifications(data.notifications ?? []);
+    } catch {}
+    finally { setLoading(false); }
+  }, []);
+
+  useEffect(() => { fetchNotifications(); }, [fetchNotifications]);
+
+  const markAsRead = async (id) => {
+    try {
+      await fetch(`/api/notifications.php?action=read&id=${id}`, {
+        method: 'PATCH', credentials: 'include',
+      });
+      setNotifications(prev =>
+        prev.map(n => n.notification_id === id ? { ...n, is_read: true } : n)
+      );
+    } catch {}
+  };
+
+  const markAllAsRead = async () => {
+    setMarkingAll(true);
+    try {
+      await fetch('/api/notifications.php?action=read_all', {
+        method: 'PATCH', credentials: 'include',
+      });
+      setNotifications(prev => prev.map(n => ({ ...n, is_read: true })));
+    } catch {}
+    finally { setMarkingAll(false); }
+  };
+
+  const unreadCount = notifications.filter(n => !n.is_read).length;
+
+  return (
+    <div className={s.tableSection}>
+      <div className={s.sectionHeader}>
+        <h2 className={s.sectionTitle}>Notifications</h2>
+        {unreadCount > 0 && (
+          <button
+            onClick={markAllAsRead}
+            disabled={markingAll}
+            style={{
+              background: 'transparent',
+              border: '1px solid rgba(26,188,156,0.3)',
+              color: 'var(--teal,#1abc9c)',
+              fontSize: '0.76rem',
+              fontWeight: 700,
+              padding: '6px 14px',
+              borderRadius: 8,
+              cursor: 'pointer',
+            }}>
+            {markingAll ? 'Marking…' : `Mark all as read (${unreadCount})`}
+          </button>
+        )}
+      </div>
+      {loading ? (
+        <div className={s.emptyState}><p>Loading notifications…</p></div>
+      ) : notifications.length === 0 ? (
+        <div className={s.emptyState} style={{ padding: '60px 20px' }}>
+          <IconEmpty /><p>No notifications yet.</p>
+        </div>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          {notifications.map(n => (
+            <div
+              key={n.notification_id}
+              onClick={() => !n.is_read && markAsRead(n.notification_id)}
+              style={{
+                padding: '14px 18px', borderRadius: 10,
+                background: n.is_read ? 'rgba(255,255,255,0.02)' : 'rgba(26,188,156,0.07)',
+                border: `1px solid ${n.is_read ? 'rgba(255,255,255,0.06)' : 'rgba(26,188,156,0.2)'}`,
+                cursor: n.is_read ? 'default' : 'pointer',
+                display: 'flex', justifyContent: 'space-between',
+                alignItems: 'flex-start', gap: 12, transition: 'background 0.2s',
+              }}>
+              <div style={{ flex: 1 }}>
+                <p style={{
+                  margin: 0, fontSize: '0.88rem',
+                  color: n.is_read ? 'rgba(128,144,168,0.7)' : 'rgba(220,230,240,0.95)',
+                  fontWeight: n.is_read ? 400 : 500, lineHeight: 1.5,
+                }}>
+                  {n.message}
+                </p>
+                <span style={{ fontSize: '0.72rem', color: 'rgba(128,144,168,0.6)', marginTop: 4, display: 'block' }}>
+                  {new Date(n.created_at).toLocaleString()}
+                </span>
+              </div>
+              {!n.is_read && (
+                <span style={{
+                  width: 8, height: 8, borderRadius: '50%',
+                  background: 'var(--teal,#1abc9c)', flexShrink: 0, marginTop: 6,
+                }} />
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Help Section ──────────────────────────────────────────────────────────────
+function HelpSection() {
+  const [openIndex, setOpenIndex] = useState(null);
+
+  const faqs = [
+    { q: 'How do I submit a repair request?', a: 'Go to the Dashboard and fill out the "Submit Repair Request" form. Select a shop, enter your device type, choose the issue type, and provide a description. Click "Submit Request" when done.' },
+    { q: 'How do I track my repair status?', a: 'Your latest repair status is shown on the Dashboard under "Track Repair". You can also go to "My Repairs" in the sidebar to see all your repair requests and their current statuses (Pending, In Progress, or Completed).' },
+    { q: 'What do the repair statuses mean?', a: 'Pending means your request has been submitted and is waiting to be assigned. In Progress means a technician is actively working on your device. Completed means your device is ready for pickup.' },
+    { q: 'How do I view my transactions?', a: 'Click "My Transactions" in the sidebar. You will see a full history of your payments including the amount, payment method, and date.' },
+    { q: 'How do I download a receipt?', a: 'Go to "My Transactions" and click the "PDF" button next to any transaction to download a receipt. You can also click "Download All (PDF)" to download all receipts at once.' },
+    { q: 'How will I know when my repair is updated?', a: 'You will receive a notification every time your repair status changes. Click "Notifications" in the sidebar to view all your notifications. Unread notifications are highlighted — click them to mark as read.' },
+    { q: 'How do I mark notifications as read?', a: 'Click on any unread notification to mark it as read individually, or use the "Mark all as read" button at the top of the Notifications page to clear all at once.' },
+    { q: 'Can I submit multiple repair requests?', a: 'Yes, you can submit as many repair requests as you need. Each request is tracked separately and you will receive notifications for each one.' },
+    { q: 'What should I do if I have a problem not listed here?', a: 'Contact our support team directly via email or phone. Our details are listed in the Contact Support section below.' },
+  ];
+
+  return (
+    <div className={s.tableSection}>
+      <div className={s.sectionHeader}>
+        <h2 className={s.sectionTitle}>Help & FAQs</h2>
+      </div>
+
+      {/* FAQs */}
+      <div style={{ marginBottom: 32 }}>
+        <div style={{ fontSize: '0.78rem', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'rgba(128,144,168,0.7)', marginBottom: 14 }}>
+          Frequently Asked Questions
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {faqs.map((faq, i) => (
+            <div key={i} style={{
+              borderRadius: 10,
+              border: `1px solid ${openIndex === i ? 'rgba(26,188,156,0.3)' : 'rgba(255,255,255,0.06)'}`,
+              background: openIndex === i ? 'rgba(26,188,156,0.05)' : 'rgba(255,255,255,0.02)',
+              overflow: 'hidden', transition: 'all 0.2s ease',
+            }}>
+              <button
+                onClick={() => setOpenIndex(openIndex === i ? null : i)}
+                style={{
+                  width: '100%', textAlign: 'left', background: 'transparent',
+                  border: 'none', padding: '14px 18px', cursor: 'pointer',
+                  display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12,
+                }}>
+                <span style={{ fontSize: '0.88rem', fontWeight: 600, color: openIndex === i ? 'var(--teal,#1abc9c)' : 'rgba(220,230,240,0.9)' }}>
+                  {faq.q}
+                </span>
+                <span style={{
+                  fontSize: '1.1rem', color: 'var(--teal,#1abc9c)', flexShrink: 0,
+                  transition: 'transform 0.2s', display: 'inline-block',
+                  transform: openIndex === i ? 'rotate(45deg)' : 'rotate(0deg)',
+                }}>+</span>
+              </button>
+              {openIndex === i && (
+                <div style={{ padding: '0 18px 14px', fontSize: '0.84rem', color: 'rgba(128,144,168,0.85)', lineHeight: 1.6 }}>
+                  {faq.a}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Contact Support */}
+      <div style={{ borderRadius: 12, border: '1px solid rgba(26,188,156,0.2)', background: 'rgba(26,188,156,0.04)', padding: '24px 28px' }}>
+        <div style={{ fontSize: '0.78rem', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'rgba(128,144,168,0.7)', marginBottom: 16 }}>
+          Contact Support
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+
+          {/* Email */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <div style={{ width: 36, height: 36, borderRadius: 8, flexShrink: 0, background: 'rgba(26,188,156,0.1)', border: '1px solid rgba(26,188,156,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--teal,#1abc9c)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
+                <polyline points="22,6 12,13 2,6"/>
+              </svg>
+            </div>
+            <div>
+              <div style={{ fontSize: '0.72rem', color: 'rgba(128,144,168,0.6)', marginBottom: 2 }}>Email</div>
+              <a href="mailto:technologs@gmail.com" style={{ fontSize: '0.88rem', fontWeight: 500, color: 'var(--teal,#1abc9c)', textDecoration: 'none' }}>
+                technologs@gmail.com
+              </a>
+            </div>
+          </div>
+
+          {/* Phone */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <div style={{ width: 36, height: 36, borderRadius: 8, flexShrink: 0, background: 'rgba(26,188,156,0.1)', border: '1px solid rgba(26,188,156,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--teal,#1abc9c)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 13a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.6 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 9.91a16 16 0 0 0 6.16 6.16l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/>
+              </svg>
+            </div>
+            <div>
+              <div style={{ fontSize: '0.72rem', color: 'rgba(128,144,168,0.6)', marginBottom: 2 }}>Phone</div>
+              <a href="tel:09956351020" style={{ fontSize: '0.88rem', fontWeight: 500, color: 'var(--teal,#1abc9c)', textDecoration: 'none' }}>
+                0995 635 1020
+              </a>
+            </div>
+          </div>
+
+          {/* Business Hours */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <div style={{ width: 36, height: 36, borderRadius: 8, flexShrink: 0, background: 'rgba(26,188,156,0.1)', border: '1px solid rgba(26,188,156,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--teal,#1abc9c)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="10"/>
+                <polyline points="12 6 12 12 16 14"/>
+              </svg>
+            </div>
+            <div>
+              <div style={{ fontSize: '0.72rem', color: 'rgba(128,144,168,0.6)', marginBottom: 2 }}>Business Hours</div>
+              <span style={{ fontSize: '0.88rem', fontWeight: 500, color: 'rgba(220,230,240,0.9)' }}>
+                Monday – Sunday, 7:00 AM – 7:00 PM
+              </span>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── Main ──────────────────────────────────────────────────────────────────────
 export default function CustomerDashboard({username='Customer',userId,setPage,activeSection='dashboard',setActiveSection}){
   const [stats,setStats]               = useState(null);
@@ -185,7 +412,6 @@ export default function CustomerDashboard({username='Customer',userId,setPage,ac
 
   const { downloadReceipt, downloadAllReceipts } = useReceiptDownload({ name: 'TechnoLogs Repair' });
 
-  // Enrich sale with repair data (technician_name now comes from dashboard.php & repairs.php)
   const getSaleForReceipt = (sale) => enrichSale(sale, repairs);
 
   const loadData = useCallback(() => {
@@ -340,22 +566,12 @@ export default function CustomerDashboard({username='Customer',userId,setPage,ac
 
   // ── Notifications ─────────────────────────────────────────────────────────
   if (activeSection === 'notifications') {
-    return (
-      <div className={s.tableSection}>
-        <div className={s.sectionHeader}><h2 className={s.sectionTitle}>Notifications</h2></div>
-        <div className={s.emptyState} style={{padding:'60px 20px'}}><IconEmpty/><p>No notifications yet.</p></div>
-      </div>
-    );
+    return <NotificationsSection />;
   }
 
   // ── Help ──────────────────────────────────────────────────────────────────
   if (activeSection === 'help') {
-    return (
-      <div className={s.tableSection}>
-        <div className={s.sectionHeader}><h2 className={s.sectionTitle}>Help & FAQs</h2></div>
-        <div className={s.emptyState} style={{padding:'60px 20px'}}><IconEmpty/><p>Help content coming soon.</p></div>
-      </div>
-    );
+    return <HelpSection />;
   }
 
   return null;

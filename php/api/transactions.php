@@ -75,10 +75,10 @@ if ($method === 'POST') {
     }
 
     $data          = json_decode(file_get_contents('php://input'), true);
-    $shopId        = (int)   ($data['shop_id']       ?? 0);
-    $customerId    = (int)   ($data['customer_id']   ?? 0);
-    $totalAmount   = (float) ($data['total_amount']  ?? 0);
-    $paymentMethod = trim($data['payment_method']    ?? 'cash');
+    $shopId        = (int)   ($data['shop_id']      ?? 0);
+    $customerId    = (int)   ($data['customer_id']  ?? 0);
+    $totalAmount   = (float) ($data['total_amount'] ?? 0);
+    $paymentMethod = trim($data['payment_method']   ?? 'cash');
 
     if (!$shopId || !$customerId || $totalAmount <= 0) {
         http_response_code(422);
@@ -104,6 +104,19 @@ if ($method === 'POST') {
     notify($pdo, $customerId,
         "Payment of ₱$formattedAmount via $paymentMethod has been recorded at $shopName. Transaction #$transactionId."
     );
+
+    // ── Audit log ─────────────────────────────────────────────────────────
+    try {
+        $logStmt = $pdo->prepare("
+            INSERT INTO system_logs (user_id, action, log_type, ip_address, created_at)
+            VALUES (?, ?, 'info', ?, NOW())
+        ");
+        $logStmt->execute([
+            $userId,
+            "Transaction #$transactionId recorded: ₱{$formattedAmount} via $paymentMethod at $shopName (customer ID: $customerId)",
+            $_SERVER['REMOTE_ADDR'] ?? null,
+        ]);
+    } catch (PDOException $e) {}
 
     echo json_encode([
         'success'        => true,

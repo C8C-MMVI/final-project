@@ -130,9 +130,9 @@ if ($method === 'POST') {
         exit;
     }
 
-    $shopId     = (int)  ($data['shop_id']          ?? 0);
-    $deviceType = trim($data['device_type']          ?? '');
-    $issueDesc  = trim($data['issue_description']    ?? '');
+    $shopId     = (int)  ($data['shop_id']       ?? 0);
+    $deviceType = trim($data['device_type']       ?? '');
+    $issueDesc  = trim($data['issue_description'] ?? '');
     $customerId = $role === 'customer' ? $userId : (int) ($data['customer_id'] ?? 0);
 
     if (!$shopId || !$deviceType || !$issueDesc || !$customerId) {
@@ -141,7 +141,6 @@ if ($method === 'POST') {
         exit;
     }
 
-    // Verify shop exists and get shop info for notifications
     $shopCheck = $pdo->prepare("
         SELECT s.shop_id, s.shop_name, s.owner_id
         FROM shops s
@@ -163,12 +162,9 @@ if ($method === 'POST') {
     $stmt->execute([$customerId, $shopId, $deviceType, $issueDesc]);
     $requestId = (int) $pdo->lastInsertId();
 
-    // ── Notify shop owner a new repair request came in ────────────────────
     notify($pdo, $shop['owner_id'],
         "New repair request #$requestId received for a $deviceType at {$shop['shop_name']}."
     );
-
-    // ── Notify the customer their request was submitted ───────────────────
     notify($pdo, $customerId,
         "Your repair request #$requestId for $deviceType has been submitted successfully. Status: Pending."
     );
@@ -193,7 +189,6 @@ if ($method === 'PATCH') {
 
     $requestId = (int) $data['request_id'];
 
-    // Fetch current repair info for notifications
     $repairStmt = $pdo->prepare("
         SELECT rr.customer_id, rr.technician_id, rr.device_type, rr.status,
                s.shop_name
@@ -207,7 +202,6 @@ if ($method === 'PATCH') {
     $fields = [];
     $params = [];
 
-    // Status update
     if (isset($data['status'])) {
         $allowed = ['Pending', 'In Progress', 'Completed'];
         if (!in_array($data['status'], $allowed)) {
@@ -219,13 +213,11 @@ if ($method === 'PATCH') {
         $params[] = $data['status'];
     }
 
-    // Technician notes
     if (isset($data['technician_notes'])) {
         $fields[] = 'technician_notes = ?';
         $params[] = trim($data['technician_notes']);
     }
 
-    // Assign technician — owner or admin only
     if (array_key_exists('technician_id', $data)) {
         if (!in_array($role, ['owner', 'admin'])) {
             http_response_code(403);
@@ -235,7 +227,6 @@ if ($method === 'PATCH') {
 
         $techId = $data['technician_id'] ? (int) $data['technician_id'] : null;
 
-        // Verify technician belongs to owner's shop
         if ($role === 'owner' && $techId) {
             $check = $pdo->prepare("
                 SELECT 1
@@ -266,17 +257,13 @@ if ($method === 'PATCH') {
     $stmt = $pdo->prepare('UPDATE repair_requests SET ' . implode(', ', $fields) . ' WHERE request_id = ?');
     $stmt->execute($params);
 
-    // ── Notifications after update ────────────────────────────────────────
-
-    // Status changed — notify the customer
+    // ── Notifications ─────────────────────────────────────────────────────
     if (isset($data['status']) && $repair) {
         $newStatus  = $data['status'];
         $deviceType = $repair['device_type'];
         notify($pdo, $repair['customer_id'],
             "Your repair #$requestId ($deviceType) status has been updated to: $newStatus."
         );
-
-        // If marked Completed, also notify the technician
         if ($newStatus === 'Completed' && $repair['technician_id']) {
             notify($pdo, $repair['technician_id'],
                 "Repair job #$requestId ($deviceType) has been marked as Completed."
@@ -284,7 +271,6 @@ if ($method === 'PATCH') {
         }
     }
 
-    // Technician assigned — notify the technician
     if (array_key_exists('technician_id', $data) && $data['technician_id'] && $repair) {
         $techId     = (int) $data['technician_id'];
         $deviceType = $repair['device_type'];
@@ -292,6 +278,36 @@ if ($method === 'PATCH') {
         notify($pdo, $techId,
             "You have been assigned to repair job #$requestId ($deviceType) at $shopName."
         );
+    }
+
+    // ── Audit log for status change ───────────────────────────────────────
+    if (isset($data['status']) && $repair) {
+        try {
+            $logStmt = $pdo->prepare("
+                INSERT INTO system_logs (user_id, action, log_type, ip_address, created_at)
+                VALUES (?, ?, 'info', ?, NOW())
+            ");
+            $logStmt->execute([
+                $userId,
+                "Repair #$requestId ({$repair['device_type']}) status changed to: {$data['status']}",
+                $_SERVER['REMOTE_ADDR'] ?? null,
+            ]);
+        } catch (PDOException $e) {}
+    }
+
+    // ── Audit log for technician assignment ───────────────────────────────
+    if (array_key_exists('technician_id', $data) && $data['technician_id'] && $repair) {
+        try {
+            $logStmt = $pdo->prepare("
+                INSERT INTO system_logs (user_id, action, log_type, ip_address, created_at)
+                VALUES (?, ?, 'info', ?, NOW())
+            ");
+            $logStmt->execute([
+                $userId,
+                "Technician ID {$data['technician_id']} assigned to repair #$requestId ({$repair['device_type']})",
+                $_SERVER['REMOTE_ADDR'] ?? null,
+            ]);
+        } catch (PDOException $e) {}
     }
 
     echo json_encode(['success' => true, 'message' => 'Repair updated successfully.']);
@@ -315,8 +331,27 @@ if ($method === 'DELETE') {
         exit;
     }
 
+    // Fetch repair info before deleting for the audit log
+    $fetchRepair = $pdo->prepare("SELECT device_type, status FROM repair_requests WHERE request_id = ?");
+    $fetchRepair->execute([$requestId]);
+    $repairInfo = $fetchRepair->fetch();
+
     $stmt = $pdo->prepare('DELETE FROM repair_requests WHERE request_id = ?');
     $stmt->execute([$requestId]);
+
+    // ── Audit log ─────────────────────────────────────────────────────────
+    try {
+        $logStmt = $pdo->prepare("
+            INSERT INTO system_logs (user_id, action, log_type, ip_address, created_at)
+            VALUES (?, ?, 'warn', ?, NOW())
+        ");
+        $logStmt->execute([
+            $userId,
+            "Admin deleted repair #$requestId (" . ($repairInfo['device_type'] ?? 'unknown') . ", status: " . ($repairInfo['status'] ?? 'unknown') . ")",
+            $_SERVER['REMOTE_ADDR'] ?? null,
+        ]);
+    } catch (PDOException $e) {}
+
     echo json_encode(['success' => true, 'message' => 'Repair deleted.']);
     exit;
 }

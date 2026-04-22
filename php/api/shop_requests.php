@@ -52,6 +52,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
 
+    // ── Audit log ─────────────────────────────────────────────────────────
+    try {
+        $shopName = $info['shop_name'] ?? "ID $requestId";
+        $logType  = $action === 'approve' ? 'info' : 'warn';
+        $logStmt  = $pdo->prepare("
+            INSERT INTO system_logs (user_id, action, log_type, ip_address, created_at)
+            VALUES (?, ?, ?, ?, NOW())
+        ");
+        $logStmt->execute([
+            $_SESSION['user_id'],
+            "Admin {$action}d shop request: \"{$shopName}\"",
+            $logType,
+            $_SERVER['REMOTE_ADDR'] ?? null,
+        ]);
+    } catch (PDOException $e) {}
+
     echo json_encode(['success' => true, 'status' => $newStatus]);
     exit;
 }

@@ -1,15 +1,16 @@
 // src/components/shared/Badge.jsx
 import styles from './Badge.module.css';
 
-export default function Badge({ status }) {
+export default function Badge({ status, variant, children }) {
+  const key = variant ?? status;
   const map = {
-    progress:  { label: 'In Progress', cls: styles.progress  },
-    pending:   { label: 'Pending',     cls: styles.pending   },
-    completed: { label: 'Completed',   cls: styles.completed },
-    cancelled: { label: 'Cancelled',   cls: styles.cancelled },
-    paid:      { label: 'Paid',        cls: styles.completed },
-    ready:     { label: 'Ready',       cls: styles.ready     },
+    progress:  styles.progress,
+    pending:   styles.pending,
+    completed: styles.completed,
+    cancelled: styles.cancelled,
+    paid:      styles.completed,
+    ready:     styles.ready,
   };
-  const { label, cls } = map[status] ?? { label: status, cls: '' };
-  return <span className={`${styles.badge} ${cls}`}>{label}</span>;
+  const cls = map[key] ?? '';
+  return <span className={`${styles.badge} ${cls}`}>{children ?? key}</span>;
 }

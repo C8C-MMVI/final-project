@@ -14,6 +14,18 @@ export const springApi = (path, options = {}) =>
         ...options,
     });
 
+// ── Django API (booking, repair, shop) ──
+export const djangoApi = (path, options = {}) =>
+    fetch(path, {
+        credentials: 'include',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Token ${localStorage.getItem('django_token') ?? ''}`,
+            ...(options.headers ?? {}),
+        },
+        ...options,
+    });
+
 // ── Convenience helpers ───────────────────────────────────────────────────
 
 export const createSale = (body) =>

@@ -142,6 +142,9 @@ export function useLogin() {
       try { data = JSON.parse(text); } catch {}
 
       if (res.ok && data.success) {
+        if (data.djangoToken) {
+          localStorage.setItem('django_token', data.djangoToken);
+        }
         showToast('✓ Google login successful! Redirecting…');
         setTimeout(() => { window.location.href = data.redirect; }, 1200);
       } else {
@@ -196,17 +199,21 @@ export function useLogin() {
       if (res.ok && data.success) {
         try {
           if (remember) {
-            // ── Save username with 30-day expiry ──
             const expiry = Date.now() + THIRTY_DAYS_MS;
             localStorage.setItem(REMEMBER_KEY, username.trim());
             localStorage.setItem(REMEMBER_EXPIRY_KEY, expiry.toString());
           } else {
-            // ── Uncheck — clear saved username ──
             localStorage.removeItem(REMEMBER_KEY);
             localStorage.removeItem(REMEMBER_EXPIRY_KEY);
           }
+      
+          // ── Store Django token for booking/repair/shop API calls ──
+          if (data.djangoToken) {
+            localStorage.setItem('django_token', data.djangoToken);
+          }
+      
         } catch { }
-
+      
         showToast('✓ Login successful! Redirecting…');
         setTimeout(() => { window.location.href = data.redirect; }, 1200);
       } else {

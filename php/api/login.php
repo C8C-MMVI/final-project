@@ -57,12 +57,27 @@ $redirect = match($user['role']) {
     default      => '/customer/dashboard',
 };
 
+// Get Django token for this user
+$djangoResponse = file_get_contents('http://django:8000/api/auth/bridge/', false, stream_context_create([
+    'http' => [
+        'method'  => 'POST',
+        'header'  => 'Content-Type: application/json',
+        'content' => json_encode([
+            'username' => $user['username'],
+            'role'     => $user['role'],
+            'secret'   => 'technologs-internal-secret',
+        ]),
+    ]
+]));
+$djangoToken = $djangoResponse ? json_decode($djangoResponse, true)['token'] ?? null : null;
+
 http_response_code(200);
 echo json_encode([
-    'success'  => true,
-    'message'  => 'Login successful.',
-    'userId'   => $user['user_id'],
-    'username' => $user['username'],
-    'role'     => $user['role'],
-    'redirect' => $redirect,
+    'success'     => true,
+    'message'     => 'Login successful.',
+    'userId'      => $user['user_id'],
+    'username'    => $user['username'],
+    'role'        => $user['role'],
+    'redirect'    => $redirect,
+    'djangoToken' => $djangoToken,
 ]);

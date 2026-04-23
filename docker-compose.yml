@@ -1,5 +1,4 @@
 services:
-
   # ── PostgreSQL Database ──
   db:
     image: postgres:15-alpine
@@ -16,7 +15,7 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
 
-  # ── Spring Boot (Inventory API) ──  ← NEW SERVICE
+  # ── Spring Boot (Inventory API) ──
   springboot:
     build:
       context: ./springboot
@@ -53,10 +52,10 @@ services:
       - "8080:8000"
     command: php -S 0.0.0.0:8000 -t /var/www/html
 
-    # ── Django (Analytics + POS) ──
+  # ── Django (Analytics + POS) ──
   django:
     build:
-      context: ./django_backend      # point to the folder with manage.py
+      context: ./django_backend
       dockerfile: Dockerfile
     container_name: technologs_django
     depends_on:
@@ -65,12 +64,31 @@ services:
     env_file:
       - .env
     volumes:
-      - ./django_backend:/app       # map the folder with manage.py to /app
+      - ./django_backend:/app
     ports:
       - "8000:8000"
     command: python manage.py runserver 0.0.0.0:8000
     environment:
-    - DJANGO_SETTINGS_MODULE=technologs.settings
+      - DJANGO_SETTINGS_MODULE=technologs.settings
+
+  # ── Spring Cloud Gateway ──          ← NEW
+  gateway:
+    build:
+      context: ./gateway
+      dockerfile: Dockerfile
+    container_name: technologs_gateway
+    ports:
+      - "9090:9090"
+    depends_on:
+      - php
+      - django
+      - springboot
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:9090/actuator/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   # ── React Frontend ──
   react:
     image: node:20
@@ -82,7 +100,7 @@ services:
     ports:
       - "5173:5173"
     depends_on:
-      - php
+      - gateway                         # ← was php
     command: sh -c "npm install && npm run dev -- --host"
 
   # ── MailHog (for testing emails) ──
@@ -90,8 +108,8 @@ services:
     image: mailhog/mailhog:latest
     container_name: technologs_mailhog
     ports:
-      - "1025:1025"  # SMTP port for PHP
-      - "8025:8025"  # Web UI to view emails
+      - "1025:1025"
+      - "8025:8025"
 
 volumes:
   postgres_data:

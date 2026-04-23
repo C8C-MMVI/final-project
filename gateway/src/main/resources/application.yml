@@ -1,0 +1,63 @@
+server:
+  port: 9090
+
+spring:
+  application:
+    name: technologs-gateway
+
+  cloud:
+    gateway:
+      globalcors:
+        cors-configurations:
+          '[/**]':
+            allowedOrigins:
+              - "http://localhost:5173"
+              - "http://localhost:8080"
+              - "http://localhost:3000"
+            allowedMethods:
+              - GET
+              - POST
+              - PUT
+              - PATCH
+              - DELETE
+              - OPTIONS
+            allowedHeaders: "*"
+            allowCredentials: true
+
+      routes:
+        # ── Spring Boot Backend (FIRST - before php-route) ──
+        - id: springboot-route
+          uri: http://springboot:8080
+          predicates:
+            - Path=/api/sales/**
+          filters:
+            - StripPrefix=0
+
+        # ── PHP Backend ──
+        - id: php-route
+          uri: http://php:8000
+          predicates:
+            - Path=/api/**
+
+        # ── Images (served by PHP) ──
+        - id: images-route
+          uri: http://php:8000
+          predicates:
+            - Path=/images/**
+
+        # ── Django Backend ──
+        - id: django-route
+          uri: http://django:8000
+          predicates:
+            - Path=/django/**
+          filters:
+            - StripPrefix=1
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+  endpoint:
+    health:
+      show-details: always

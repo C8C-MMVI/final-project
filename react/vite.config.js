@@ -7,17 +7,27 @@ export default defineConfig({
   server: {
     host: true,
     watch: {
-      usePolling: true,   // ← fixes WSL2 file watching
-      interval: 500,      // check every 500ms
+      usePolling: true,
+      interval: 500,
     },
     proxy: {
       '/api': {
-        target: 'http://php:8000',
+        target: 'http://gateway:9090',
         changeOrigin: true,
         cookieDomainRewrite: 'localhost',
       },
       '/images': {
-        target: 'http://php:8000',
+        target: 'http://gateway:9090',
+        changeOrigin: true,
+        cookieDomainRewrite: 'localhost',
+      },
+      '/sales': {
+        target: 'http://gateway:9090',
+        changeOrigin: true,
+        cookieDomainRewrite: 'localhost',
+      },
+      '/django': {
+        target: 'http://gateway:9090',
         changeOrigin: true,
         cookieDomainRewrite: 'localhost',
       },

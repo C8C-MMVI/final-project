@@ -1,14 +1,17 @@
 'use strict';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
+import { useGoogleLogin } from '@react-oauth/google';
 
-const REMEMBER_KEY = 'remembered_username';
+const REMEMBER_KEY        = 'remembered_username';
+const REMEMBER_EXPIRY_KEY = 'remembered_username_expiry';
+const THIRTY_DAYS_MS      = 30 * 24 * 60 * 60 * 1000;
 
 export function useLogin() {
   const [username, setUsername]         = useState('');
   const [password, setPassword]         = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [remember, setRemember]         = useState(true);
+  const [remember, setRemember]         = useState(false);
   const [errors, setErrors]             = useState({ username: false, password: false });
   const [loading, setLoading]           = useState(false);
   const [toast, setToast]               = useState(null);
@@ -18,6 +21,25 @@ export function useLogin() {
   const [forgotEmailError, setForgotEmailError] = useState('');
   const [forgotLoading,    setForgotLoading]    = useState(false);
   const [forgotSent,       setForgotSent]       = useState(false);
+
+  // ── Load remembered username on mount (30-day expiry check) ──
+  useEffect(() => {
+    try {
+      const saved  = localStorage.getItem(REMEMBER_KEY);
+      const expiry = localStorage.getItem(REMEMBER_EXPIRY_KEY);
+
+      if (saved && expiry && Date.now() < parseInt(expiry)) {
+        // Still within 30 days — restore username
+        setUsername(saved);
+        setRemember(true);
+      } else {
+        // Expired or not set — clear everything
+        localStorage.removeItem(REMEMBER_KEY);
+        localStorage.removeItem(REMEMBER_EXPIRY_KEY);
+        setRemember(false);
+      }
+    } catch {}
+  }, []);
 
   // Toast
   const showToast = useCallback((message, isError = false) => {
@@ -105,6 +127,38 @@ export function useLogin() {
     }
   }, [forgotEmail]);
 
+  // Google Login
+  const handleGoogleSuccess = useCallback(async (tokenResponse) => {
+    setLoading(true);
+    try {
+      const res = await fetch('/api/google_login.php', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ token: tokenResponse.access_token }),
+      });
+
+      const text = await res.text();
+      let data = {};
+      try { data = JSON.parse(text); } catch {}
+
+      if (res.ok && data.success) {
+        showToast('✓ Google login successful! Redirecting…');
+        setTimeout(() => { window.location.href = data.redirect; }, 1200);
+      } else {
+        showToast('⚠ ' + (data.message || 'Google login failed.'), true);
+      }
+    } catch {
+      showToast('⚠ Cannot connect to server. Please try again.', true);
+    } finally {
+      setLoading(false);
+    }
+  }, [showToast]);
+
+  const googleLogin = useGoogleLogin({
+    onSuccess: handleGoogleSuccess,
+    onError: () => showToast('⚠ Google login was cancelled or failed.', true),
+  });
+
   // Submit
   async function handleSubmit(e) {
     e.preventDefault();
@@ -126,7 +180,6 @@ export function useLogin() {
         }),
       });
 
-      // safe parse — avoids crash on empty or non-JSON response
       const text = await res.text();
       let data = {};
       try {
@@ -143,9 +196,14 @@ export function useLogin() {
       if (res.ok && data.success) {
         try {
           if (remember) {
+            // ── Save username with 30-day expiry ──
+            const expiry = Date.now() + THIRTY_DAYS_MS;
             localStorage.setItem(REMEMBER_KEY, username.trim());
+            localStorage.setItem(REMEMBER_EXPIRY_KEY, expiry.toString());
           } else {
+            // ── Uncheck — clear saved username ──
             localStorage.removeItem(REMEMBER_KEY);
+            localStorage.removeItem(REMEMBER_EXPIRY_KEY);
           }
         } catch { }
 
@@ -180,5 +238,6 @@ export function useLogin() {
     forgotEmailError, setForgotEmailError,
     forgotSent,
     handleForgotSubmit,
+    googleLogin,
   };
 }

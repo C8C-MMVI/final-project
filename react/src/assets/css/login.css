@@ -19,60 +19,32 @@
 html, body {
   height: 100%;
   font-family: 'Inter', sans-serif;
-  background: var(--navy);
+  background: transparent;
   color: var(--white);
-  overflow: hidden;
-}
-
-/* ── Background ── */
-.login-bg {
-  position: fixed; inset: 0; z-index: 0;
-  background-color: #0a1628;
-  background-position: center;
-  background-repeat: no-repeat;
-}
-.login-bg::after {
-  content: '';
-  position: absolute; inset: 0;
-  background: repeating-linear-gradient(
-    0deg,
-    transparent,
-    transparent 3px,
-    rgba(26,188,156,0.015) 3px,
-    rgba(26,188,156,0.015) 4px
-  );
-  pointer-events: none;
-  animation: scanShift 10s linear infinite;
-}
-
-/* ── Blobs ── */
-.login-blob {
-  position: fixed; border-radius: 50%;
-  filter: blur(90px); pointer-events: none; z-index: 1;
-}
-.login-blob-1 {
-  width: 520px; height: 520px;
-  top: -160px; right: -120px;
-  background: rgba(26,188,156,0.13);
-  animation: blobPulse 6s ease-in-out infinite;
-}
-.login-blob-2 {
-  width: 400px; height: 400px;
-  bottom: -100px; left: -80px;
-  background: rgba(0,60,120,0.28);
-  animation: blobPulse 9s ease-in-out 2s infinite;
+  overflow: auto;
+  margin: 0;
+  padding: 0;
 }
 
 /* ── Page wrapper ── */
 .login-page {
-  position: relative; z-index: 2;
-  display: flex; align-items: center; justify-content: center;
-  min-height: 100vh; padding: 24px;
+  position: relative;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  min-height: 100vh;
+  width: 100%;
+  padding: 24px;
+  box-sizing: border-box;
 }
 
 /* ── Container card ── */
 .login-container {
-  display: grid; grid-template-columns: 1fr 1fr;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  align-items: stretch;
   width: min(1412px, 100%);
   height: min(858px, 90vh);
   background: var(--navy-card);
@@ -89,10 +61,14 @@ html, body {
 /* ── Left panel ── */
 .login-left {
   padding: clamp(32px, 6vh, 60px) clamp(28px, 4vw, 50px);
-  display: flex; flex-direction: column; justify-content: center;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: flex-start;
   background: linear-gradient(160deg, rgba(26,188,156,0.07) 0%, transparent 65%);
   border-right: 1px solid var(--navy-border);
-  position: relative; overflow: hidden;
+  position: relative;
+  overflow: hidden;
 }
 .login-left::before {
   content: '';
@@ -133,7 +109,10 @@ html, body {
 /* ── Right panel ── */
 .login-right {
   padding: clamp(32px, 6vh, 60px) clamp(28px, 4vw, 50px);
-  display: flex; flex-direction: column; justify-content: center;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  overflow-y: auto;
 }
 
 .login-welcome { font-size: clamp(1.4rem, 2.5vw, 2rem); font-weight: 700; margin-bottom: 5px; }
@@ -197,27 +176,18 @@ html, body {
 }
 
 /* ── Remember me ── */
-.login-remember {
+.remember {
   display: flex; align-items: center; gap: 9px;
   font-size: 0.79rem; color: var(--muted);
   cursor: pointer; user-select: none;
 }
-.login-remember input[type=checkbox] { display: none; }
-.login-check-box {
+.check-box {
   width: 16px; height: 16px; border-radius: 4px;
   border: 1.5px solid var(--input-border);
   display: flex; align-items: center; justify-content: center;
   transition: background 0.2s, border-color 0.2s;
   flex-shrink: 0;
 }
-.login-remember input:checked ~ .login-check-box {
-  background: var(--teal); border-color: var(--teal);
-}
-.login-check-box::after {
-  content: '✓'; font-size: 11px; color: white;
-  opacity: 0; transition: opacity 0.2s;
-}
-.login-remember input:checked ~ .login-check-box::after { opacity: 1; }
 
 /* ── Forgot link ── */
 .login-forgot {
@@ -256,7 +226,11 @@ html, body {
 }
 .login-btn-signin .btn-text { position: relative; z-index: 1; }
 .login-btn-signin.loading .btn-text { opacity: 0; }
-.login-btn-signin .spinner {
+
+/* ── Spinner (shared by login + register buttons) ── */
+.btn-text { position: relative; z-index: 1; }
+.btn-loading .btn-text { opacity: 0; }
+.spinner {
   position: absolute; top: 50%; left: 50%;
   transform: translate(-50%,-50%);
   width: 22px; height: 22px;
@@ -265,7 +239,7 @@ html, body {
   display: none;
   animation: spin 0.7s linear infinite;
 }
-.login-btn-signin.loading .spinner { display: block; }
+.btn-loading .spinner { display: block; }
 
 /* ── Register footer ── */
 .login-register {
@@ -369,7 +343,7 @@ html, body {
   background: none; border: none; cursor: pointer; margin-top: 6px;
 }
 
-/* ── Keyframes ── */
+/* ── Keyframes (shared by Login + Register) ── */
 @keyframes fadeUp {
   from { opacity: 0; transform: translateY(30px); }
   to   { opacity: 1; transform: translateY(0); }

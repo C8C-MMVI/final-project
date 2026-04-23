@@ -7,6 +7,7 @@ import './assets/css/tailwind.css';
 import Home                from './pages/Home';
 import Login               from './pages/Login';
 import Register            from './pages/Register';
+import ResetPassword       from './pages/ResetPassword';  // ← ADD THIS
 import PrivateRoute        from './routes/PrivateRoute';
 import DashboardLayout     from './components/layout/DashboardLayout';
 
@@ -67,9 +68,6 @@ export default function App() {
       .finally(() => setLoading(false));
   }, []);
 
-  // FIX: clear userRole and username in React state BEFORE navigating to /login.
-  // Without this, the /login route sees userRole still set and immediately
-  // redirects back to the dashboard even though the session is destroyed.
   const handleLogout = () => {
     setUserRole(null);
     setUsername('');
@@ -99,6 +97,9 @@ export default function App() {
           }
         />
         <Route path="/register" element={<Register />} />
+
+        {/* ── Password Reset ── */}
+        <Route path="/reset-password" element={<ResetPassword />} />  {/* ← ADD THIS */}
 
         {/* ── Protected ── */}
         <Route

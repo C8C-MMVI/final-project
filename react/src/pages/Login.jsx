@@ -27,7 +27,6 @@ function ForgotPasswordModal({
         className="login-modal-card"
         onClick={e => e.stopPropagation()}
       >
-        {/* Close button */}
         <button
           type="button"
           className="login-modal-close"
@@ -39,9 +38,7 @@ function ForgotPasswordModal({
 
         {!sent ? (
           <>
-            {/* Icon */}
             <div className="login-modal-icon">🔑</div>
-
             <h2 className="login-modal-title">Reset Password</h2>
             <p className="login-modal-sub">
               Enter your registered email address and we'll send you a reset link.
@@ -78,7 +75,6 @@ function ForgotPasswordModal({
             </form>
           </>
         ) : (
-          /* Success state */
           <div className="login-modal-success">
             <div className="login-modal-success-icon">📧</div>
             <h2 className="login-modal-title">Check your inbox</h2>
@@ -123,6 +119,7 @@ export default function Login({ onLogin }) {
     forgotEmailError,
     forgotSent,
     handleForgotSubmit,
+    googleLogin,
   } = useLogin({ onLogin });
 
   return (
@@ -152,6 +149,53 @@ export default function Login({ onLogin }) {
                 onForgot={handleForgot}
               />
               <LoginSubmitButton loading={loading} />
+
+              {/* ── Google Login Divider ── */}
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '10px',
+                margin: '12px 0',
+              }}>
+                <div style={{ flex: 1, height: '1px', background: 'rgba(255,255,255,0.15)' }} />
+                <span style={{ color: 'rgba(255,255,255,0.45)', fontSize: '13px', whiteSpace: 'nowrap' }}>
+                  or sign in with
+                </span>
+                <div style={{ flex: 1, height: '1px', background: 'rgba(255,255,255,0.15)' }} />
+              </div>
+
+              {/* ── Google Button ── */}
+              <button
+                type="button"
+                onClick={() => googleLogin()}
+                style={{
+                  width: '100%',
+                  padding: '10px 16px',
+                  border: '1px solid #dadce0',
+                  borderRadius: '8px',
+                  background: '#fff',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '10px',
+                  fontSize: '14px',
+                  fontWeight: '500',
+                  color: '#3c4043',
+                  transition: 'box-shadow 0.2s, border-color 0.2s',
+                }}
+                onMouseEnter={e => e.currentTarget.style.boxShadow = '0 1px 6px rgba(0,0,0,0.15)'}
+                onMouseLeave={e => e.currentTarget.style.boxShadow = 'none'}
+              >
+                <img
+                  src="https://developers.google.com/identity/images/g-logo.png"
+                  width="20"
+                  height="20"
+                  alt="Google"
+                />
+                Continue with Google
+              </button>
+
               <LoginFooter />
             </form>
           </div>

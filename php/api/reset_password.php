@@ -2,7 +2,7 @@
 /**
  * api/reset_password.php
  *
- * GET  ?token=xxx        → { valid: true|false }   (used by ResetPassword.jsx on mount)
+ * GET  ?token=xxx          → { valid: true|false }
  * POST { token, password } → { success, message }
  */
 
@@ -22,7 +22,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
     }
 
     try {
-        // ✅ column is `token`, not `token_hash`
         $stmt = $pdo->prepare(
             "SELECT id FROM password_resets
               WHERE token = ? AND used = false AND expires_at > NOW()
@@ -71,7 +70,6 @@ if ($password !== $confirm) {
 }
 
 try {
-    // ✅ column is `token`, not `token_hash`
     $stmt = $pdo->prepare(
         "SELECT id, user_id, expires_at, used FROM password_resets
           WHERE token = ? LIMIT 1"
@@ -106,13 +104,13 @@ if (strtotime($reset['expires_at']) < time()) {
 try {
     $hashedPassword = password_hash($password, PASSWORD_DEFAULT);
 
-    // ✅ column is `id`, not `user_id`
+    // ✅ Update user password
     $pdo->prepare('UPDATE users SET password = ? WHERE user_id = ?')
         ->execute([$hashedPassword, $reset['user_id']]);
 
-    // ✅ PostgreSQL boolean is `true`, not 1
+    // ✅ Fixed: correct params — only pass $reset['id']
     $pdo->prepare('UPDATE password_resets SET used = true WHERE id = ?')
-    ->execute([$hashedPassword, $reset['user_id']]);
+        ->execute([$reset['id']]);
 
 } catch (PDOException $e) {
     error_log('reset_password POST update failed: ' . $e->getMessage());

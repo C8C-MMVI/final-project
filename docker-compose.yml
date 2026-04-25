@@ -29,6 +29,33 @@ services:
     ports:
       - "8081:8080"
 
+   # ── Django (Analytics + POS) ──
+  django:
+    build:
+      context: ./django_backend
+      dockerfile: Dockerfile
+    container_name: technologs_django
+    depends_on:
+      db:
+        condition: service_healthy
+    env_file:
+      - .env
+    volumes:
+      - ./django_backend:/app
+    ports:
+      - "8000:8000"
+    command: >
+      sh -c "python manage.py migrate &&
+             python manage.py runserver 0.0.0.0:8000"
+    environment:
+      - DJANGO_SETTINGS_MODULE=technologs.settings
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import socket; s=socket.socket(); s.connect(('localhost', 8000)); s.close()\""]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+
   # ── PHP (Authentication) ──
   php:
     build:
@@ -40,6 +67,8 @@ services:
         condition: service_healthy
       springboot:
         condition: service_started
+      django:
+        condition: service_healthy
     environment:
       DB_HOST: db
       DB_PORT: 5432
@@ -59,25 +88,6 @@ services:
     ports:
       - "8080:8000"
     command: php -S 0.0.0.0:8000 -t /var/www/html
-
-  # ── Django (Analytics + POS) ──
-  django:
-    build:
-      context: ./django_backend
-      dockerfile: Dockerfile
-    container_name: technologs_django
-    depends_on:
-      db:
-        condition: service_healthy
-    env_file:
-      - .env
-    volumes:
-      - ./django_backend:/app
-    ports:
-      - "8000:8000"
-    command: python manage.py runserver 0.0.0.0:8000
-    environment:
-      - DJANGO_SETTINGS_MODULE=technologs.settings
 
   # ── Spring Cloud Gateway ──
   gateway:

@@ -9,7 +9,7 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     path('api/auth/token/', obtain_auth_token, name='api_token_auth'),
     path('api/auth/bridge/', get_or_create_token, name='bridge_token'),
-    path('api/shop/', include('shop.urls')),
-    path('api/repair/', include('repair.urls')),
-    path('api/booking/', include('booking.urls')),
+    path('shop/', include('shop.urls')),       # removed api/ prefix
+    path('repair/', include('repair.urls')),   # removed api/ prefix
+    path('booking/', include('booking.urls')), # removed api/ prefix
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

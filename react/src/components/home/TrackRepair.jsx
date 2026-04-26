@@ -2,14 +2,20 @@ import { useState } from 'react';
 
 const STATUS_STEPS = ['Pending', 'In Progress', 'Completed'];
 
+const statusColors = {
+  'Completed':   { bg: 'rgba(26,188,156,0.12)', color: '#1abc9c',                border: 'rgba(26,188,156,0.3)' },
+  'In Progress': { bg: 'rgba(241,196,15,0.12)',  color: '#f1c40f',                border: 'rgba(241,196,15,0.3)' },
+  'Pending':     { bg: 'rgba(255,255,255,0.07)', color: 'rgba(255,255,255,0.55)', border: 'rgba(255,255,255,0.15)' },
+};
+
 export default function TrackRepair() {
   const [requestId, setRequestId] = useState('');
   const [result,    setResult]    = useState(null);
   const [error,     setError]     = useState('');
   const [loading,   setLoading]   = useState(false);
+  const [focused,   setFocused]   = useState(false);
 
-  async function handleTrack(e) {
-    e.preventDefault();
+  async function handleTrack() {
     if (!requestId.trim()) { setError('Please enter a repair request ID.'); return; }
     setError(''); setResult(null); setLoading(true);
     try {
@@ -25,128 +31,234 @@ export default function TrackRepair() {
   }
 
   const stepIndex = result ? STATUS_STEPS.indexOf(result.status) : -1;
+  const sc = result ? (statusColors[result.status] || statusColors['Pending']) : null;
 
   return (
-    <section id="track-repair" className="relative w-full py-32">
+    <section id="track-repair" style={{ position: 'relative', width: '100%', padding: '0 0 80px' }}>
 
-      {/* Section top divider */}
-      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[1px] h-16 bg-gradient-to-b from-transparent to-teal" />
+      {/* Top divider */}
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+        <div style={{ width: 1, height: 56, background: 'linear-gradient(to bottom, transparent, rgba(26,188,156,0.25))' }} />
+        <div style={{ width: 6, height: 6, transform: 'rotate(45deg)', background: 'rgba(26,188,156,0.35)' }} />
+      </div>
 
-      {/* Centered container */}
-      <div className="w-full max-w-[1280px] mx-auto px-8 flex flex-col items-center">
+      <div style={{
+        maxWidth: 1200, margin: '0 auto', padding: '56px 40px 0',
+        display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100%',
+      }}>
 
         {/* Header */}
-        <div className="flex flex-col items-center text-center mb-12 w-full">
-          <span className="font-koho text-teal text-[0.78rem] tracking-[4px] uppercase mb-3">
+        <div style={{
+          display: 'flex', flexDirection: 'column', alignItems: 'center',
+          textAlign: 'center', marginBottom: 48, width: '100%',
+        }}>
+          <span style={{
+            fontFamily: "'Syne', sans-serif", fontSize: '0.7rem', fontWeight: 600,
+            letterSpacing: '0.18em', textTransform: 'uppercase', color: '#1abc9c', marginBottom: 12,
+          }}>
             Real-Time Updates
           </span>
-          <h2 className="font-koho font-bold text-white leading-tight" style={{ fontSize: 'clamp(2rem, 4vw, 3rem)' }}>
-            Track Your <span className="text-teal">Repair</span>
+          <h2 style={{
+            fontFamily: "'Syne', sans-serif", fontWeight: 800,
+            fontSize: 'clamp(1.9rem, 4vw, 2.8rem)', lineHeight: 1.08,
+            letterSpacing: '-0.02em', color: '#fff', marginBottom: 16, marginTop: 0,
+          }}>
+            Track Your{' '}
+            <span style={{
+              background: 'linear-gradient(95deg, #1abc9c, #0fd4a0)',
+              WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent',
+            }}>
+              Repair
+            </span>
           </h2>
-          <p className="font-koho text-[rgba(255,255,255,0.5)] text-[1rem] mt-4 leading-relaxed max-w-[460px]">
+          <p style={{
+            fontFamily: "'DM Sans', sans-serif", fontWeight: 300,
+            fontSize: '0.95rem', lineHeight: 1.75, color: 'rgba(255,255,255,0.48)',
+            maxWidth: 440, margin: 0,
+          }}>
             Enter your repair request ID to get a live update on your device's status.
           </p>
         </div>
 
-        {/* Search card — constrained width, centered */}
-        <div
-          className="w-full max-w-[720px] p-8 rounded-[20px]"
-          style={{
-            background:    'rgba(10,22,44,0.7)',
-            border:        '1px solid rgba(26,188,156,0.18)',
-            backdropFilter: 'blur(20px)',
-            boxShadow:     '0 24px 60px rgba(0,0,0,0.4)',
-          }}
-        >
-          <form onSubmit={handleTrack} className="flex gap-3 w-full" noValidate>
+        {/* Card */}
+        <div style={{
+          width: '100%', maxWidth: 680,
+          padding: '32px 36px', borderRadius: 20,
+          background: 'rgba(7,17,31,0.7)',
+          backdropFilter: 'blur(20px)',
+          WebkitBackdropFilter: 'blur(20px)',
+          border: '1px solid rgba(26,188,156,0.18)',
+          boxShadow: '0 24px 80px rgba(0,0,0,0.5)',
+        }}>
+
+          {/* Input row */}
+          <div style={{ display: 'flex', gap: 10, width: '100%' }}>
             <input
               type="text"
               placeholder="Enter Repair ID (e.g. 1042)…"
               value={requestId}
               onChange={e => { setRequestId(e.target.value); setError(''); }}
-              className="flex-1 py-[13px] px-[16px] rounded-[10px] text-white text-[0.91rem] font-koho outline-none transition-all duration-200 placeholder:text-[rgba(255,255,255,0.28)] focus:shadow-[0_0_0_3px_rgba(26,188,156,0.25)]"
+              onKeyDown={e => e.key === 'Enter' && handleTrack()}
+              onFocus={() => setFocused(true)}
+              onBlur={() => setFocused(false)}
               style={{
-                background: 'rgba(255,255,255,0.06)',
-                border: error ? '1px solid #ff4f4f' : '1px solid rgba(255,255,255,0.15)',
+                fontFamily: "'DM Sans', sans-serif", flex: 1,
+                padding: '13px 16px', borderRadius: 10,
+                fontSize: '0.88rem', color: '#fff',
+                background: 'rgba(255,255,255,0.07)',
+                border: error
+                  ? '1px solid #ff6b6b'
+                  : focused
+                  ? '1px solid rgba(26,188,156,0.5)'
+                  : '1px solid rgba(255,255,255,0.14)',
+                outline: 'none', transition: 'border 0.2s',
+                caretColor: '#1abc9c',
               }}
             />
             <button
-              type="submit"
+              onClick={handleTrack}
               disabled={loading}
-              className="font-rajdhani font-bold tracking-[2px] uppercase text-white px-6 py-[13px] rounded-[10px] border-none cursor-pointer transition-all duration-200 hover:-translate-y-[1px] hover:shadow-[0_8px_24px_rgba(26,188,156,0.45)] disabled:opacity-60 disabled:cursor-not-allowed flex-shrink-0"
-              style={{ background: 'linear-gradient(90deg, #0ea882, #1abc9c)', minWidth: '120px' }}
+              style={{
+                fontFamily: "'Syne', sans-serif", fontWeight: 700,
+                fontSize: '0.82rem', letterSpacing: '0.08em', textTransform: 'uppercase',
+                color: '#07111f', background: '#1abc9c',
+                padding: '13px 24px', borderRadius: 10,
+                border: 'none', cursor: loading ? 'not-allowed' : 'pointer',
+                transition: 'all 0.2s', whiteSpace: 'nowrap', flexShrink: 0,
+                opacity: loading ? 0.55 : 1, minWidth: 100,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+              }}
+              onMouseEnter={e => !loading && (e.currentTarget.style.boxShadow = '0 8px 24px rgba(26,188,156,0.4)')}
+              onMouseLeave={e => (e.currentTarget.style.boxShadow = 'none')}
             >
-              {loading
-                ? <span className="inline-block w-5 h-5 border-2 border-[rgba(255,255,255,0.3)] border-t-white rounded-full" style={{ animation: 'spin 0.7s linear infinite' }} />
-                : 'TRACK'
-              }
+              {loading ? (
+                <span style={{
+                  display: 'inline-block', width: 18, height: 18, borderRadius: '50%',
+                  border: '2px solid rgba(7,17,31,0.3)', borderTopColor: '#07111f',
+                  animation: 'spin 0.7s linear infinite',
+                }} />
+              ) : 'Track'}
             </button>
-          </form>
+          </div>
 
           {/* Error */}
           {error && (
-            <p className="mt-3 text-[0.8rem] text-[#ff4f4f] font-koho flex items-center gap-2">⚠ {error}</p>
+            <p style={{
+              fontFamily: "'DM Sans', sans-serif", marginTop: 12, marginBottom: 0,
+              fontSize: '0.78rem', color: '#ff6b6b',
+              display: 'flex', alignItems: 'center', gap: 6,
+            }}>
+              ⚠ {error}
+            </p>
           )}
 
           {/* Result */}
           {result && (
-            <div className="mt-8 w-full" style={{ animation: 'fadeUp 0.4s ease both' }}>
-              <div className="flex items-start justify-between mb-6 pb-6 border-b border-[rgba(26,188,156,0.12)]">
+            <div style={{ marginTop: 28, animation: 'fadeUp 0.35s ease both' }}>
+
+              {/* Device row */}
+              <div style={{
+                display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between',
+                paddingBottom: 20, borderBottom: '1px solid rgba(26,188,156,0.1)', marginBottom: 24,
+              }}>
                 <div>
-                  <p className="font-koho text-[rgba(255,255,255,0.5)] text-[0.75rem] tracking-widest uppercase mb-1">Device</p>
-                  <p className="font-koho text-white font-bold text-[1.1rem]">{result.device_type}</p>
-                  <p className="font-koho text-[rgba(255,255,255,0.5)] text-[0.85rem] mt-1">{result.issue_description}</p>
+                  <p style={{
+                    fontFamily: "'Syne', sans-serif", fontSize: '0.67rem',
+                    letterSpacing: '0.16em', textTransform: 'uppercase',
+                    color: 'rgba(255,255,255,0.35)', marginBottom: 4, marginTop: 0,
+                  }}>
+                    Device
+                  </p>
+                  <p style={{
+                    fontFamily: "'Syne', sans-serif", fontWeight: 700,
+                    fontSize: '1.05rem', color: '#fff', marginBottom: 4, marginTop: 0,
+                  }}>
+                    {result.device_type}
+                  </p>
+                  <p style={{
+                    fontFamily: "'DM Sans', sans-serif", fontWeight: 300,
+                    fontSize: '0.83rem', color: 'rgba(255,255,255,0.45)', margin: 0,
+                  }}>
+                    {result.issue_description}
+                  </p>
                 </div>
-                <div
-                  className="px-3 py-1 rounded-full text-[0.75rem] font-koho font-semibold tracking-wide flex-shrink-0 ml-4"
-                  style={{
-                    background: result.status === 'Completed' ? 'rgba(26,188,156,0.15)' : result.status === 'In Progress' ? 'rgba(241,196,15,0.15)' : 'rgba(255,255,255,0.08)',
-                    color: result.status === 'Completed' ? '#1abc9c' : result.status === 'In Progress' ? '#f1c40f' : 'rgba(255,255,255,0.6)',
-                    border: `1px solid ${result.status === 'Completed' ? 'rgba(26,188,156,0.3)' : result.status === 'In Progress' ? 'rgba(241,196,15,0.3)' : 'rgba(255,255,255,0.15)'}`,
-                  }}
-                >
+                <span style={{
+                  fontFamily: "'Syne', sans-serif", fontSize: '0.7rem', fontWeight: 600,
+                  letterSpacing: '0.08em', padding: '4px 12px', borderRadius: 999,
+                  flexShrink: 0, marginLeft: 16,
+                  background: sc.bg, color: sc.color, border: `1px solid ${sc.border}`,
+                }}>
                   {result.status}
-                </div>
+                </span>
               </div>
 
               {/* Stepper */}
-              <div className="flex items-center w-full">
+              <div style={{ display: 'flex', alignItems: 'center', width: '100%' }}>
                 {STATUS_STEPS.map((step, i) => {
                   const done    = i <= stepIndex;
                   const current = i === stepIndex;
                   return (
-                    <div key={step} className="flex items-center flex-1 last:flex-none">
-                      <div className="flex flex-col items-center gap-2">
-                        <div
-                          className="w-9 h-9 rounded-full flex items-center justify-center text-[0.75rem] font-bold transition-all duration-300"
-                          style={{
-                            background: done ? 'linear-gradient(135deg, #0ea882, #1abc9c)' : 'rgba(255,255,255,0.07)',
-                            border:     current ? '2px solid #1abc9c' : done ? 'none' : '2px solid rgba(255,255,255,0.15)',
-                            boxShadow:  current ? '0 0 16px rgba(26,188,156,0.5)' : 'none',
-                            color:      done ? 'white' : 'rgba(255,255,255,0.4)',
-                          }}
-                        >
+                    <div key={step} style={{
+                      display: 'flex', alignItems: 'center',
+                      flex: i < STATUS_STEPS.length - 1 ? 1 : 'none',
+                    }}>
+                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
+                        <div style={{
+                          width: 36, height: 36, borderRadius: '50%',
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          fontFamily: "'Syne', sans-serif", fontSize: '0.72rem', fontWeight: 700,
+                          transition: 'all 0.3s',
+                          background: done ? '#1abc9c' : 'rgba(255,255,255,0.06)',
+                          border: current ? '2px solid #1abc9c' : done ? 'none' : '2px solid rgba(255,255,255,0.12)',
+                          boxShadow: current ? '0 0 14px rgba(26,188,156,0.5)' : 'none',
+                          color: done ? '#07111f' : 'rgba(255,255,255,0.38)',
+                        }}>
                           {done ? '✓' : i + 1}
                         </div>
-                        <span className="font-koho text-[0.72rem] tracking-wide text-center" style={{ color: done ? '#1abc9c' : 'rgba(255,255,255,0.4)' }}>
+                        <span style={{
+                          fontFamily: "'DM Sans', sans-serif", fontSize: '0.68rem',
+                          letterSpacing: '0.1em', textAlign: 'center',
+                          color: done ? '#1abc9c' : 'rgba(255,255,255,0.35)',
+                        }}>
                           {step}
                         </span>
                       </div>
                       {i < STATUS_STEPS.length - 1 && (
-                        <div
-                          className="flex-1 h-[2px] mx-2 mb-5 rounded-full transition-all duration-500"
-                          style={{ background: i < stepIndex ? 'linear-gradient(90deg, #0ea882, #1abc9c)' : 'rgba(255,255,255,0.1)' }}
-                        />
+                        <div style={{
+                          flex: 1, height: 2, margin: '0 8px', marginBottom: 20,
+                          borderRadius: 999, transition: 'background 0.5s',
+                          background: i < stepIndex
+                            ? 'linear-gradient(90deg, #1abc9c, #0fd4a0)'
+                            : 'rgba(255,255,255,0.08)',
+                        }} />
                       )}
                     </div>
                   );
                 })}
               </div>
 
+              {/* Technician notes */}
               {result.technician_notes && (
-                <div className="mt-6 p-4 rounded-[10px] border-l-4" style={{ background: 'rgba(26,188,156,0.06)', borderColor: '#1abc9c' }}>
-                  <p className="font-koho text-[0.75rem] text-teal tracking-widest uppercase mb-1">Technician Notes</p>
-                  <p className="font-koho text-[rgba(255,255,255,0.7)] text-[0.88rem] leading-relaxed">{result.technician_notes}</p>
+                <div style={{
+                  marginTop: 20, padding: '16px 20px',
+                  background: 'rgba(26,188,156,0.06)',
+                  borderLeft: '3px solid #1abc9c',
+                  borderRadius: '0 10px 10px 0',
+                }}>
+                  <p style={{
+                    fontFamily: "'Syne', sans-serif", fontSize: '0.68rem',
+                    letterSpacing: '0.16em', textTransform: 'uppercase',
+                    color: '#1abc9c', marginBottom: 8, marginTop: 0,
+                  }}>
+                    Technician Notes
+                  </p>
+                  <p style={{
+                    fontFamily: "'DM Sans', sans-serif", fontWeight: 300,
+                    fontSize: '0.85rem', lineHeight: 1.68,
+                    color: 'rgba(255,255,255,0.65)', margin: 0,
+                  }}>
+                    {result.technician_notes}
+                  </p>
                 </div>
               )}
             </div>

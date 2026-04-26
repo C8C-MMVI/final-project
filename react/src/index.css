@@ -1,21 +1,44 @@
-@import "tailwindcss";
+@import url('https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:wght@300;400;500&display=swap');
 
 *, *::before, *::after {
   box-sizing: border-box;
-}
-
-html {
-  height: 100%;
-}
-
-body {
-  height: 100%;
   margin: 0;
   padding: 0;
 }
 
-#root {
-  height: 100%;
-  display: flex;
-  flex-direction: column;
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background: #07111f;
+  color: #fff;
+  font-family: 'DM Sans', sans-serif;
+  overflow-x: hidden;
+}
+
+/* ── Keyframe animations used by home page components ── */
+
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(16px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes blobPulse {
+  0%, 100% { opacity: 0.8; transform: translateX(-50%) scale(1); }
+  50%       { opacity: 1;   transform: translateX(-50%) scale(1.06); }
+}
+
+@keyframes scrollPulse {
+  0%, 100% { opacity: 0.4; transform: scaleY(1); }
+  50%       { opacity: 1;   transform: scaleY(1.1); }
+}
+
+@keyframes scanShift {
+  from { background-position: 0 0; }
+  to   { background-position: 0 100px; }
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
 }

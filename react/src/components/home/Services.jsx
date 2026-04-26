@@ -1,3 +1,5 @@
+import { useState } from 'react';
+
 const SERVICES = [
   { icon: '🔧', title: 'Screen Replacement',  desc: 'Cracked or unresponsive screens replaced with premium quality parts. Same-day service available.' },
   { icon: '🔋', title: 'Battery Replacement', desc: 'Restore your device to full capacity with genuine battery replacements for all major brands.' },
@@ -7,64 +9,114 @@ const SERVICES = [
   { icon: '🛡️', title: 'Accessories & Parts',  desc: 'Wide selection of cases, chargers, cables, and OEM spare parts available in-store.' },
 ];
 
+function ServiceCard({ icon, title, desc, delay }) {
+  const [hovered, setHovered] = useState(false);
+
+  return (
+    <div
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      style={{
+        display: 'flex', flexDirection: 'column', gap: 14,
+        padding: 24, borderRadius: 14, cursor: 'default',
+        background: hovered ? 'rgba(26,188,156,0.05)' : 'rgba(255,255,255,0.03)',
+        border: hovered ? '1px solid rgba(26,188,156,0.32)' : '1px solid rgba(26,188,156,0.1)',
+        boxShadow: hovered ? '0 20px 60px rgba(0,0,0,0.28)' : 'none',
+        transform: hovered ? 'translateY(-4px)' : 'none',
+        transition: 'all 0.3s',
+        animation: `fadeUp 0.45s ease ${delay}s both`,
+      }}
+    >
+      <div style={{
+        width: 44, height: 44, borderRadius: 10,
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        fontSize: 18, flexShrink: 0,
+        background: 'rgba(26,188,156,0.1)', border: '1px solid rgba(26,188,156,0.2)',
+      }}>
+        {icon}
+      </div>
+      <h3 style={{
+        fontFamily: "'Syne', sans-serif", fontWeight: 700,
+        fontSize: '1rem', color: '#fff', margin: 0,
+      }}>
+        {title}
+      </h3>
+      <p style={{
+        fontFamily: "'DM Sans', sans-serif", fontWeight: 300,
+        fontSize: '0.855rem', lineHeight: 1.72, color: 'rgba(255,255,255,0.5)', margin: 0,
+      }}>
+        {desc}
+      </p>
+      <div style={{
+        fontFamily: "'Syne', sans-serif", marginTop: 'auto', paddingTop: 4,
+        display: 'flex', alignItems: 'center', gap: 6,
+        color: '#1abc9c', fontSize: '0.78rem', fontWeight: 600, letterSpacing: '0.04em',
+        opacity: hovered ? 1 : 0, transition: 'opacity 0.2s',
+      }}>
+        Learn more <span>→</span>
+      </div>
+    </div>
+  );
+}
+
 export default function Services() {
   return (
-    <section id="services" className="relative w-full py-32">
+    <section id="services" style={{ position: 'relative', width: '100%', padding: '0 0 80px' }}>
 
-      {/* Section top divider */}
-      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[1px] h-16 bg-gradient-to-b from-transparent to-teal" />
+      {/* Top divider */}
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+        <div style={{ width: 1, height: 56, background: 'linear-gradient(to bottom, transparent, rgba(26,188,156,0.25))' }} />
+        <div style={{ width: 6, height: 6, transform: 'rotate(45deg)', background: 'rgba(26,188,156,0.35)' }} />
+      </div>
 
-      {/* Centered container with consistent horizontal padding */}
-      <div className="w-full max-w-[1280px] mx-auto px-8 flex flex-col items-center">
+      {/* Section container — flexDirection column + alignItems center ensures header is centered */}
+      <div style={{
+        maxWidth: 1200, margin: '0 auto', padding: '56px 40px 0',
+        display: 'flex', flexDirection: 'column', alignItems: 'center',
+        width: '100%',
+      }}>
 
         {/* Header */}
-        <div className="flex flex-col items-center text-center mb-16 w-full">
-          <span className="font-koho text-teal text-[0.78rem] tracking-[4px] uppercase mb-3">
+        <div style={{
+          display: 'flex', flexDirection: 'column', alignItems: 'center',
+          textAlign: 'center', marginBottom: 52, width: '100%',
+        }}>
+          <span style={{
+            fontFamily: "'Syne', sans-serif", fontSize: '0.7rem', fontWeight: 600,
+            letterSpacing: '0.18em', textTransform: 'uppercase', color: '#1abc9c', marginBottom: 12,
+          }}>
             What We Offer
           </span>
-          <h2 className="font-koho font-bold text-white leading-tight" style={{ fontSize: 'clamp(2rem, 4vw, 3rem)' }}>
-            Expert Repair <span className="text-teal">Services</span>
+          <h2 style={{
+            fontFamily: "'Syne', sans-serif", fontWeight: 800,
+            fontSize: 'clamp(1.9rem, 4vw, 2.8rem)', lineHeight: 1.08,
+            letterSpacing: '-0.02em', color: '#fff', marginBottom: 16, marginTop: 0,
+          }}>
+            Expert Repair{' '}
+            <span style={{
+              background: 'linear-gradient(95deg, #1abc9c, #0fd4a0)',
+              WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent',
+            }}>
+              Services
+            </span>
           </h2>
-          <p className="font-koho text-[rgba(255,255,255,0.5)] text-[1rem] mt-4 max-w-[500px] leading-relaxed">
+          <p style={{
+            fontFamily: "'DM Sans', sans-serif", fontWeight: 300,
+            fontSize: '0.95rem', lineHeight: 1.75, color: 'rgba(255,255,255,0.48)',
+            maxWidth: 480, margin: 0,
+          }}>
             From screen replacements to complex motherboard repairs — we handle it all with precision and care.
           </p>
         </div>
 
         {/* Cards grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 w-full">
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(3, 1fr)',
+          gap: 16, width: '100%',
+        }}>
           {SERVICES.map(({ icon, title, desc }, i) => (
-            <div
-              key={title}
-              className="group flex flex-col gap-4 p-7 rounded-[16px] transition-all duration-300 cursor-default hover:-translate-y-[4px]"
-              style={{
-                background:    'rgba(10,22,44,0.6)',
-                border:        '1px solid rgba(26,188,156,0.12)',
-                backdropFilter: 'blur(12px)',
-                animation:     `fadeUp 0.5s ease ${0.1 * i}s both`,
-              }}
-              onMouseEnter={e => {
-                e.currentTarget.style.border     = '1px solid rgba(26,188,156,0.4)';
-                e.currentTarget.style.boxShadow  = '0 12px 40px rgba(26,188,156,0.12)';
-                e.currentTarget.style.background = 'rgba(26,188,156,0.05)';
-              }}
-              onMouseLeave={e => {
-                e.currentTarget.style.border     = '1px solid rgba(26,188,156,0.12)';
-                e.currentTarget.style.boxShadow  = 'none';
-                e.currentTarget.style.background = 'rgba(10,22,44,0.6)';
-              }}
-            >
-              <div
-                className="w-12 h-12 rounded-[12px] flex items-center justify-center text-2xl flex-shrink-0"
-                style={{ background: 'rgba(26,188,156,0.1)', border: '1px solid rgba(26,188,156,0.2)' }}
-              >
-                {icon}
-              </div>
-              <h3 className="font-koho font-bold text-white text-[1.1rem]">{title}</h3>
-              <p className="font-koho text-[rgba(255,255,255,0.55)] text-[0.88rem] leading-[1.7]">{desc}</p>
-              <div className="mt-auto pt-2 flex items-center gap-2 text-teal text-[0.8rem] font-koho font-semibold tracking-wide opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-                Learn more <span>→</span>
-              </div>
-            </div>
+            <ServiceCard key={title} icon={icon} title={title} desc={desc} delay={0.07 * i} />
           ))}
         </div>
       </div>

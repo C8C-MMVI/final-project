@@ -31,7 +31,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     ");
     $stmt->execute([$newStatus, $_SESSION['user_id'], $requestId]);
 
-    // ── Fetch the owner's user_id and shop name to notify them ───────────
+    // Fetch the owner's user_id and shop name to notify them
     $infoStmt = $pdo->prepare("
         SELECT sr.shop_name, sr.user_id
         FROM shop_requests sr
@@ -52,7 +52,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
 
-    // ── Audit log ─────────────────────────────────────────────────────────
+    // Audit log
     try {
         $shopName = $info['shop_name'] ?? "ID $requestId";
         $logType  = $action === 'approve' ? 'info' : 'warn';
@@ -66,27 +66,36 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $logType,
             $_SERVER['REMOTE_ADDR'] ?? null,
         ]);
-    } catch (PDOException $e) {}
+    } catch (PDOException $e) {
+        error_log('Audit log failed: ' . $e->getMessage());
+    }
 
     echo json_encode(['success' => true, 'status' => $newStatus]);
     exit;
 }
 
 // GET — all shop requests with requester info
-$requests = $pdo->query("
-    SELECT
-        sr.request_id  AS shop_id,
-        sr.shop_name,
-        sr.address,
-        sr.contact_number,
-        sr.status,
-        sr.requested_at AS created_at,
-        sr.rejection_reason,
-        u.username      AS owner_name,
-        u.email
-    FROM shop_requests sr
-    JOIN users u ON u.user_id = sr.user_id
-    ORDER BY sr.requested_at DESC
-")->fetchAll(PDO::FETCH_ASSOC);
+try {
+    $requests = $pdo->query("
+        SELECT
+            sr.request_id       AS shop_id,
+            sr.shop_name,
+            sr.address,
+            sr.contact_number,
+            LOWER(sr.status)    AS status,
+            sr.requested_at     AS created_at,
+            sr.rejection_reason,
+            sr.reviewed_at,
+            u.username          AS owner_name,
+            u.email
+        FROM shop_requests sr
+        JOIN users u ON u.user_id = sr.user_id
+        ORDER BY sr.requested_at DESC
+    ")->fetchAll(PDO::FETCH_ASSOC);
 
-echo json_encode(['success' => true, 'requests' => $requests]);
+    echo json_encode(['success' => true, 'requests' => $requests]);
+} catch (PDOException $e) {
+    error_log('shop_requests GET failed: ' . $e->getMessage());
+    http_response_code(500);
+    echo json_encode(['success' => false, 'message' => $e->getMessage()]);
+}

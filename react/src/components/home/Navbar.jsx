@@ -1,107 +1,175 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 
+const NAV_LINKS = [
+  { label: 'Home',         href: '#home' },
+  { label: 'Services',     href: '#services' },
+  { label: 'How It Works', href: '#how-it-works' },
+  { label: 'Track Repair', href: '#track-repair' },
+];
+
+const S = {
+  nav: (scrolled) => ({
+    position: 'fixed',
+    top: 0, left: 0, right: 0,
+    zIndex: 50,
+    transition: 'all 0.3s',
+    background:     scrolled ? 'rgba(7,17,31,0.92)' : 'transparent',
+    backdropFilter: scrolled ? 'blur(18px)'          : 'none',
+    borderBottom:   scrolled ? '1px solid rgba(26,188,156,0.12)' : 'none',
+    boxShadow:      scrolled ? '0 4px 32px rgba(0,0,0,0.35)'    : 'none',
+  }),
+  inner: {
+    maxWidth: 1200,
+    margin: '0 auto',
+    padding: '18px 40px',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  logo: {
+    display: 'flex', alignItems: 'center', gap: 8,
+    textDecoration: 'none',
+  },
+  logoDot: {
+    width: 8, height: 8, borderRadius: '50%',
+    background: '#1abc9c', boxShadow: '0 0 10px #1abc9c',
+    flexShrink: 0,
+  },
+  logoText: {
+    fontFamily: "'Syne', sans-serif", fontWeight: 800,
+    fontSize: '1.1rem', color: '#fff', letterSpacing: '-0.01em',
+  },
+  links: {
+    display: 'flex', gap: 32, listStyle: 'none', margin: 0, padding: 0,
+  },
+  link: {
+    fontFamily: "'DM Sans', sans-serif", color: 'rgba(255,255,255,0.55)',
+    textDecoration: 'none', fontSize: '0.875rem', transition: 'color 0.2s',
+  },
+  ctas: { display: 'flex', alignItems: 'center', gap: 10 },
+  btnGhost: {
+    fontFamily: "'Syne', sans-serif", fontWeight: 700,
+    fontSize: '0.78rem', letterSpacing: '0.06em', textTransform: 'uppercase',
+    textDecoration: 'none', color: '#1abc9c',
+    border: '1px solid rgba(26,188,156,0.35)',
+    padding: '9px 20px', borderRadius: 8, transition: 'all 0.2s',
+    display: 'inline-block',
+  },
+  btnSolid: {
+    fontFamily: "'Syne', sans-serif", fontWeight: 700,
+    fontSize: '0.78rem', letterSpacing: '0.06em', textTransform: 'uppercase',
+    textDecoration: 'none', color: '#07111f', background: '#1abc9c',
+    padding: '9px 20px', borderRadius: 8, transition: 'all 0.2s',
+    display: 'inline-block',
+  },
+  mobileBtn: {
+    display: 'flex', flexDirection: 'column', gap: 5,
+    background: 'transparent', border: 'none', cursor: 'pointer', padding: 4,
+  },
+  mobileBar: {
+    display: 'block', width: 24, height: 2,
+    background: '#1abc9c', borderRadius: 999, transition: 'all 0.3s',
+  },
+  mobileMenu: {
+    padding: '0 24px 24px',
+    background: 'rgba(7,17,31,0.98)',
+    borderTop: '1px solid rgba(26,188,156,0.12)',
+    display: 'flex', flexDirection: 'column', gap: 20,
+  },
+  mobileLink: {
+    fontFamily: "'DM Sans', sans-serif", color: 'rgba(255,255,255,0.75)',
+    textDecoration: 'none', fontSize: '1rem',
+  },
+  mobileCtas: { display: 'flex', gap: 10, marginTop: 4 },
+};
+
 export default function Navbar() {
   const [scrolled,  setScrolled]  = useState(false);
   const [menuOpen,  setMenuOpen]  = useState(false);
+  const [isMobile,  setIsMobile]  = useState(window.innerWidth < 768);
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 40);
+    const onResize = () => setIsMobile(window.innerWidth < 768);
     window.addEventListener('scroll', onScroll);
-    return () => window.removeEventListener('scroll', onScroll);
+    window.addEventListener('resize', onResize);
+    return () => {
+      window.removeEventListener('scroll', onScroll);
+      window.removeEventListener('resize', onResize);
+    };
   }, []);
 
   return (
-    <nav
-      className="fixed top-0 left-0 right-0 z-50 transition-all duration-300"
-      style={{
-        background:    scrolled ? 'rgba(10,22,44,0.95)' : 'transparent',
-        backdropFilter: scrolled ? 'blur(16px)' : 'none',
-        borderBottom:  scrolled ? '1px solid rgba(26,188,156,0.15)' : 'none',
-        boxShadow:     scrolled ? '0 4px 24px rgba(0,0,0,0.3)' : 'none',
-      }}
-    >
-      <div className="max-w-[1280px] mx-auto px-8 py-5 flex items-center justify-between">
+    <nav style={S.nav(scrolled)}>
+      <div style={S.inner}>
 
         {/* Logo */}
-        <Link to="/" className="flex items-center gap-3 no-underline">
-          <img src="/images/Logo2.png" alt="TechnoLogs" className="h-15 w-auto"
-            style={{ filter: 'drop-shadow(0 0 8px rgba(26,188,156,0.4))' }} />
+        <Link to="/" style={S.logo}>
+          <span style={S.logoDot} />
+          <span style={S.logoText}>TechnoLogs</span>
         </Link>
 
-        {/* Desktop nav links */}
-        <div className="hidden md:flex items-center gap-10">
-          {['Home', 'Services', 'Track Repair'].map(label => (
-            <a
-              key={label}
-              href={`#${label.toLowerCase().replace(' ', '-')}`}
-              className="font-koho text-[0.9rem] tracking-wide text-[rgba(255,255,255,0.7)] hover:text-teal transition-colors duration-200 no-underline"
-            >
-              {label}
-            </a>
-          ))}
-        </div>
+        {/* Desktop links */}
+        {!isMobile && (
+          <ul style={S.links}>
+            {NAV_LINKS.map(({ label, href }) => (
+              <li key={label}>
+                <a href={href} style={S.link}
+                  onMouseEnter={e => e.currentTarget.style.color = '#1abc9c'}
+                  onMouseLeave={e => e.currentTarget.style.color = 'rgba(255,255,255,0.55)'}
+                >
+                  {label}
+                </a>
+              </li>
+            ))}
+          </ul>
+        )}
 
-        {/* Auth buttons */}
-        <div className="hidden md:flex items-center gap-3">
-          <Link
-            to="/login"
-            className="font-koho text-[0.88rem] font-semibold tracking-wider text-teal border border-[rgba(26,188,156,0.4)] px-5 py-[10px] rounded-[8px] no-underline transition-all duration-200 hover:bg-[rgba(26,188,156,0.1)] hover:border-teal"
-          >
-            SIGN IN
-          </Link>
-          <Link
-            to="/register"
-            className="font-koho text-[0.88rem] font-semibold tracking-wider text-white px-5 py-[10px] rounded-[8px] no-underline transition-all duration-200 hover:-translate-y-[1px] hover:shadow-[0_6px_20px_rgba(26,188,156,0.4)]"
-            style={{ background: 'linear-gradient(90deg, #0ea882, #1abc9c)' }}
-          >
-            GET STARTED
-          </Link>
-        </div>
+        {/* Desktop CTAs */}
+        {!isMobile && (
+          <div style={S.ctas}>
+            <Link to="/login" style={S.btnGhost}
+              onMouseEnter={e => e.currentTarget.style.background = 'rgba(26,188,156,0.09)'}
+              onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+            >Sign In</Link>
+            <Link to="/register" style={S.btnSolid}
+              onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-1px)'; e.currentTarget.style.boxShadow = '0 8px 24px rgba(26,188,156,0.35)'; }}
+              onMouseLeave={e => { e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = 'none'; }}
+            >Get Started</Link>
+          </div>
+        )}
 
         {/* Mobile hamburger */}
-        <button
-          className="md:hidden flex flex-col gap-[5px] bg-transparent border-none cursor-pointer p-1"
-          onClick={() => setMenuOpen(v => !v)}
-          aria-label="Toggle menu"
-        >
-          {[0, 1, 2].map(i => (
-            <span
-              key={i}
-              className="block w-6 h-[2px] bg-teal transition-all duration-300 rounded-full"
-              style={{
+        {isMobile && (
+          <button style={S.mobileBtn} onClick={() => setMenuOpen(v => !v)} aria-label="Toggle menu">
+            {[0, 1, 2].map(i => (
+              <span key={i} style={{
+                ...S.mobileBar,
                 transform: menuOpen
                   ? i === 0 ? 'translateY(7px) rotate(45deg)'
                   : i === 2 ? 'translateY(-7px) rotate(-45deg)'
                   : 'scaleX(0)'
                   : 'none',
-              }}
-            />
-          ))}
-        </button>
+              }} />
+            ))}
+          </button>
+        )}
       </div>
 
       {/* Mobile menu */}
-      {menuOpen && (
-        <div className="md:hidden px-8 pb-6 flex flex-col gap-4"
-          style={{ background: 'rgba(10,22,44,0.98)', borderTop: '1px solid rgba(26,188,156,0.15)' }}>
-          {['Home', 'Services', 'Track Repair'].map(label => (
-            <a key={label} href={`#${label.toLowerCase().replace(' ', '-')}`}
-              className="font-koho text-white no-underline text-[1rem] hover:text-teal transition-colors"
-              onClick={() => setMenuOpen(false)}>
+      {isMobile && menuOpen && (
+        <div style={S.mobileMenu}>
+          {NAV_LINKS.map(({ label, href }) => (
+            <a key={label} href={href} style={S.mobileLink} onClick={() => setMenuOpen(false)}>
               {label}
             </a>
           ))}
-          <div className="flex gap-3 mt-2">
-            <Link to="/login"
-              className="flex-1 text-center font-koho text-teal border border-teal px-4 py-2 rounded-[8px] no-underline text-[0.88rem] font-semibold">
-              SIGN IN
-            </Link>
-            <Link to="/register"
-              className="flex-1 text-center font-koho text-white px-4 py-2 rounded-[8px] no-underline text-[0.88rem] font-semibold"
-              style={{ background: 'linear-gradient(90deg, #0ea882, #1abc9c)' }}>
-              GET STARTED
-            </Link>
+          <div style={S.mobileCtas}>
+            <Link to="/login" onClick={() => setMenuOpen(false)}
+              style={{ ...S.btnGhost, flex: 1, textAlign: 'center' }}>Sign In</Link>
+            <Link to="/register" onClick={() => setMenuOpen(false)}
+              style={{ ...S.btnSolid, flex: 1, textAlign: 'center' }}>Get Started</Link>
           </div>
         </div>
       )}

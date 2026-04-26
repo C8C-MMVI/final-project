@@ -41,7 +41,7 @@ function notifyMany(PDO $pdo, array $user_ids, string $message): void {
 function notifyRole(PDO $pdo, string $role, string $message): void {
     try {
         $stmt = $pdo->prepare("
-            SELECT user_id FROM users WHERE role = ?
+            SELECT id FROM users WHERE role = ?
         ");
         $stmt->execute([$role]);
         $ids = $stmt->fetchAll(PDO::FETCH_COLUMN);

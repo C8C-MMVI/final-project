@@ -91,6 +91,179 @@ function DownloadButton({onClick,disabled,label='Download'}){
   );
 }
 
+// ── Star Picker ───────────────────────────────────────────────────────────────
+function StarPicker({ value, onChange }) {
+  const [hovered, setHovered] = useState(0);
+  const labels = ['', 'Poor', 'Fair', 'Good', 'Very Good', 'Excellent'];
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+      {[1, 2, 3, 4, 5].map(n => (
+        <svg
+          key={n}
+          onClick={() => onChange(n)}
+          onMouseEnter={() => setHovered(n)}
+          onMouseLeave={() => setHovered(0)}
+          viewBox="0 0 24 24"
+          style={{
+            width: 32, height: 32, cursor: 'pointer',
+            fill: n <= (hovered || value) ? '#facc15' : 'rgba(255,255,255,0.08)',
+            stroke: n <= (hovered || value) ? '#facc15' : 'rgba(255,255,255,0.2)',
+            strokeWidth: 1.5,
+            transition: 'fill 0.15s, transform 0.1s',
+            transform: hovered === n ? 'scale(1.2)' : 'scale(1)',
+          }}
+        >
+          <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+        </svg>
+      ))}
+      <span style={{ fontSize: '0.82rem', color: 'rgba(128,144,168,0.8)', marginLeft: 6, minWidth: 64 }}>
+        {labels[hovered || value] || 'Select rating'}
+      </span>
+    </div>
+  );
+}
+
+// ── Review Modal ──────────────────────────────────────────────────────────────
+function ReviewModal({ repair, onClose, onSubmitted }) {
+  const [rating,     setRating]     = useState(0);
+  const [comment,    setComment]    = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [error,      setError]      = useState(null);
+
+  const handleSubmit = async () => {
+    if (rating === 0) { setError('Please select a star rating.'); return; }
+    setSubmitting(true);
+    setError(null);
+    try {
+      const res  = await fetch('/api/reviews.php', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ request_id: repairId(repair), rating, comment }),
+      });
+      const data = await res.json();
+      if (data.success) { onSubmitted?.(); onClose(); }
+      else setError(data.message);
+    } catch {
+      setError('Cannot connect to server.');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  // Close on backdrop click
+  const handleBackdrop = e => { if (e.target === e.currentTarget) onClose(); };
+
+  return (
+    <div onClick={handleBackdrop} style={{
+      position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)',
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      zIndex: 1000, padding: '1rem',
+    }}>
+      <div style={{
+        background: 'var(--color-surface, #1e293b)',
+        border: '1px solid rgba(26,188,156,0.2)',
+        borderRadius: 14, width: '100%', maxWidth: 460,
+        boxShadow: '0 24px 64px rgba(0,0,0,0.5)',
+        display: 'flex', flexDirection: 'column',
+      }}>
+        {/* Header */}
+        <div style={{
+          display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+          padding: '1.1rem 1.4rem',
+          borderBottom: '1px solid rgba(255,255,255,0.06)',
+        }}>
+          <span style={{ fontWeight: 700, fontSize: '0.95rem', color: 'rgba(220,230,240,0.95)' }}>
+            Leave a Review
+          </span>
+          <button onClick={onClose} style={{
+            background: 'none', border: 'none', color: 'rgba(128,144,168,0.7)',
+            fontSize: '1.1rem', cursor: 'pointer', padding: '2px 6px', borderRadius: 4,
+          }}>✕</button>
+        </div>
+
+        {/* Body */}
+        <div style={{ padding: '1.4rem', display: 'flex', flexDirection: 'column', gap: '1.1rem' }}>
+          {/* Repair info chip */}
+          <div style={{
+            display: 'flex', gap: 10, alignItems: 'center',
+            background: 'rgba(26,188,156,0.07)', border: '1px solid rgba(26,188,156,0.15)',
+            borderRadius: 8, padding: '10px 14px',
+          }}>
+            <span style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--teal,#1abc9c)' }}>
+              Repair #{repairId(repair)}
+            </span>
+            <span style={{ fontSize: '0.82rem', color: 'rgba(128,144,168,0.8)' }}>
+              {deviceName(repair)}
+            </span>
+          </div>
+
+          {/* Star rating */}
+          <div>
+            <div style={{ fontSize: '0.72rem', fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase', color: 'rgba(128,144,168,0.7)', marginBottom: 10 }}>
+              Your Rating
+            </div>
+            <StarPicker value={rating} onChange={setRating} />
+          </div>
+
+          {/* Comment */}
+          <div>
+            <div style={{ fontSize: '0.72rem', fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase', color: 'rgba(128,144,168,0.7)', marginBottom: 8 }}>
+              Comment <span style={{ textTransform: 'none', fontWeight: 400, letterSpacing: 0 }}>(optional)</span>
+            </div>
+            <textarea
+              rows={4}
+              value={comment}
+              onChange={e => setComment(e.target.value)}
+              placeholder="Share your experience with this repair…"
+              style={{
+                width: '100%', boxSizing: 'border-box',
+                background: 'rgba(0,0,0,0.25)', border: '1px solid rgba(255,255,255,0.08)',
+                borderRadius: 8, color: 'rgba(220,230,240,0.9)', fontSize: '0.88rem',
+                padding: '10px 14px', resize: 'vertical', fontFamily: 'inherit',
+                lineHeight: 1.5, outline: 'none', transition: 'border-color 0.2s',
+              }}
+              onFocus={e => e.target.style.borderColor = 'rgba(26,188,156,0.5)'}
+              onBlur={e  => e.target.style.borderColor = 'rgba(255,255,255,0.08)'}
+            />
+          </div>
+
+          {/* Error */}
+          {error && (
+            <div style={{
+              fontSize: '0.82rem', color: '#f87171',
+              background: 'rgba(248,113,113,0.08)', border: '1px solid rgba(248,113,113,0.2)',
+              padding: '8px 12px', borderRadius: 7,
+            }}>{error}</div>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div style={{
+          display: 'flex', justifyContent: 'flex-end', gap: 10,
+          padding: '1rem 1.4rem',
+          borderTop: '1px solid rgba(255,255,255,0.06)',
+        }}>
+          <button onClick={onClose} disabled={submitting} style={{
+            padding: '8px 18px', borderRadius: 8,
+            border: '1px solid rgba(255,255,255,0.1)',
+            background: 'transparent', color: 'rgba(128,144,168,0.8)',
+            fontSize: '0.85rem', cursor: 'pointer',
+          }}>Cancel</button>
+          <button onClick={handleSubmit} disabled={submitting} style={{
+            padding: '8px 22px', borderRadius: 8, border: 'none',
+            background: submitting ? 'rgba(26,188,156,0.5)' : 'var(--teal,#1abc9c)',
+            color: '#0f172a', fontSize: '0.85rem', fontWeight: 700,
+            cursor: submitting ? 'not-allowed' : 'pointer', transition: 'opacity 0.2s',
+          }}>
+            {submitting ? 'Submitting…' : 'Submit Review'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function RepairRequestForm({onSuccess}){
   const [form,setForm]=useState({shop_id:'',device_type:'',issue:'',issue_description:''});
   const [shops,setShops]=useState([]);
@@ -291,6 +464,7 @@ function HelpSection() {
     { q: 'How will I know when my repair is updated?', a: 'You will receive a notification every time your repair status changes. Click "Notifications" in the sidebar to view all your notifications. Unread notifications are highlighted — click them to mark as read.' },
     { q: 'How do I mark notifications as read?', a: 'Click on any unread notification to mark it as read individually, or use the "Mark all as read" button at the top of the Notifications page to clear all at once.' },
     { q: 'Can I submit multiple repair requests?', a: 'Yes, you can submit as many repair requests as you need. Each request is tracked separately and you will receive notifications for each one.' },
+    { q: 'How do I leave a review for my technician?', a: 'Once a repair is marked as Completed, a "★ Review" button will appear next to it in My Repairs. Click it to leave a star rating and optional comment for your technician.' },
     { q: 'What should I do if I have a problem not listed here?', a: 'Contact our support team directly via email or phone. Our details are listed in the Contact Support section below.' },
   ];
 
@@ -345,24 +519,17 @@ function HelpSection() {
           Contact Support
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-
-          {/* Email */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
             <div style={{ width: 36, height: 36, borderRadius: 8, flexShrink: 0, background: 'rgba(26,188,156,0.1)', border: '1px solid rgba(26,188,156,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--teal,#1abc9c)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
-                <polyline points="22,6 12,13 2,6"/>
+                <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/>
               </svg>
             </div>
             <div>
               <div style={{ fontSize: '0.72rem', color: 'rgba(128,144,168,0.6)', marginBottom: 2 }}>Email</div>
-              <a href="mailto:technologs@gmail.com" style={{ fontSize: '0.88rem', fontWeight: 500, color: 'var(--teal,#1abc9c)', textDecoration: 'none' }}>
-                technologs@gmail.com
-              </a>
+              <a href="mailto:technologs@gmail.com" style={{ fontSize: '0.88rem', fontWeight: 500, color: 'var(--teal,#1abc9c)', textDecoration: 'none' }}>technologs@gmail.com</a>
             </div>
           </div>
-
-          {/* Phone */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
             <div style={{ width: 36, height: 36, borderRadius: 8, flexShrink: 0, background: 'rgba(26,188,156,0.1)', border: '1px solid rgba(26,188,156,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--teal,#1abc9c)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -371,31 +538,73 @@ function HelpSection() {
             </div>
             <div>
               <div style={{ fontSize: '0.72rem', color: 'rgba(128,144,168,0.6)', marginBottom: 2 }}>Phone</div>
-              <a href="tel:09956351020" style={{ fontSize: '0.88rem', fontWeight: 500, color: 'var(--teal,#1abc9c)', textDecoration: 'none' }}>
-                0995 635 1020
-              </a>
+              <a href="tel:09956351020" style={{ fontSize: '0.88rem', fontWeight: 500, color: 'var(--teal,#1abc9c)', textDecoration: 'none' }}>0995 635 1020</a>
             </div>
           </div>
-
-          {/* Business Hours */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
             <div style={{ width: 36, height: 36, borderRadius: 8, flexShrink: 0, background: 'rgba(26,188,156,0.1)', border: '1px solid rgba(26,188,156,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--teal,#1abc9c)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <circle cx="12" cy="12" r="10"/>
-                <polyline points="12 6 12 12 16 14"/>
+                <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
               </svg>
             </div>
             <div>
               <div style={{ fontSize: '0.72rem', color: 'rgba(128,144,168,0.6)', marginBottom: 2 }}>Business Hours</div>
-              <span style={{ fontSize: '0.88rem', fontWeight: 500, color: 'rgba(220,230,240,0.9)' }}>
-                Monday – Sunday, 7:00 AM – 7:00 PM
-              </span>
+              <span style={{ fontSize: '0.88rem', fontWeight: 500, color: 'rgba(220,230,240,0.9)' }}>Monday – Sunday, 7:00 AM – 7:00 PM</span>
             </div>
           </div>
-
         </div>
       </div>
     </div>
+  );
+}
+
+// ── Repairs table with Review button ─────────────────────────────────────────
+function RepairsTable({ repairs, onReview }) {
+  return repairs.length === 0 ? (
+    <div className={s.emptyState}><IconEmpty /><p>No repair requests found.</p></div>
+  ) : (
+    <table className={s.table}>
+      <thead>
+        <tr>
+          <th>Job #</th><th>Device</th><th>Issue</th><th>Shop</th>
+          <th>Date</th><th>Status</th><th>Review</th>
+        </tr>
+      </thead>
+      <tbody>
+        {repairs.map(r => (
+          <tr key={repairId(r)}>
+            <td className={s.idCol}>#{repairId(r)}</td>
+            <td className={s.bold}>{deviceName(r)}</td>
+            <td>{issueText(r)}</td>
+            <td>{r.shop_name}</td>
+            <td className={s.muted}>{fmtDate(r.created_at)}</td>
+            <td><Badge status={normStatus(r.status)} label={statusLabel(r.status)} /></td>
+            <td>
+              {normStatus(r.status) === 'done' && !r.reviewed ? (
+                <button
+                  onClick={() => onReview(r)}
+                  style={{
+                    background: 'rgba(250,204,21,0.1)',
+                    border: '1px solid rgba(250,204,21,0.3)',
+                    color: '#facc15', fontSize: '0.76rem', fontWeight: 700,
+                    padding: '4px 12px', borderRadius: 6, cursor: 'pointer',
+                    whiteSpace: 'nowrap', transition: 'background 0.15s',
+                  }}
+                  onMouseEnter={e => e.currentTarget.style.background = 'rgba(250,204,21,0.2)'}
+                  onMouseLeave={e => e.currentTarget.style.background = 'rgba(250,204,21,0.1)'}
+                >
+                  ★ Review
+                </button>
+              ) : normStatus(r.status) === 'done' && r.reviewed ? (
+                <span style={{ fontSize: '0.76rem', color: '#4ade80', fontWeight: 600 }}>✓ Reviewed</span>
+              ) : (
+                <span style={{ fontSize: '0.76rem', color: 'rgba(128,144,168,0.4)' }}>—</span>
+              )}
+            </td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
   );
 }
 
@@ -409,6 +618,7 @@ export default function CustomerDashboard({username='Customer',userId,setPage,ac
   const [txLoading,setTxLoading]       = useState(false);
   const [error,setError]               = useState(null);
   const [customerId,setCustomerId]     = useState(userId??null);
+  const [reviewTarget,setReviewTarget] = useState(null); // repair selected for review
 
   const { downloadReceipt, downloadAllReceipts } = useReceiptDownload({ name: 'TechnoLogs Repair' });
 
@@ -445,6 +655,16 @@ export default function CustomerDashboard({username='Customer',userId,setPage,ac
   useEffect(() => { loadData(); }, [loadData]);
   useEffect(() => { if (customerId) loadTransactions(customerId); }, [customerId, loadTransactions]);
 
+  // Mark a repair as reviewed locally so the button disappears immediately
+  const handleReviewed = () => {
+    if (!reviewTarget) return;
+    const id = repairId(reviewTarget);
+    setRepairs(prev => prev.map(r => repairId(r) === id ? { ...r, reviewed: true } : r));
+    if (latestRepair && repairId(latestRepair) === id) {
+      setLatestRepair(prev => ({ ...prev, reviewed: true }));
+    }
+  };
+
   if (loading) return <div className={s.loadingState}>Loading dashboard…</div>;
   if (error)   return <div className={s.errorState}>{error}</div>;
 
@@ -452,127 +672,98 @@ export default function CustomerDashboard({username='Customer',userId,setPage,ac
   const completedCount = stats?.completed_repairs ?? 0;
   const totalSpent     = transactions.reduce((sum, t) => sum + Number(t.amount ?? 0), 0);
 
-  // ── Dashboard ─────────────────────────────────────────────────────────────
-  if (activeSection === 'dashboard') {
-    return (
-      <>
-        <div className={s.welcomeHeader}>
-          <div className={s.welcomeGreeting}>Welcome back, <span>{username}</span></div>
-          <div className={s.welcomeSub}>Here's a summary of your repair requests and transactions.</div>
-        </div>
-        <div className={s.statsRow}>
-          <div className={s.statCard}><div className={`${s.statIcon} ${s.iconOrange}`}><IconTool/></div><div className={s.statInfo}><span className={s.statValue}>{activeCount}</span><span className={s.statLabel}>Active Repairs</span></div></div>
-          <div className={s.statCard}><div className={`${s.statIcon} ${s.iconTeal}`}><IconCheck/></div><div className={s.statInfo}><span className={s.statValue}>{completedCount}</span><span className={s.statLabel}>Completed Repairs</span></div></div>
-          <div className={s.statCard}><div className={`${s.statIcon} ${s.iconBlue}`}><IconPeso/></div><div className={s.statInfo}><span className={s.statValue}>₱{totalSpent.toLocaleString('en-PH',{minimumFractionDigits:0})}</span><span className={s.statLabel}>Total Spent</span></div></div>
-        </div>
-        <div className={s.twoCol}>
-          <Panel title="Submit Repair Request"><RepairRequestForm onSuccess={loadData}/></Panel>
-          <RepairTimeline repair={latestRepair}/>
-        </div>
+  return (
+    <>
+      {/* ── Review Modal (global, shown over any section) ── */}
+      {reviewTarget && (
+        <ReviewModal
+          repair={reviewTarget}
+          onClose={() => setReviewTarget(null)}
+          onSubmitted={handleReviewed}
+        />
+      )}
+
+      {/* ── Dashboard ── */}
+      {activeSection === 'dashboard' && (
+        <>
+          <div className={s.welcomeHeader}>
+            <div className={s.welcomeGreeting}>Welcome back, <span>{username}</span></div>
+            <div className={s.welcomeSub}>Here's a summary of your repair requests and transactions.</div>
+          </div>
+          <div className={s.statsRow}>
+            <div className={s.statCard}><div className={`${s.statIcon} ${s.iconOrange}`}><IconTool/></div><div className={s.statInfo}><span className={s.statValue}>{activeCount}</span><span className={s.statLabel}>Active Repairs</span></div></div>
+            <div className={s.statCard}><div className={`${s.statIcon} ${s.iconTeal}`}><IconCheck/></div><div className={s.statInfo}><span className={s.statValue}>{completedCount}</span><span className={s.statLabel}>Completed Repairs</span></div></div>
+            <div className={s.statCard}><div className={`${s.statIcon} ${s.iconBlue}`}><IconPeso/></div><div className={s.statInfo}><span className={s.statValue}>₱{totalSpent.toLocaleString('en-PH',{minimumFractionDigits:0})}</span><span className={s.statLabel}>Total Spent</span></div></div>
+          </div>
+          <div className={s.twoCol}>
+            <Panel title="Submit Repair Request"><RepairRequestForm onSuccess={loadData}/></Panel>
+            <RepairTimeline repair={latestRepair}/>
+          </div>
+          <div className={s.tableSection}>
+            <Panel title="My Repair Requests" metaLabel={`${repairs.length} total`} onMeta={setActiveSection ? () => setActiveSection('repairs') : null}>
+              <RepairsTable repairs={repairs} onReview={setReviewTarget} />
+            </Panel>
+          </div>
+        </>
+      )}
+
+      {/* ── My Repairs ── */}
+      {activeSection === 'repairs' && (
         <div className={s.tableSection}>
-          <Panel title="My Repair Requests" metaLabel={`${repairs.length} total`} onMeta={setActiveSection ? () => setActiveSection('repairs') : null}>
-            {repairs.length === 0 ? (<div className={s.emptyState}><IconEmpty/><p>No repair requests found.</p></div>) : (
-              <table className={s.table}>
-                <thead><tr><th>Job #</th><th>Device</th><th>Issue</th><th>Shop</th><th>Date</th><th>Status</th></tr></thead>
-                <tbody>
-                  {repairs.map(r => (
-                    <tr key={repairId(r)}>
-                      <td className={s.idCol}>#{repairId(r)}</td><td className={s.bold}>{deviceName(r)}</td>
-                      <td>{issueText(r)}</td><td>{r.shop_name}</td>
-                      <td className={s.muted}>{fmtDate(r.created_at)}</td>
-                      <td><Badge status={normStatus(r.status)} label={statusLabel(r.status)}/></td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
+          <div className={s.sectionHeader}><h2 className={s.sectionTitle}>My Repairs</h2></div>
+          <Panel title="All Repair Requests" metaLabel={`${repairs.length} total`}>
+            <RepairsTable repairs={repairs} onReview={setReviewTarget} />
           </Panel>
         </div>
-      </>
-    );
-  }
+      )}
 
-  // ── My Repairs ────────────────────────────────────────────────────────────
-  if (activeSection === 'repairs') {
-    return (
-      <div className={s.tableSection}>
-        <div className={s.sectionHeader}><h2 className={s.sectionTitle}>My Repairs</h2></div>
-        <Panel title="All Repair Requests" metaLabel={`${repairs.length} total`}>
-          {repairs.length === 0 ? (<div className={s.emptyState}><IconEmpty/><p>No repair requests found.</p></div>) : (
-            <table className={s.table}>
-              <thead><tr><th>Job #</th><th>Device</th><th>Issue</th><th>Shop</th><th>Date</th><th>Status</th></tr></thead>
-              <tbody>
-                {repairs.map(r => (
-                  <tr key={repairId(r)}>
-                    <td className={s.idCol}>#{repairId(r)}</td><td className={s.bold}>{deviceName(r)}</td>
-                    <td>{issueText(r)}</td><td>{r.shop_name}</td>
-                    <td className={s.muted}>{fmtDate(r.created_at)}</td>
-                    <td><Badge status={normStatus(r.status)} label={statusLabel(r.status)}/></td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
-        </Panel>
-      </div>
-    );
-  }
-
-  // ── My Transactions ───────────────────────────────────────────────────────
-  if (activeSection === 'transactions') {
-    return (
-      <div className={s.tableSection}>
-        <div className={s.sectionHeader}><h2 className={s.sectionTitle}>My Transactions</h2></div>
-        <Panel title="Transaction History" metaLabel={`${transactions.length} records`}>
-          <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'10px 0 14px',borderBottom:'1px solid rgba(26,188,156,0.08)',marginBottom:4,flexWrap:'wrap',gap:10}}>
-            <span style={{color:'rgba(128,144,168,0.8)',fontSize:'0.78rem'}}>
-              {txLoading ? 'Loading transactions…' : transactions.length > 0 ? `${transactions.length} transaction${transactions.length !== 1 ? 's' : ''} found` : 'No transactions yet'}
-            </span>
-            <div style={{display:'flex',gap:8}}>
+      {/* ── My Transactions ── */}
+      {activeSection === 'transactions' && (
+        <div className={s.tableSection}>
+          <div className={s.sectionHeader}><h2 className={s.sectionTitle}>My Transactions</h2></div>
+          <Panel title="Transaction History" metaLabel={`${transactions.length} records`}>
+            <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'10px 0 14px',borderBottom:'1px solid rgba(26,188,156,0.08)',marginBottom:4,flexWrap:'wrap',gap:10}}>
+              <span style={{color:'rgba(128,144,168,0.8)',fontSize:'0.78rem'}}>
+                {txLoading ? 'Loading transactions…' : transactions.length > 0 ? `${transactions.length} transaction${transactions.length !== 1 ? 's' : ''} found` : 'No transactions yet'}
+              </span>
               <DownloadButton
                 onClick={() => downloadAllReceipts(transactions.map(t => getSaleForReceipt(t)))}
                 disabled={txLoading || transactions.length === 0}
                 label="Download All (PDF)"
               />
             </div>
-          </div>
-          {txLoading ? (<div className={s.emptyState}><p>Loading transactions…</p></div>)
-            : transactions.length === 0 ? (<div className={s.emptyState}><IconEmpty/><p>No transactions found.</p></div>)
-            : (
-              <table className={s.table}>
-                <thead><tr><th>Sale #</th><th>Repair #</th><th>Amount</th><th>Method</th><th>Date</th><th>Receipt</th></tr></thead>
-                <tbody>
-                  {transactions.map(t => (
-                    <tr key={t.saleId}>
-                      <td className={s.idCol}>SALE-{String(t.saleId).padStart(4, '0')}</td>
-                      <td>#{t.requestId}</td>
-                      <td className={s.bold}>₱{Number(t.amount).toLocaleString('en-PH', {minimumFractionDigits: 2})}</td>
-                      <td>{t.paymentMethod}</td>
-                      <td className={s.muted}>{fmtDate(t.soldAt)}</td>
-                      <td>
-                        <button onClick={() => downloadReceipt(getSaleForReceipt(t))} style={{background:'transparent',border:'1px solid rgba(26,188,156,0.3)',color:'var(--teal,#1abc9c)',fontSize:'0.72rem',fontWeight:700,padding:'3px 10px',borderRadius:6,cursor:'pointer'}}>
-                          PDF
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
-        </Panel>
-      </div>
-    );
-  }
+            {txLoading ? (<div className={s.emptyState}><p>Loading transactions…</p></div>)
+              : transactions.length === 0 ? (<div className={s.emptyState}><IconEmpty/><p>No transactions found.</p></div>)
+              : (
+                <table className={s.table}>
+                  <thead><tr><th>Sale #</th><th>Repair #</th><th>Amount</th><th>Method</th><th>Date</th><th>Receipt</th></tr></thead>
+                  <tbody>
+                    {transactions.map(t => (
+                      <tr key={t.saleId}>
+                        <td className={s.idCol}>SALE-{String(t.saleId).padStart(4, '0')}</td>
+                        <td>#{t.requestId}</td>
+                        <td className={s.bold}>₱{Number(t.amount).toLocaleString('en-PH', {minimumFractionDigits: 2})}</td>
+                        <td>{t.paymentMethod}</td>
+                        <td className={s.muted}>{fmtDate(t.soldAt)}</td>
+                        <td>
+                          <button onClick={() => downloadReceipt(getSaleForReceipt(t))} style={{background:'transparent',border:'1px solid rgba(26,188,156,0.3)',color:'var(--teal,#1abc9c)',fontSize:'0.72rem',fontWeight:700,padding:'3px 10px',borderRadius:6,cursor:'pointer'}}>
+                            PDF
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+          </Panel>
+        </div>
+      )}
 
-  // ── Notifications ─────────────────────────────────────────────────────────
-  if (activeSection === 'notifications') {
-    return <NotificationsSection />;
-  }
+      {/* ── Notifications ── */}
+      {activeSection === 'notifications' && <NotificationsSection />}
 
-  // ── Help ──────────────────────────────────────────────────────────────────
-  if (activeSection === 'help') {
-    return <HelpSection />;
-  }
-
-  return null;
+      {/* ── Help ── */}
+      {activeSection === 'help' && <HelpSection />}
+    </>
+  );
 }

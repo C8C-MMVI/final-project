@@ -35,8 +35,6 @@ const SECTION_MAP = {
   },
 };
 
-// Pages that are sections rendered inside the dashboard component,
-// not standalone page components in pageMap.
 const SECTION_KEYS = new Set([
   'dashboard', 'repairs', 'transactions', 'notifications',
   'help', 'userManagement', 'shopRequests', 'systemLogs',
@@ -50,7 +48,7 @@ const DEFAULT_SECTION = {
   customer:   'dashboard',
 };
 
-export default function DashboardLayout({ role, username, children, pageMap, onLogout }) {
+export default function DashboardLayout({ role, username, userId, children, pageMap, onLogout }) {
   const [page,       setPage]       = useState('dashboard');
   const [section,    setSection]    = useState(DEFAULT_SECTION[role] ?? 'dashboard');
   const [loggingOut, setLoggingOut] = useState(false);
@@ -64,24 +62,20 @@ export default function DashboardLayout({ role, username, children, pageMap, onL
   };
 
   const handleNavigate = (pageKey, label) => {
-    // 1. If called with a label (from Sidebar), map label → section key first
     const mappedFromLabel = label ? (SECTION_MAP[role] ?? {})[label] : null;
     const key = mappedFromLabel ?? pageKey;
 
-    // 2. If key is a known section (rendered inside the dashboard), switch section
     if (SECTION_KEYS.has(key)) {
       setSection(key);
       setPage('dashboard');
       return;
     }
 
-    // 3. If key exists in pageMap (standalone page component), load it
     if (pageMap?.[key]) {
       setPage(key);
       return;
     }
 
-    // 4. Fallback — treat as section anyway
     setSection(key);
     setPage('dashboard');
   };
@@ -113,6 +107,8 @@ export default function DashboardLayout({ role, username, children, pageMap, onL
                 setPage={setPage}
                 activeSection={section}
                 setActiveSection={setSection}
+                username={username}
+                userId={userId}
               />
             : children}
         </div>

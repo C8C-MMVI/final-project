@@ -235,3 +235,37 @@ if ($role === 'owner') {
 
 http_response_code(403);
 echo json_encode(['success' => false, 'message' => 'Forbidden.']);
+
+// ── Technician ────────────────────────────────────────────────────────────────
+if ($role === 'technician') {
+    $assignedStmt = $pdo->prepare("
+        SELECT COUNT(*) FROM repair_requests WHERE technician_id = ?
+    ");
+    $assignedStmt->execute([$userId]);
+
+    $inProgressStmt = $pdo->prepare("
+        SELECT COUNT(*) FROM repair_requests
+        WHERE technician_id = ? AND status = 'In Progress'
+    ");
+    $inProgressStmt->execute([$userId]);
+
+    $completedStmt = $pdo->prepare("
+        SELECT COUNT(*) FROM repair_requests
+        WHERE technician_id = ? AND status = 'Completed'
+    ");
+    $completedStmt->execute([$userId]);
+
+    echo json_encode([
+        'success' => true,
+        'stats'   => [
+            'technician_id'  => $userId,
+            'total_assigned' => (int) $assignedStmt->fetchColumn(),
+            'in_progress'    => (int) $inProgressStmt->fetchColumn(),
+            'completed'      => (int) $completedStmt->fetchColumn(),
+        ],
+    ]);
+    exit;
+}
+
+http_response_code(403);
+echo json_encode(['success' => false, 'message' => 'Forbidden.']);

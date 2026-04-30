@@ -1,7 +1,7 @@
-// src/pages/TechnicianDashboard.jsx
 import { useState, useEffect, useCallback } from 'react';
 import Panel  from '../components/shared/Panel';
 import Badge  from '../components/shared/Badge';
+import ChatWindow from '../components/dashboard/ChatWindow';
 import styles from './TechnicianDashboard.module.css';
 
 const STATUSES = ['Pending', 'In Progress', 'Completed'];
@@ -18,7 +18,6 @@ const statusBadge = {
   'Completed':   'done',
 };
 
-// ── Star Rating ───────────────────────────────────────────────────────────────
 function Stars({ rating, max = 5 }) {
   return (
     <span className={styles.stars}>
@@ -32,7 +31,6 @@ function Stars({ rating, max = 5 }) {
   );
 }
 
-// ── Reviews Section ───────────────────────────────────────────────────────────
 function ReviewsSection({ reviews, loading }) {
   if (loading) return <div className={styles.center}>Loading reviews…</div>;
   if (!reviews.length) return <div className={styles.center}>No reviews yet.</div>;
@@ -78,19 +76,60 @@ function ReviewsSection({ reviews, loading }) {
   );
 }
 
-// ════════════════════════════════════════════════════════════════════════════
-export default function TechnicianDashboard({ setPage, activeSection = 'dashboard', setActiveSection }) {
-  const [repairs,  setRepairs]  = useState([]);
-  const [reviews,  setReviews]  = useState([]);
-  const [loading,  setLoading]  = useState(true);
-  const [revLoading, setRevLoading] = useState(false);
-  const [error,    setError]    = useState(null);
-  const [selected, setSelected] = useState(null);
-  const [notes,    setNotes]    = useState('');
-  const [saving,   setSaving]   = useState(false);
-  const [toast,    setToast]    = useState(null);
+// ── Chat Modal ────────────────────────────────────────────────────────────────
+function ChatModal({ repair, technicianId, username, onClose }) {
+  const handleBackdrop = e => { if (e.target === e.currentTarget) onClose(); };
+  return (
+    <div onClick={handleBackdrop} style={{
+      position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)',
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      zIndex: 1000, padding: '1rem',
+    }}>
+      <div style={{
+        width: '100%', maxWidth: 480, height: 560,
+        borderRadius: 16, overflow: 'hidden',
+        boxShadow: '0 24px 64px rgba(0,0,0,0.5)',
+        display: 'flex', flexDirection: 'column', position: 'relative',
+      }}>
+        <button
+          onClick={onClose}
+          style={{
+            position: 'absolute', top: 10, right: 10, zIndex: 10,
+            background: 'rgba(0,0,0,0.2)', border: 'none',
+            color: '#fff', width: 28, height: 28, borderRadius: '50%',
+            cursor: 'pointer', fontSize: '0.9rem', display: 'flex',
+            alignItems: 'center', justifyContent: 'center',
+          }}
+        >✕</button>
+        <ChatWindow
+          repairId={repair.request_id}
+          currentUserId={technicianId}
+          currentUserName={username}
+          technicianId={technicianId}
+        />
+      </div>
+    </div>
+  );
+}
 
-  // ── Fetch repairs ──────────────────────────────────────────────────────────
+export default function TechnicianDashboard({
+  setPage,
+  activeSection = 'dashboard',
+  setActiveSection,
+  userId,
+  username = 'Technician',
+}) {
+  const [repairs,    setRepairs]    = useState([]);
+  const [reviews,    setReviews]    = useState([]);
+  const [loading,    setLoading]    = useState(true);
+  const [revLoading, setRevLoading] = useState(false);
+  const [error,      setError]      = useState(null);
+  const [selected,   setSelected]   = useState(null);
+  const [notes,      setNotes]      = useState('');
+  const [saving,     setSaving]     = useState(false);
+  const [toast,      setToast]      = useState(null);
+  const [chatRepair, setChatRepair] = useState(null);
+
   const fetchRepairs = useCallback(async () => {
     try {
       setLoading(true);
@@ -105,7 +144,6 @@ export default function TechnicianDashboard({ setPage, activeSection = 'dashboar
     }
   }, []);
 
-  // ── Fetch reviews ──────────────────────────────────────────────────────────
   const fetchReviews = useCallback(async () => {
     try {
       setRevLoading(true);
@@ -118,18 +156,15 @@ export default function TechnicianDashboard({ setPage, activeSection = 'dashboar
 
   useEffect(() => { fetchRepairs(); }, [fetchRepairs]);
 
-  // Lazy-load reviews when section becomes active
   useEffect(() => {
     if (activeSection === 'reviews' && reviews.length === 0) fetchReviews();
   }, [activeSection]);
 
-  // ── Toast ──────────────────────────────────────────────────────────────────
   const showToast = (message, isError = false) => {
     setToast({ message, isError });
     setTimeout(() => setToast(null), 3000);
   };
 
-  // ── Modal ──────────────────────────────────────────────────────────────────
   const openModal  = (repair) => { setSelected(repair); setNotes(repair.technician_notes ?? ''); };
   const closeModal = ()       => { setSelected(null); setNotes(''); };
 
@@ -161,13 +196,55 @@ export default function TechnicianDashboard({ setPage, activeSection = 'dashboar
     }
   };
 
-  // ── Stats ──────────────────────────────────────────────────────────────────
   const total      = repairs.length;
   const inProgress = repairs.filter(r => r.status === 'In Progress').length;
   const pending    = repairs.filter(r => r.status === 'Pending').length;
   const completed  = repairs.filter(r => r.status === 'Completed').length;
 
-  // ── Render ─────────────────────────────────────────────────────────────────
+  // ── Repairs table (reused in both sections) ───────────────────────────────
+  const repairsTable = (list) => (
+    <table className={styles.table}>
+      <thead>
+        <tr>
+          <th>#</th><th>Customer</th><th>Shop</th><th>Device</th>
+          <th>Issue</th><th>Date</th><th>Status</th><th>Action</th><th>Chat</th>
+        </tr>
+      </thead>
+      <tbody>
+        {list.map(r => (
+          <tr key={r.request_id}>
+            <td className={styles.idCol}>#{r.request_id}</td>
+            <td className={styles.bold}>{r.customer_name}</td>
+            <td>{r.shop_name}</td>
+            <td>{r.device_type}</td>
+            <td className={styles.muted}>{r.issue_description}</td>
+            <td className={styles.muted}>{new Date(r.created_at).toLocaleDateString()}</td>
+            <td><Badge status={statusBadge[r.status] ?? 'pending'} /></td>
+            <td>
+              <button className={styles.reviewBtn} onClick={() => openModal(r)}>
+                Review
+              </button>
+            </td>
+            <td>
+              <button
+                onClick={() => setChatRepair(r)}
+                style={{
+                  background: 'rgba(59,130,246,0.1)',
+                  border: '1px solid rgba(59,130,246,0.3)',
+                  color: '#60a5fa', fontSize: '0.76rem', fontWeight: 700,
+                  padding: '4px 12px', borderRadius: 6, cursor: 'pointer',
+                  whiteSpace: 'nowrap', transition: 'background 0.15s',
+                }}
+                onMouseEnter={e => e.currentTarget.style.background = 'rgba(59,130,246,0.2)'}
+                onMouseLeave={e => e.currentTarget.style.background = 'rgba(59,130,246,0.1)'}
+              >💬 Chat</button>
+            </td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  );
+
   return (
     <div className={styles.wrapper}>
 
@@ -176,6 +253,16 @@ export default function TechnicianDashboard({ setPage, activeSection = 'dashboar
         <div className={`${styles.toast} ${toast.isError ? styles.toastError : styles.toastSuccess}`}>
           {toast.message}
         </div>
+      )}
+
+      {/* Chat Modal */}
+      {chatRepair && (
+        <ChatModal
+          repair={chatRepair}
+          technicianId={userId}
+          username={username}
+          onClose={() => setChatRepair(null)}
+        />
       )}
 
       {/* ── DASHBOARD ── */}
@@ -202,34 +289,7 @@ export default function TechnicianDashboard({ setPage, activeSection = 'dashboar
               <div className={styles.centerError}>{error}</div>
             ) : repairs.length === 0 ? (
               <div className={styles.center}>No repairs assigned yet.</div>
-            ) : (
-              <table className={styles.table}>
-                <thead>
-                  <tr>
-                    <th>#</th><th>Customer</th><th>Shop</th><th>Device</th>
-                    <th>Issue</th><th>Date</th><th>Status</th><th>Action</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {repairs.slice(0, 5).map(r => (
-                    <tr key={r.request_id}>
-                      <td className={styles.idCol}>#{r.request_id}</td>
-                      <td className={styles.bold}>{r.customer_name}</td>
-                      <td>{r.shop_name}</td>
-                      <td>{r.device_type}</td>
-                      <td className={styles.muted}>{r.issue_description}</td>
-                      <td className={styles.muted}>{new Date(r.created_at).toLocaleDateString()}</td>
-                      <td><Badge status={statusBadge[r.status] ?? 'pending'} /></td>
-                      <td>
-                        <button className={styles.reviewBtn} onClick={() => openModal(r)}>
-                          Review
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
+            ) : repairsTable(repairs.slice(0, 5))}
           </Panel>
         </>
       )}
@@ -262,34 +322,7 @@ export default function TechnicianDashboard({ setPage, activeSection = 'dashboar
               <div className={styles.centerError}>{error}</div>
             ) : repairs.length === 0 ? (
               <div className={styles.center}>No repairs assigned yet.</div>
-            ) : (
-              <table className={styles.table}>
-                <thead>
-                  <tr>
-                    <th>#</th><th>Customer</th><th>Shop</th><th>Device</th>
-                    <th>Issue</th><th>Date</th><th>Status</th><th>Action</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {repairs.map(r => (
-                    <tr key={r.request_id}>
-                      <td className={styles.idCol}>#{r.request_id}</td>
-                      <td className={styles.bold}>{r.customer_name}</td>
-                      <td>{r.shop_name}</td>
-                      <td>{r.device_type}</td>
-                      <td className={styles.muted}>{r.issue_description}</td>
-                      <td className={styles.muted}>{new Date(r.created_at).toLocaleDateString()}</td>
-                      <td><Badge status={statusBadge[r.status] ?? 'pending'} /></td>
-                      <td>
-                        <button className={styles.reviewBtn} onClick={() => openModal(r)}>
-                          Review
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
+            ) : repairsTable(repairs)}
           </Panel>
         </>
       )}

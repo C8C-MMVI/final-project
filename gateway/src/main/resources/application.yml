@@ -1,10 +1,8 @@
 server:
   port: 9090
-
 spring:
   application:
     name: technologs-gateway
-
   cloud:
     gateway:
       globalcors:
@@ -28,32 +26,52 @@ spring:
             exposedHeaders:
               - "Authorization"
             allowCredentials: true
-
       default-filters:
         - DedupeResponseHeader=Access-Control-Allow-Credentials Access-Control-Allow-Origin
-
       routes:
-        # ── Spring Boot Backend ──
-        - id: springboot-route
+        # ── Spring Boot Backend ──────────────────────────────────────────────
+        - id: springboot-sales-route
           uri: http://springboot:8080
           predicates:
             - Path=/api/sales/**
           filters:
             - StripPrefix=0
 
-        # ── PHP Backend ──
+        - id: springboot-events-route
+          uri: http://springboot:8080
+          predicates:
+            - Path=/api/events/**
+          filters:
+            - StripPrefix=0
+
+        - id: springboot-chat-route
+          uri: http://springboot:8080
+          predicates:
+            - Path=/api/chat/**
+          filters:
+            - StripPrefix=0
+
+        - id: springboot-ws-route
+          uri: http://springboot:8080
+          predicates:
+            - Path=/ws/**
+          filters:
+            - StripPrefix=0
+
+        # ── PHP Backend ──────────────────────────────────────────────────────
+        # Catch-all for /api/** — keep this LAST among /api routes
         - id: php-route
           uri: http://php:8000
           predicates:
             - Path=/api/**
 
-        # ── Images (served by PHP) ──
+        # ── Images (served by PHP) ───────────────────────────────────────────
         - id: images-route
           uri: http://php:8000
           predicates:
             - Path=/images/**
 
-        # ── Django Backend ──
+        # ── Django Backend ───────────────────────────────────────────────────
         - id: django-route
           uri: http://django:8000
           predicates:

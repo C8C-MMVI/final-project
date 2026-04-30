@@ -58,7 +58,16 @@ INSTALLED_APPS = [
     'shop',
     'repair',
     'booking',
+    'repair_timeline',
 ]
+
+# 2. Add MongoDB settings (reads from environment / docker-compose):
+import os
+MONGO_HOST     = os.getenv('MONGO_HOST', 'mongo')
+MONGO_PORT     = int(os.getenv('MONGO_PORT', 27017))
+MONGO_DB       = os.getenv('MONGO_DB', 'technologs_mongo')
+MONGO_USER     = os.getenv('MONGO_USER', '')
+MONGO_PASSWORD = os.getenv('MONGO_PASSWORD', '')
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',

@@ -3,6 +3,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { getSalesByCustomer } from '../lib/api';
 import { useReceiptDownload } from '../hooks/useReceiptDownload';
 import s from './CustomerDashboard.module.css';
+import ChatWindow from '../components/dashboard/ChatWindow';
 
 function normStatus(raw=''){const key=raw.toLowerCase().replace(/[\s_]+/g,'_');return{pending:'pending',in_progress:'progress',completed:'done',cancelled:'cancelled'}[key]??'pending';}
 function statusLabel(raw=''){const key=raw.toLowerCase().replace(/[\s_]+/g,'_');return{pending:'Pending',in_progress:'In Progress',completed:'Completed',cancelled:'Cancelled'}[key]??raw;}
@@ -151,7 +152,6 @@ function ReviewModal({ repair, onClose, onSubmitted }) {
     }
   };
 
-  // Close on backdrop click
   const handleBackdrop = e => { if (e.target === e.currentTarget) onClose(); };
 
   return (
@@ -167,7 +167,6 @@ function ReviewModal({ repair, onClose, onSubmitted }) {
         boxShadow: '0 24px 64px rgba(0,0,0,0.5)',
         display: 'flex', flexDirection: 'column',
       }}>
-        {/* Header */}
         <div style={{
           display: 'flex', justifyContent: 'space-between', alignItems: 'center',
           padding: '1.1rem 1.4rem',
@@ -181,10 +180,7 @@ function ReviewModal({ repair, onClose, onSubmitted }) {
             fontSize: '1.1rem', cursor: 'pointer', padding: '2px 6px', borderRadius: 4,
           }}>✕</button>
         </div>
-
-        {/* Body */}
         <div style={{ padding: '1.4rem', display: 'flex', flexDirection: 'column', gap: '1.1rem' }}>
-          {/* Repair info chip */}
           <div style={{
             display: 'flex', gap: 10, alignItems: 'center',
             background: 'rgba(26,188,156,0.07)', border: '1px solid rgba(26,188,156,0.15)',
@@ -197,16 +193,12 @@ function ReviewModal({ repair, onClose, onSubmitted }) {
               {deviceName(repair)}
             </span>
           </div>
-
-          {/* Star rating */}
           <div>
             <div style={{ fontSize: '0.72rem', fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase', color: 'rgba(128,144,168,0.7)', marginBottom: 10 }}>
               Your Rating
             </div>
             <StarPicker value={rating} onChange={setRating} />
           </div>
-
-          {/* Comment */}
           <div>
             <div style={{ fontSize: '0.72rem', fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase', color: 'rgba(128,144,168,0.7)', marginBottom: 8 }}>
               Comment <span style={{ textTransform: 'none', fontWeight: 400, letterSpacing: 0 }}>(optional)</span>
@@ -227,8 +219,6 @@ function ReviewModal({ repair, onClose, onSubmitted }) {
               onBlur={e  => e.target.style.borderColor = 'rgba(255,255,255,0.08)'}
             />
           </div>
-
-          {/* Error */}
           {error && (
             <div style={{
               fontSize: '0.82rem', color: '#f87171',
@@ -237,8 +227,6 @@ function ReviewModal({ repair, onClose, onSubmitted }) {
             }}>{error}</div>
           )}
         </div>
-
-        {/* Footer */}
         <div style={{
           display: 'flex', justifyContent: 'flex-end', gap: 10,
           padding: '1rem 1.4rem',
@@ -259,6 +247,43 @@ function ReviewModal({ repair, onClose, onSubmitted }) {
             {submitting ? 'Submitting…' : 'Submit Review'}
           </button>
         </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Chat Modal ────────────────────────────────────────────────────────────────
+function ChatModal({ repair, customerId, username, onClose }) {
+  const handleBackdrop = e => { if (e.target === e.currentTarget) onClose(); };
+  return (
+    <div onClick={handleBackdrop} style={{
+      position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)',
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      zIndex: 1000, padding: '1rem',
+    }}>
+      <div style={{
+        width: '100%', maxWidth: 480, height: 560,
+        borderRadius: 16, overflow: 'hidden',
+        boxShadow: '0 24px 64px rgba(0,0,0,0.5)',
+        display: 'flex', flexDirection: 'column', position: 'relative',
+      }}>
+        {/* Close button */}
+        <button
+          onClick={onClose}
+          style={{
+            position: 'absolute', top: 10, right: 10, zIndex: 10,
+            background: 'rgba(0,0,0,0.2)', border: 'none',
+            color: '#fff', width: 28, height: 28, borderRadius: '50%',
+            cursor: 'pointer', fontSize: '0.9rem', display: 'flex',
+            alignItems: 'center', justifyContent: 'center',
+          }}
+        >✕</button>
+        <ChatWindow
+          repairId={repairId(repair)}
+          currentUserId={customerId}
+          currentUserName={username}
+          technicianId={repair.technician_id ?? null}
+        />
       </div>
     </div>
   );
@@ -388,19 +413,11 @@ function NotificationsSection() {
       <div className={s.sectionHeader}>
         <h2 className={s.sectionTitle}>Notifications</h2>
         {unreadCount > 0 && (
-          <button
-            onClick={markAllAsRead}
-            disabled={markingAll}
-            style={{
-              background: 'transparent',
-              border: '1px solid rgba(26,188,156,0.3)',
-              color: 'var(--teal,#1abc9c)',
-              fontSize: '0.76rem',
-              fontWeight: 700,
-              padding: '6px 14px',
-              borderRadius: 8,
-              cursor: 'pointer',
-            }}>
+          <button onClick={markAllAsRead} disabled={markingAll} style={{
+            background: 'transparent', border: '1px solid rgba(26,188,156,0.3)',
+            color: 'var(--teal,#1abc9c)', fontSize: '0.76rem', fontWeight: 700,
+            padding: '6px 14px', borderRadius: 8, cursor: 'pointer',
+          }}>
             {markingAll ? 'Marking…' : `Mark all as read (${unreadCount})`}
           </button>
         )}
@@ -414,34 +431,26 @@ function NotificationsSection() {
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           {notifications.map(n => (
-            <div
-              key={n.notification_id}
-              onClick={() => !n.is_read && markAsRead(n.notification_id)}
-              style={{
-                padding: '14px 18px', borderRadius: 10,
-                background: n.is_read ? 'rgba(255,255,255,0.02)' : 'rgba(26,188,156,0.07)',
-                border: `1px solid ${n.is_read ? 'rgba(255,255,255,0.06)' : 'rgba(26,188,156,0.2)'}`,
-                cursor: n.is_read ? 'default' : 'pointer',
-                display: 'flex', justifyContent: 'space-between',
-                alignItems: 'flex-start', gap: 12, transition: 'background 0.2s',
-              }}>
+            <div key={n.notification_id} onClick={() => !n.is_read && markAsRead(n.notification_id)} style={{
+              padding: '14px 18px', borderRadius: 10,
+              background: n.is_read ? 'rgba(255,255,255,0.02)' : 'rgba(26,188,156,0.07)',
+              border: `1px solid ${n.is_read ? 'rgba(255,255,255,0.06)' : 'rgba(26,188,156,0.2)'}`,
+              cursor: n.is_read ? 'default' : 'pointer',
+              display: 'flex', justifyContent: 'space-between',
+              alignItems: 'flex-start', gap: 12, transition: 'background 0.2s',
+            }}>
               <div style={{ flex: 1 }}>
                 <p style={{
                   margin: 0, fontSize: '0.88rem',
                   color: n.is_read ? 'rgba(128,144,168,0.7)' : 'rgba(220,230,240,0.95)',
                   fontWeight: n.is_read ? 400 : 500, lineHeight: 1.5,
-                }}>
-                  {n.message}
-                </p>
+                }}>{n.message}</p>
                 <span style={{ fontSize: '0.72rem', color: 'rgba(128,144,168,0.6)', marginTop: 4, display: 'block' }}>
                   {new Date(n.created_at).toLocaleString()}
                 </span>
               </div>
               {!n.is_read && (
-                <span style={{
-                  width: 8, height: 8, borderRadius: '50%',
-                  background: 'var(--teal,#1abc9c)', flexShrink: 0, marginTop: 6,
-                }} />
+                <span style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--teal,#1abc9c)', flexShrink: 0, marginTop: 6 }} />
               )}
             </div>
           ))}
@@ -454,7 +463,6 @@ function NotificationsSection() {
 // ── Help Section ──────────────────────────────────────────────────────────────
 function HelpSection() {
   const [openIndex, setOpenIndex] = useState(null);
-
   const faqs = [
     { q: 'How do I submit a repair request?', a: 'Go to the Dashboard and fill out the "Submit Repair Request" form. Select a shop, enter your device type, choose the issue type, and provide a description. Click "Submit Request" when done.' },
     { q: 'How do I track my repair status?', a: 'Your latest repair status is shown on the Dashboard under "Track Repair". You can also go to "My Repairs" in the sidebar to see all your repair requests and their current statuses (Pending, In Progress, or Completed).' },
@@ -467,14 +475,9 @@ function HelpSection() {
     { q: 'How do I leave a review for my technician?', a: 'Once a repair is marked as Completed, a "★ Review" button will appear next to it in My Repairs. Click it to leave a star rating and optional comment for your technician.' },
     { q: 'What should I do if I have a problem not listed here?', a: 'Contact our support team directly via email or phone. Our details are listed in the Contact Support section below.' },
   ];
-
   return (
     <div className={s.tableSection}>
-      <div className={s.sectionHeader}>
-        <h2 className={s.sectionTitle}>Help & FAQs</h2>
-      </div>
-
-      {/* FAQs */}
+      <div className={s.sectionHeader}></div>
       <div style={{ marginBottom: 32 }}>
         <div style={{ fontSize: '0.78rem', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'rgba(128,144,168,0.7)', marginBottom: 14 }}>
           Frequently Asked Questions
@@ -487,13 +490,11 @@ function HelpSection() {
               background: openIndex === i ? 'rgba(26,188,156,0.05)' : 'rgba(255,255,255,0.02)',
               overflow: 'hidden', transition: 'all 0.2s ease',
             }}>
-              <button
-                onClick={() => setOpenIndex(openIndex === i ? null : i)}
-                style={{
-                  width: '100%', textAlign: 'left', background: 'transparent',
-                  border: 'none', padding: '14px 18px', cursor: 'pointer',
-                  display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12,
-                }}>
+              <button onClick={() => setOpenIndex(openIndex === i ? null : i)} style={{
+                width: '100%', textAlign: 'left', background: 'transparent',
+                border: 'none', padding: '14px 18px', cursor: 'pointer',
+                display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12,
+              }}>
                 <span style={{ fontSize: '0.88rem', fontWeight: 600, color: openIndex === i ? 'var(--teal,#1abc9c)' : 'rgba(220,230,240,0.9)' }}>
                   {faq.q}
                 </span>
@@ -512,54 +513,34 @@ function HelpSection() {
           ))}
         </div>
       </div>
-
-      {/* Contact Support */}
       <div style={{ borderRadius: 12, border: '1px solid rgba(26,188,156,0.2)', background: 'rgba(26,188,156,0.04)', padding: '24px 28px' }}>
         <div style={{ fontSize: '0.78rem', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'rgba(128,144,168,0.7)', marginBottom: 16 }}>
           Contact Support
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            <div style={{ width: 36, height: 36, borderRadius: 8, flexShrink: 0, background: 'rgba(26,188,156,0.1)', border: '1px solid rgba(26,188,156,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--teal,#1abc9c)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/>
-              </svg>
+          {[
+            { icon: <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>, label: 'Email', value: <a href="mailto:technologs@gmail.com" style={{ fontSize: '0.88rem', fontWeight: 500, color: 'var(--teal,#1abc9c)', textDecoration: 'none' }}>technologs@gmail.com</a> },
+            { icon: <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 13a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.6 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 9.91a16 16 0 0 0 6.16 6.16l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/>, label: 'Phone', value: <a href="tel:09956351020" style={{ fontSize: '0.88rem', fontWeight: 500, color: 'var(--teal,#1abc9c)', textDecoration: 'none' }}>0995 635 1020</a> },
+            { icon: <><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></>, label: 'Business Hours', value: <span style={{ fontSize: '0.88rem', fontWeight: 500, color: 'rgba(220,230,240,0.9)' }}>Monday – Sunday, 7:00 AM – 7:00 PM</span> },
+          ].map(({ icon, label, value }, i) => (
+            <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              <div style={{ width: 36, height: 36, borderRadius: 8, flexShrink: 0, background: 'rgba(26,188,156,0.1)', border: '1px solid rgba(26,188,156,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--teal,#1abc9c)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">{icon}</svg>
+              </div>
+              <div>
+                <div style={{ fontSize: '0.72rem', color: 'rgba(128,144,168,0.6)', marginBottom: 2 }}>{label}</div>
+                {value}
+              </div>
             </div>
-            <div>
-              <div style={{ fontSize: '0.72rem', color: 'rgba(128,144,168,0.6)', marginBottom: 2 }}>Email</div>
-              <a href="mailto:technologs@gmail.com" style={{ fontSize: '0.88rem', fontWeight: 500, color: 'var(--teal,#1abc9c)', textDecoration: 'none' }}>technologs@gmail.com</a>
-            </div>
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            <div style={{ width: 36, height: 36, borderRadius: 8, flexShrink: 0, background: 'rgba(26,188,156,0.1)', border: '1px solid rgba(26,188,156,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--teal,#1abc9c)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 13a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.6 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 9.91a16 16 0 0 0 6.16 6.16l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/>
-              </svg>
-            </div>
-            <div>
-              <div style={{ fontSize: '0.72rem', color: 'rgba(128,144,168,0.6)', marginBottom: 2 }}>Phone</div>
-              <a href="tel:09956351020" style={{ fontSize: '0.88rem', fontWeight: 500, color: 'var(--teal,#1abc9c)', textDecoration: 'none' }}>0995 635 1020</a>
-            </div>
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            <div style={{ width: 36, height: 36, borderRadius: 8, flexShrink: 0, background: 'rgba(26,188,156,0.1)', border: '1px solid rgba(26,188,156,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--teal,#1abc9c)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
-              </svg>
-            </div>
-            <div>
-              <div style={{ fontSize: '0.72rem', color: 'rgba(128,144,168,0.6)', marginBottom: 2 }}>Business Hours</div>
-              <span style={{ fontSize: '0.88rem', fontWeight: 500, color: 'rgba(220,230,240,0.9)' }}>Monday – Sunday, 7:00 AM – 7:00 PM</span>
-            </div>
-          </div>
+          ))}
         </div>
       </div>
     </div>
   );
 }
 
-// ── Repairs table with Review button ─────────────────────────────────────────
-function RepairsTable({ repairs, onReview }) {
+// ── Repairs Table ─────────────────────────────────────────────────────────────
+function RepairsTable({ repairs, onReview, onChat }) {
   return repairs.length === 0 ? (
     <div className={s.emptyState}><IconEmpty /><p>No repair requests found.</p></div>
   ) : (
@@ -567,7 +548,7 @@ function RepairsTable({ repairs, onReview }) {
       <thead>
         <tr>
           <th>Job #</th><th>Device</th><th>Issue</th><th>Shop</th>
-          <th>Date</th><th>Status</th><th>Review</th>
+          <th>Date</th><th>Status</th><th>Review</th><th>Chat</th>
         </tr>
       </thead>
       <tbody>
@@ -584,22 +565,32 @@ function RepairsTable({ repairs, onReview }) {
                 <button
                   onClick={() => onReview(r)}
                   style={{
-                    background: 'rgba(250,204,21,0.1)',
-                    border: '1px solid rgba(250,204,21,0.3)',
+                    background: 'rgba(250,204,21,0.1)', border: '1px solid rgba(250,204,21,0.3)',
                     color: '#facc15', fontSize: '0.76rem', fontWeight: 700,
                     padding: '4px 12px', borderRadius: 6, cursor: 'pointer',
                     whiteSpace: 'nowrap', transition: 'background 0.15s',
                   }}
                   onMouseEnter={e => e.currentTarget.style.background = 'rgba(250,204,21,0.2)'}
                   onMouseLeave={e => e.currentTarget.style.background = 'rgba(250,204,21,0.1)'}
-                >
-                  ★ Review
-                </button>
+                >★ Review</button>
               ) : normStatus(r.status) === 'done' && r.reviewed ? (
                 <span style={{ fontSize: '0.76rem', color: '#4ade80', fontWeight: 600 }}>✓ Reviewed</span>
               ) : (
                 <span style={{ fontSize: '0.76rem', color: 'rgba(128,144,168,0.4)' }}>—</span>
               )}
+            </td>
+            <td>
+              <button
+                onClick={() => onChat(r)}
+                style={{
+                  background: 'rgba(59,130,246,0.1)', border: '1px solid rgba(59,130,246,0.3)',
+                  color: '#60a5fa', fontSize: '0.76rem', fontWeight: 700,
+                  padding: '4px 12px', borderRadius: 6, cursor: 'pointer',
+                  whiteSpace: 'nowrap', transition: 'background 0.15s',
+                }}
+                onMouseEnter={e => e.currentTarget.style.background = 'rgba(59,130,246,0.2)'}
+                onMouseLeave={e => e.currentTarget.style.background = 'rgba(59,130,246,0.1)'}
+              >💬 Chat</button>
             </td>
           </tr>
         ))}
@@ -618,7 +609,8 @@ export default function CustomerDashboard({username='Customer',userId,setPage,ac
   const [txLoading,setTxLoading]       = useState(false);
   const [error,setError]               = useState(null);
   const [customerId,setCustomerId]     = useState(userId??null);
-  const [reviewTarget,setReviewTarget] = useState(null); // repair selected for review
+  const [reviewTarget,setReviewTarget] = useState(null); // ← FIXED: restored
+  const [chatRepair,setChatRepair]     = useState(null); // ← chat modal
 
   const { downloadReceipt, downloadAllReceipts } = useReceiptDownload({ name: 'TechnoLogs Repair' });
 
@@ -655,7 +647,6 @@ export default function CustomerDashboard({username='Customer',userId,setPage,ac
   useEffect(() => { loadData(); }, [loadData]);
   useEffect(() => { if (customerId) loadTransactions(customerId); }, [customerId, loadTransactions]);
 
-  // Mark a repair as reviewed locally so the button disappears immediately
   const handleReviewed = () => {
     if (!reviewTarget) return;
     const id = repairId(reviewTarget);
@@ -674,12 +665,22 @@ export default function CustomerDashboard({username='Customer',userId,setPage,ac
 
   return (
     <>
-      {/* ── Review Modal (global, shown over any section) ── */}
+      {/* ── Review Modal ── */}
       {reviewTarget && (
         <ReviewModal
           repair={reviewTarget}
           onClose={() => setReviewTarget(null)}
           onSubmitted={handleReviewed}
+        />
+      )}
+
+      {/* ── Chat Modal ── */}
+      {chatRepair && (
+        <ChatModal
+          repair={chatRepair}
+          customerId={customerId}
+          username={username}
+          onClose={() => setChatRepair(null)}
         />
       )}
 
@@ -701,7 +702,7 @@ export default function CustomerDashboard({username='Customer',userId,setPage,ac
           </div>
           <div className={s.tableSection}>
             <Panel title="My Repair Requests" metaLabel={`${repairs.length} total`} onMeta={setActiveSection ? () => setActiveSection('repairs') : null}>
-              <RepairsTable repairs={repairs} onReview={setReviewTarget} />
+              <RepairsTable repairs={repairs} onReview={setReviewTarget} onChat={setChatRepair} />
             </Panel>
           </div>
         </>
@@ -710,9 +711,8 @@ export default function CustomerDashboard({username='Customer',userId,setPage,ac
       {/* ── My Repairs ── */}
       {activeSection === 'repairs' && (
         <div className={s.tableSection}>
-          <div className={s.sectionHeader}><h2 className={s.sectionTitle}>My Repairs</h2></div>
           <Panel title="All Repair Requests" metaLabel={`${repairs.length} total`}>
-            <RepairsTable repairs={repairs} onReview={setReviewTarget} />
+            <RepairsTable repairs={repairs} onReview={setReviewTarget} onChat={setChatRepair} />
           </Panel>
         </div>
       )}
@@ -720,7 +720,6 @@ export default function CustomerDashboard({username='Customer',userId,setPage,ac
       {/* ── My Transactions ── */}
       {activeSection === 'transactions' && (
         <div className={s.tableSection}>
-          <div className={s.sectionHeader}><h2 className={s.sectionTitle}>My Transactions</h2></div>
           <Panel title="Transaction History" metaLabel={`${transactions.length} records`}>
             <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'10px 0 14px',borderBottom:'1px solid rgba(26,188,156,0.08)',marginBottom:4,flexWrap:'wrap',gap:10}}>
               <span style={{color:'rgba(128,144,168,0.8)',fontSize:'0.78rem'}}>

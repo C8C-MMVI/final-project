@@ -4,6 +4,9 @@ import tailwindcss from '@tailwindcss/vite';
 
 export default defineConfig({
   plugins: [react(), tailwindcss()],
+  define: {
+    global: 'globalThis',
+  },
   server: {
     host: true,
     watch: {
@@ -15,6 +18,11 @@ export default defineConfig({
         target: 'http://gateway:9090',
         changeOrigin: true,
         cookieDomainRewrite: 'localhost',
+      },
+      '/ws': {
+        target: 'http://gateway:9090',
+        changeOrigin: true,
+        ws: true,                          // ← enables WebSocket proxying
       },
       '/images': {
         target: 'http://gateway:9090',

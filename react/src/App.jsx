@@ -1,4 +1,3 @@
-// src/App.jsx
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import './assets/css/login.css';
@@ -7,52 +6,28 @@ import './assets/css/tailwind.css';
 import Home                from './pages/Home';
 import Login               from './pages/Login';
 import Register            from './pages/Register';
-import ResetPassword       from './pages/ResetPassword';  // ← ADD THIS
+import ResetPassword       from './pages/ResetPassword';
 import PrivateRoute        from './routes/PrivateRoute';
 import DashboardLayout     from './components/layout/DashboardLayout';
 
-// Dashboard pages
 import CustomerDashboard   from './pages/CustomerDashboard';
 import AdminDashboard      from './pages/AdminDashboard';
 import OwnerDashboard      from './pages/OwnerDashboard';
 import TechnicianDashboard from './pages/TechnicianDashboard';
 
-// Sub-pages
 import RepairsPage         from './pages/RepairsPage';
 import MembersPage         from './pages/MembersPage';
 import ProfilePage         from './pages/ProfilePage';
 
-// ── Page maps per role ─────────────────────────────────────────────────────
-const customerPages = {
-  dashboard: CustomerDashboard,
-  repairs:   RepairsPage,
-  profile:   ProfilePage,
-};
+const customerPages   = { dashboard: CustomerDashboard,   repairs: RepairsPage, profile: ProfilePage };
+const adminPages      = { dashboard: AdminDashboard,      repairs: RepairsPage, members: MembersPage, profile: ProfilePage };
+const ownerPages      = { dashboard: OwnerDashboard,      repairs: RepairsPage, members: MembersPage, profile: ProfilePage };
+const technicianPages = { dashboard: TechnicianDashboard, repairs: RepairsPage, profile: ProfilePage };
 
-const adminPages = {
-  dashboard: AdminDashboard,
-  repairs:   RepairsPage,
-  members:   MembersPage,
-  profile:   ProfilePage,
-};
-
-const ownerPages = {
-  dashboard: OwnerDashboard,
-  repairs:   RepairsPage,
-  members:   MembersPage,
-  profile:   ProfilePage,
-};
-
-const technicianPages = {
-  dashboard: TechnicianDashboard,
-  repairs:   RepairsPage,
-  profile:   ProfilePage,
-};
-
-// ── App ────────────────────────────────────────────────────────────────────
 export default function App() {
   const [userRole, setUserRole] = useState(null);
   const [username, setUsername] = useState('');
+  const [userId,   setUserId]   = useState(null);
   const [loading,  setLoading]  = useState(true);
 
   useEffect(() => {
@@ -62,6 +37,7 @@ export default function App() {
         if (data.loggedIn) {
           setUserRole(data.role);
           setUsername(data.username ?? '');
+          setUserId(data.userId ?? null);
         }
       })
       .catch(() => {})
@@ -71,12 +47,14 @@ export default function App() {
   const handleLogout = () => {
     setUserRole(null);
     setUsername('');
+    setUserId(null);
   };
 
   const withLayout = (role, pageMap) => (
     <DashboardLayout
       role={role}
       username={username}
+      userId={userId}
       pageMap={pageMap}
       onLogout={handleLogout}
     />
@@ -85,8 +63,6 @@ export default function App() {
   return (
     <BrowserRouter>
       <Routes>
-
-        {/* ── Public ── */}
         <Route path="/" element={<Home />} />
         <Route
           path="/login"
@@ -97,11 +73,8 @@ export default function App() {
           }
         />
         <Route path="/register" element={<Register />} />
+        <Route path="/reset-password" element={<ResetPassword />} />
 
-        {/* ── Password Reset ── */}
-        <Route path="/reset-password" element={<ResetPassword />} />  {/* ← ADD THIS */}
-
-        {/* ── Protected ── */}
         <Route
           path="/customer/dashboard"
           element={

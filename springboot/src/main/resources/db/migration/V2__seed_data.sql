@@ -1,7 +1,7 @@
 BEGIN;
 
 INSERT INTO users (username, email, phone, password, role, status, created_at) VALUES
-('opitts', 'nguyencrystal@example.net', '09798103735', '5kl@Okm)*ZQ0', 'owner', 'inactive', '2026-01-21 23:22:44'),
+('opitts', 'nguyencrystal@example.net', '09798103735', '$2y$10$34bnwk847ViLKfQUrdqZ/emDn7L8zYZbjrE18sMDS7QoBKzchr.Oy', 'owner', 'inactive', '2026-01-21 23:22:44'),
 ('paullisa', 'ubenson@example.com', '09666518840', '&Tt)mzm$8%7H', 'technician', 'inactive', '2026-03-26 13:35:57'),
 ('justin98', 'xcole@example.org', '09229107319', '#YvV)0IeLFF1', 'customer', 'active', '2026-02-12 15:27:26'),
 ('gregory12', 'tmoore@example.net', '09163031223', 'C$13X&n46+in', 'technician', 'active', '2026-03-25 07:40:02'),

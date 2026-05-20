@@ -1,9 +1,20 @@
 // src/pages/CustomerDashboard.jsx
+//
+// CHANGES vs original:
+//  1. Imports useChatUnread hook
+//  2. RepairsTable now receives perRepairUnread + clearRepair from the hook
+//     (replaces its own local fetch loop — avoids double-fetching)
+//  3. CustomerDashboard accepts + forwards  onUnreadChatChange  prop so the
+//     parent (App / DashboardLayout) can pass the count to <Topbar>.
+
 import { useState, useEffect, useCallback } from 'react';
 import { getSalesByCustomer } from '../lib/api';
 import { useReceiptDownload } from '../hooks/useReceiptDownload';
+import { useChatUnread }      from '../hooks/useChatUnread';   // ← NEW
+import ReviewModal from '../components/shared/ReviewModal';
 import s from './CustomerDashboard.module.css';
 import ChatWindow from '../components/dashboard/ChatWindow';
+import RepairTimeline from '../components/dashboard/RepairTimeline';
 
 function normStatus(raw=''){const key=raw.toLowerCase().replace(/[\s_]+/g,'_');return{pending:'pending',in_progress:'progress',completed:'done',cancelled:'cancelled'}[key]??'pending';}
 function statusLabel(raw=''){const key=raw.toLowerCase().replace(/[\s_]+/g,'_');return{pending:'Pending',in_progress:'In Progress',completed:'Completed',cancelled:'Cancelled'}[key]??raw;}
@@ -25,29 +36,20 @@ function enrichSale(sale, repairs) {
   };
 }
 
-function buildTimeline(repair){
-  if(!repair)return[];
-  const created=fmtDate(repair.created_at);
-  const base=[
-    {label:'Request Submitted',sub:created,status:'done'},
-    {label:'Assessed by Tech',sub:'Waiting…',status:'pending'},
-    {label:'Repair In Progress',sub:'Waiting…',status:'pending'},
-    {label:'Ready for Pickup',sub:'Waiting…',status:'pending'},
-    {label:'Completed',sub:'Waiting…',status:'pending'},
-  ];
-  const st=(repair.status??'').toLowerCase().replace(/[\s_]+/g,'_');
-  if(st==='pending'){base[1].status='active';}
-  else if(st==='in_progress'){base[1].status='done';base[2].status='active';}
-  else if(st==='completed'){base.forEach(b=>(b.status='done'));base[4].sub=created;}
-  return base;
-}
-
 const IconTool    = ()=><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94z"/></svg>;
 const IconCheck   = ()=><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>;
 const IconPeso    = ()=><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>;
-const IconCheckSm = ()=><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>;
-const IconDot     = ()=><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="4"/></svg>;
 const IconEmpty   = ()=><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" width="36" height="36"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>;
+const IconClock = () => (<svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>);
+const IconCheckCircle = () => (<svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>);
+const IconXCircle = () => (<svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>);
+const IconInfo = ({ size = 15 }) => (<svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>);
+const IconAlertCircle = ({ size = 15 }) => (<svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>);
+const IconCheckToast = ({ size = 15 }) => (<svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>);
+const IconSend = ({ size = 13 }) => (<svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>);
+const IconLoader = ({ size = 13 }) => (<svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>);
+const IconLogOut = ({ size = 14 }) => (<svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>);
+const IconShop = ({ size = 15 }) => (<svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>);
 
 function Badge({status,label}){
   const cls={pending:s.badgePending,progress:s.badgeProgress,done:s.badgeDone,cancelled:s.badgeCancelled}[status]??s.badgePending;
@@ -70,185 +72,13 @@ function DownloadButton({onClick,disabled,label='Download'}){
   const [busy,setBusy]=useState(false);
   const handleClick=async()=>{setBusy(true);try{await onClick();}finally{setTimeout(()=>setBusy(false),800);}};
   return(
-    <button onClick={handleClick} disabled={disabled||busy} style={{
-      display:'flex',alignItems:'center',gap:6,
-      background:disabled?'rgba(26,188,156,0.06)':'rgba(26,188,156,0.12)',
-      border:'1px solid rgba(26,188,156,0.3)',
-      color:disabled?'rgba(128,144,168,0.5)':'var(--teal,#1abc9c)',
-      fontSize:'0.76rem',fontWeight:700,padding:'7px 14px',borderRadius:8,
-      cursor:disabled?'not-allowed':'pointer',transition:'all 0.18s ease',
-      whiteSpace:'nowrap',letterSpacing:'0.03em',opacity:disabled?0.55:1,
-    }}
+    <button onClick={handleClick} disabled={disabled||busy} style={{display:'flex',alignItems:'center',gap:6,background:disabled?'rgba(26,188,156,0.06)':'rgba(26,188,156,0.12)',border:'1px solid rgba(26,188,156,0.3)',color:disabled?'rgba(128,144,168,0.5)':'var(--teal,#1abc9c)',fontSize:'0.76rem',fontWeight:700,padding:'7px 14px',borderRadius:8,cursor:disabled?'not-allowed':'pointer',transition:'all 0.18s ease',whiteSpace:'nowrap',letterSpacing:'0.03em',opacity:disabled?0.55:1,}}
       onMouseEnter={e=>{if(!disabled)e.currentTarget.style.background='rgba(26,188,156,0.22)';}}
       onMouseLeave={e=>{if(!disabled)e.currentTarget.style.background='rgba(26,188,156,0.12)';}}
     >
-      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-        <polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/>
-        <line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/>
-      </svg>
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
       {busy?'Generating…':label}
     </button>
-  );
-}
-
-// ── Star Picker ───────────────────────────────────────────────────────────────
-function StarPicker({ value, onChange }) {
-  const [hovered, setHovered] = useState(0);
-  const labels = ['', 'Poor', 'Fair', 'Good', 'Very Good', 'Excellent'];
-  return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-      {[1, 2, 3, 4, 5].map(n => (
-        <svg
-          key={n}
-          onClick={() => onChange(n)}
-          onMouseEnter={() => setHovered(n)}
-          onMouseLeave={() => setHovered(0)}
-          viewBox="0 0 24 24"
-          style={{
-            width: 32, height: 32, cursor: 'pointer',
-            fill: n <= (hovered || value) ? '#facc15' : 'rgba(255,255,255,0.08)',
-            stroke: n <= (hovered || value) ? '#facc15' : 'rgba(255,255,255,0.2)',
-            strokeWidth: 1.5,
-            transition: 'fill 0.15s, transform 0.1s',
-            transform: hovered === n ? 'scale(1.2)' : 'scale(1)',
-          }}
-        >
-          <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
-        </svg>
-      ))}
-      <span style={{ fontSize: '0.82rem', color: 'rgba(128,144,168,0.8)', marginLeft: 6, minWidth: 64 }}>
-        {labels[hovered || value] || 'Select rating'}
-      </span>
-    </div>
-  );
-}
-
-// ── Review Modal ──────────────────────────────────────────────────────────────
-function ReviewModal({ repair, onClose, onSubmitted }) {
-  const [rating,     setRating]     = useState(0);
-  const [comment,    setComment]    = useState('');
-  const [submitting, setSubmitting] = useState(false);
-  const [error,      setError]      = useState(null);
-
-  const handleSubmit = async () => {
-    if (rating === 0) { setError('Please select a star rating.'); return; }
-    setSubmitting(true);
-    setError(null);
-    try {
-      const res  = await fetch('/api/reviews.php', {
-        method: 'POST',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ request_id: repairId(repair), rating, comment }),
-      });
-      const data = await res.json();
-      if (data.success) { onSubmitted?.(); onClose(); }
-      else setError(data.message);
-    } catch {
-      setError('Cannot connect to server.');
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  const handleBackdrop = e => { if (e.target === e.currentTarget) onClose(); };
-
-  return (
-    <div onClick={handleBackdrop} style={{
-      position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)',
-      display: 'flex', alignItems: 'center', justifyContent: 'center',
-      zIndex: 1000, padding: '1rem',
-    }}>
-      <div style={{
-        background: 'var(--color-surface, #1e293b)',
-        border: '1px solid rgba(26,188,156,0.2)',
-        borderRadius: 14, width: '100%', maxWidth: 460,
-        boxShadow: '0 24px 64px rgba(0,0,0,0.5)',
-        display: 'flex', flexDirection: 'column',
-      }}>
-        <div style={{
-          display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-          padding: '1.1rem 1.4rem',
-          borderBottom: '1px solid rgba(255,255,255,0.06)',
-        }}>
-          <span style={{ fontWeight: 700, fontSize: '0.95rem', color: 'rgba(220,230,240,0.95)' }}>
-            Leave a Review
-          </span>
-          <button onClick={onClose} style={{
-            background: 'none', border: 'none', color: 'rgba(128,144,168,0.7)',
-            fontSize: '1.1rem', cursor: 'pointer', padding: '2px 6px', borderRadius: 4,
-          }}>✕</button>
-        </div>
-        <div style={{ padding: '1.4rem', display: 'flex', flexDirection: 'column', gap: '1.1rem' }}>
-          <div style={{
-            display: 'flex', gap: 10, alignItems: 'center',
-            background: 'rgba(26,188,156,0.07)', border: '1px solid rgba(26,188,156,0.15)',
-            borderRadius: 8, padding: '10px 14px',
-          }}>
-            <span style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--teal,#1abc9c)' }}>
-              Repair #{repairId(repair)}
-            </span>
-            <span style={{ fontSize: '0.82rem', color: 'rgba(128,144,168,0.8)' }}>
-              {deviceName(repair)}
-            </span>
-          </div>
-          <div>
-            <div style={{ fontSize: '0.72rem', fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase', color: 'rgba(128,144,168,0.7)', marginBottom: 10 }}>
-              Your Rating
-            </div>
-            <StarPicker value={rating} onChange={setRating} />
-          </div>
-          <div>
-            <div style={{ fontSize: '0.72rem', fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase', color: 'rgba(128,144,168,0.7)', marginBottom: 8 }}>
-              Comment <span style={{ textTransform: 'none', fontWeight: 400, letterSpacing: 0 }}>(optional)</span>
-            </div>
-            <textarea
-              rows={4}
-              value={comment}
-              onChange={e => setComment(e.target.value)}
-              placeholder="Share your experience with this repair…"
-              style={{
-                width: '100%', boxSizing: 'border-box',
-                background: 'rgba(0,0,0,0.25)', border: '1px solid rgba(255,255,255,0.08)',
-                borderRadius: 8, color: 'rgba(220,230,240,0.9)', fontSize: '0.88rem',
-                padding: '10px 14px', resize: 'vertical', fontFamily: 'inherit',
-                lineHeight: 1.5, outline: 'none', transition: 'border-color 0.2s',
-              }}
-              onFocus={e => e.target.style.borderColor = 'rgba(26,188,156,0.5)'}
-              onBlur={e  => e.target.style.borderColor = 'rgba(255,255,255,0.08)'}
-            />
-          </div>
-          {error && (
-            <div style={{
-              fontSize: '0.82rem', color: '#f87171',
-              background: 'rgba(248,113,113,0.08)', border: '1px solid rgba(248,113,113,0.2)',
-              padding: '8px 12px', borderRadius: 7,
-            }}>{error}</div>
-          )}
-        </div>
-        <div style={{
-          display: 'flex', justifyContent: 'flex-end', gap: 10,
-          padding: '1rem 1.4rem',
-          borderTop: '1px solid rgba(255,255,255,0.06)',
-        }}>
-          <button onClick={onClose} disabled={submitting} style={{
-            padding: '8px 18px', borderRadius: 8,
-            border: '1px solid rgba(255,255,255,0.1)',
-            background: 'transparent', color: 'rgba(128,144,168,0.8)',
-            fontSize: '0.85rem', cursor: 'pointer',
-          }}>Cancel</button>
-          <button onClick={handleSubmit} disabled={submitting} style={{
-            padding: '8px 22px', borderRadius: 8, border: 'none',
-            background: submitting ? 'rgba(26,188,156,0.5)' : 'var(--teal,#1abc9c)',
-            color: '#0f172a', fontSize: '0.85rem', fontWeight: 700,
-            cursor: submitting ? 'not-allowed' : 'pointer', transition: 'opacity 0.2s',
-          }}>
-            {submitting ? 'Submitting…' : 'Submit Review'}
-          </button>
-        </div>
-      </div>
-    </div>
   );
 }
 
@@ -267,17 +97,13 @@ function ChatModal({ repair, customerId, username, onClose }) {
         boxShadow: '0 24px 64px rgba(0,0,0,0.5)',
         display: 'flex', flexDirection: 'column', position: 'relative',
       }}>
-        {/* Close button */}
-        <button
-          onClick={onClose}
-          style={{
-            position: 'absolute', top: 10, right: 10, zIndex: 10,
-            background: 'rgba(0,0,0,0.2)', border: 'none',
-            color: '#fff', width: 28, height: 28, borderRadius: '50%',
-            cursor: 'pointer', fontSize: '0.9rem', display: 'flex',
-            alignItems: 'center', justifyContent: 'center',
-          }}
-        >✕</button>
+        <button onClick={onClose} style={{
+          position: 'absolute', top: 10, right: 10, zIndex: 10,
+          background: 'rgba(0,0,0,0.2)', border: 'none',
+          color: '#fff', width: 28, height: 28, borderRadius: '50%',
+          cursor: 'pointer', fontSize: '0.9rem', display: 'flex',
+          alignItems: 'center', justifyContent: 'center',
+        }}>✕</button>
         <ChatWindow
           repairId={repairId(repair)}
           currentUserId={customerId}
@@ -314,56 +140,14 @@ function RepairRequestForm({onSuccess}){
   return(
     <form onSubmit={handleSubmit} className={s.repairForm}>
       {toast&&<div className={`${s.toast} ${toast.isError?s.toastError:s.toastSuccess}`}>{toast.msg}</div>}
-      <div className={s.formGroup}>
-        <label className={s.formLabel}>Shop</label>
-        <select className={s.formSelect} value={form.shop_id} onChange={e=>setForm(f=>({...f,shop_id:e.target.value}))}>
-          <option value="">Select a shop…</option>
-          {shops.map(sh=><option key={sh.shop_id} value={sh.shop_id}>{sh.shop_name}</option>)}
-        </select>
-      </div>
+      <div className={s.formGroup}><label className={s.formLabel}>Shop</label><select className={s.formSelect} value={form.shop_id} onChange={e=>setForm(f=>({...f,shop_id:e.target.value}))}><option value="">Select a shop…</option>{shops.map(sh=><option key={sh.shop_id} value={sh.shop_id}>{sh.shop_name}</option>)}</select></div>
       <div className={s.formRow}>
-        <div className={s.formGroup}>
-          <label className={s.formLabel}>Device Type</label>
-          <input type="text" className={s.formInput} placeholder="e.g. iPhone 14, Samsung A54…" value={form.device_type} onChange={e=>setForm(f=>({...f,device_type:e.target.value}))}/>
-        </div>
-        <div className={s.formGroup}>
-          <label className={s.formLabel}>Issue Type</label>
-          <select className={s.formSelect} value={form.issue} onChange={e=>setForm(f=>({...f,issue:e.target.value}))}>
-            <option value="">Select an issue…</option>
-            <option>Screen Damage</option><option>Battery Issue</option><option>Charging Port</option>
-            <option>Water Damage</option><option>Camera Problem</option><option>Speaker / Mic Issue</option><option>Other</option>
-          </select>
-        </div>
+        <div className={s.formGroup}><label className={s.formLabel}>Device Type</label><input type="text" className={s.formInput} placeholder="e.g. iPhone 14, Samsung A54…" value={form.device_type} onChange={e=>setForm(f=>({...f,device_type:e.target.value}))}/></div>
+        <div className={s.formGroup}><label className={s.formLabel}>Issue Type</label><select className={s.formSelect} value={form.issue} onChange={e=>setForm(f=>({...f,issue:e.target.value}))}><option value="">Select an issue…</option><option>Screen Damage</option><option>Battery Issue</option><option>Charging Port</option><option>Water Damage</option><option>Camera Problem</option><option>Speaker / Mic Issue</option><option>Other</option></select></div>
       </div>
-      <div className={s.formGroup}>
-        <label className={s.formLabel}>Description</label>
-        <textarea className={s.formTextarea} placeholder="Describe the issue in detail…" rows={4} value={form.issue_description} onChange={e=>setForm(f=>({...f,issue_description:e.target.value}))}/>
-      </div>
+      <div className={s.formGroup}><label className={s.formLabel}>Description</label><textarea className={s.formTextarea} placeholder="Describe the issue in detail…" rows={4} value={form.issue_description} onChange={e=>setForm(f=>({...f,issue_description:e.target.value}))}/></div>
       <button type="submit" className={s.formSubmit} disabled={saving}>{saving?'Submitting…':'Submit Request'}</button>
     </form>
-  );
-}
-
-function RepairTimeline({repair}){
-  const timeline=buildTimeline(repair);
-  return(
-    <Panel title={repair?`Track Repair – #${repairId(repair)}`:'Track Repair'} metaLabel={repair?statusLabel(repair.status):null}>
-      {repair?(
-        <div className={s.timeline}>
-          {timeline.map((t,i)=>(
-            <div key={i} className={s.timelineItem}>
-              <div className={`${s.timelineDot} ${s['dot_'+t.status]}`}>{t.status==='done'?<IconCheckSm/>:<IconDot/>}</div>
-              <div className={s.timelineContent}>
-                <div className={s.timelineTitle}>{t.label}</div>
-                <div className={s.timelineSub}>{t.sub}</div>
-              </div>
-            </div>
-          ))}
-        </div>
-      ):(
-        <div className={s.emptyState}><IconEmpty/><p>No repair requests yet. Submit one to get started.</p></div>
-      )}
-    </Panel>
   );
 }
 
@@ -386,21 +170,15 @@ function NotificationsSection() {
 
   const markAsRead = async (id) => {
     try {
-      await fetch(`/api/notifications.php?action=read&id=${id}`, {
-        method: 'PATCH', credentials: 'include',
-      });
-      setNotifications(prev =>
-        prev.map(n => n.notification_id === id ? { ...n, is_read: true } : n)
-      );
+      await fetch(`/api/notifications.php?action=read&id=${id}`, { method: 'PATCH', credentials: 'include' });
+      setNotifications(prev => prev.map(n => n.notification_id === id ? { ...n, is_read: true } : n));
     } catch {}
   };
 
   const markAllAsRead = async () => {
     setMarkingAll(true);
     try {
-      await fetch('/api/notifications.php?action=read_all', {
-        method: 'PATCH', credentials: 'include',
-      });
+      await fetch('/api/notifications.php?action=read_all', { method: 'PATCH', credentials: 'include' });
       setNotifications(prev => prev.map(n => ({ ...n, is_read: true })));
     } catch {}
     finally { setMarkingAll(false); }
@@ -413,11 +191,7 @@ function NotificationsSection() {
       <div className={s.sectionHeader}>
         <h2 className={s.sectionTitle}>Notifications</h2>
         {unreadCount > 0 && (
-          <button onClick={markAllAsRead} disabled={markingAll} style={{
-            background: 'transparent', border: '1px solid rgba(26,188,156,0.3)',
-            color: 'var(--teal,#1abc9c)', fontSize: '0.76rem', fontWeight: 700,
-            padding: '6px 14px', borderRadius: 8, cursor: 'pointer',
-          }}>
+          <button onClick={markAllAsRead} disabled={markingAll} style={{background:'transparent',border:'1px solid rgba(26,188,156,0.3)',color:'#1abc9c',fontSize:'0.76rem',fontWeight:700,padding:'6px 14px',borderRadius:8,cursor:'pointer'}}>
             {markingAll ? 'Marking…' : `Mark all as read (${unreadCount})`}
           </button>
         )}
@@ -425,33 +199,16 @@ function NotificationsSection() {
       {loading ? (
         <div className={s.emptyState}><p>Loading notifications…</p></div>
       ) : notifications.length === 0 ? (
-        <div className={s.emptyState} style={{ padding: '60px 20px' }}>
-          <IconEmpty /><p>No notifications yet.</p>
-        </div>
+        <div className={s.emptyState} style={{padding:'60px 20px'}}><IconEmpty /><p>No notifications yet.</p></div>
       ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+        <div style={{display:'flex',flexDirection:'column',gap:10}}>
           {notifications.map(n => (
-            <div key={n.notification_id} onClick={() => !n.is_read && markAsRead(n.notification_id)} style={{
-              padding: '14px 18px', borderRadius: 10,
-              background: n.is_read ? 'rgba(255,255,255,0.02)' : 'rgba(26,188,156,0.07)',
-              border: `1px solid ${n.is_read ? 'rgba(255,255,255,0.06)' : 'rgba(26,188,156,0.2)'}`,
-              cursor: n.is_read ? 'default' : 'pointer',
-              display: 'flex', justifyContent: 'space-between',
-              alignItems: 'flex-start', gap: 12, transition: 'background 0.2s',
-            }}>
-              <div style={{ flex: 1 }}>
-                <p style={{
-                  margin: 0, fontSize: '0.88rem',
-                  color: n.is_read ? 'rgba(128,144,168,0.7)' : 'rgba(220,230,240,0.95)',
-                  fontWeight: n.is_read ? 400 : 500, lineHeight: 1.5,
-                }}>{n.message}</p>
-                <span style={{ fontSize: '0.72rem', color: 'rgba(128,144,168,0.6)', marginTop: 4, display: 'block' }}>
-                  {new Date(n.created_at).toLocaleString()}
-                </span>
+            <div key={n.notification_id} onClick={() => !n.is_read && markAsRead(n.notification_id)} style={{padding:'14px 18px',borderRadius:10,background:n.is_read?'#fff':'rgba(26,188,156,0.06)',border:`1px solid ${n.is_read?'rgba(13,31,26,0.08)':'rgba(26,188,156,0.2)'}`,cursor:n.is_read?'default':'pointer',display:'flex',justifyContent:'space-between',alignItems:'flex-start',gap:12,transition:'background 0.2s',boxShadow:'0 1px 4px rgba(13,31,26,0.04)'}}>
+              <div style={{flex:1}}>
+                <p style={{margin:0,fontSize:'0.88rem',color:n.is_read?'rgba(13,31,26,0.45)':'#0a1c16',fontWeight:n.is_read?400:500,lineHeight:1.5}}>{n.message}</p>
+                <span style={{fontSize:'0.72rem',color:'rgba(13,31,26,0.35)',marginTop:4,display:'block'}}>{new Date(n.created_at).toLocaleString()}</span>
               </div>
-              {!n.is_read && (
-                <span style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--teal,#1abc9c)', flexShrink: 0, marginTop: 6 }} />
-              )}
+              {!n.is_read && <span style={{width:8,height:8,borderRadius:'50%',background:'#1abc9c',flexShrink:0,marginTop:6}}/>}
             </div>
           ))}
         </div>
@@ -477,60 +234,28 @@ function HelpSection() {
   ];
   return (
     <div className={s.tableSection}>
-      <div className={s.sectionHeader}></div>
-      <div style={{ marginBottom: 32 }}>
-        <div style={{ fontSize: '0.78rem', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'rgba(128,144,168,0.7)', marginBottom: 14 }}>
-          Frequently Asked Questions
-        </div>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-          {faqs.map((faq, i) => (
-            <div key={i} style={{
-              borderRadius: 10,
-              border: `1px solid ${openIndex === i ? 'rgba(26,188,156,0.3)' : 'rgba(255,255,255,0.06)'}`,
-              background: openIndex === i ? 'rgba(26,188,156,0.05)' : 'rgba(255,255,255,0.02)',
-              overflow: 'hidden', transition: 'all 0.2s ease',
-            }}>
-              <button onClick={() => setOpenIndex(openIndex === i ? null : i)} style={{
-                width: '100%', textAlign: 'left', background: 'transparent',
-                border: 'none', padding: '14px 18px', cursor: 'pointer',
-                display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12,
-              }}>
-                <span style={{ fontSize: '0.88rem', fontWeight: 600, color: openIndex === i ? 'var(--teal,#1abc9c)' : 'rgba(220,230,240,0.9)' }}>
-                  {faq.q}
-                </span>
-                <span style={{
-                  fontSize: '1.1rem', color: 'var(--teal,#1abc9c)', flexShrink: 0,
-                  transition: 'transform 0.2s', display: 'inline-block',
-                  transform: openIndex === i ? 'rotate(45deg)' : 'rotate(0deg)',
-                }}>+</span>
+      <div style={{marginBottom:32}}>
+        <div style={{fontSize:'0.72rem',fontWeight:700,letterSpacing:'0.12em',textTransform:'uppercase',color:'rgba(13,31,26,0.4)',marginBottom:14,fontFamily:"'Orbitron', sans-serif"}}>Frequently Asked Questions</div>
+        <div style={{display:'flex',flexDirection:'column',gap:8}}>
+          {faqs.map((faq,i)=>(
+            <div key={i} style={{borderRadius:10,border:`1px solid ${openIndex===i?'rgba(26,188,156,0.25)':'rgba(13,31,26,0.08)'}`,background:openIndex===i?'rgba(26,188,156,0.04)':'#fff',overflow:'hidden',transition:'all 0.2s ease',boxShadow:'0 1px 4px rgba(13,31,26,0.04)'}}>
+              <button onClick={()=>setOpenIndex(openIndex===i?null:i)} style={{width:'100%',textAlign:'left',background:'transparent',border:'none',padding:'14px 18px',cursor:'pointer',display:'flex',justifyContent:'space-between',alignItems:'center',gap:12}}>
+                <span style={{fontSize:'0.88rem',fontWeight:600,color:openIndex===i?'#1abc9c':'#0a1c16',fontFamily:"'DM Sans', sans-serif"}}>{faq.q}</span>
+                <span style={{fontSize:'1.1rem',color:'#1abc9c',flexShrink:0,transition:'transform 0.2s',display:'inline-block',transform:openIndex===i?'rotate(45deg)':'rotate(0deg)'}}>+</span>
               </button>
-              {openIndex === i && (
-                <div style={{ padding: '0 18px 14px', fontSize: '0.84rem', color: 'rgba(128,144,168,0.85)', lineHeight: 1.6 }}>
-                  {faq.a}
-                </div>
-              )}
+              {openIndex===i&&<div style={{padding:'0 18px 14px',fontSize:'0.84rem',color:'rgba(13,31,26,0.55)',lineHeight:1.65,fontFamily:"'DM Sans', sans-serif"}}>{faq.a}</div>}
             </div>
           ))}
         </div>
       </div>
-      <div style={{ borderRadius: 12, border: '1px solid rgba(26,188,156,0.2)', background: 'rgba(26,188,156,0.04)', padding: '24px 28px' }}>
-        <div style={{ fontSize: '0.78rem', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'rgba(128,144,168,0.7)', marginBottom: 16 }}>
-          Contact Support
-        </div>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-          {[
-            { icon: <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>, label: 'Email', value: <a href="mailto:technologs@gmail.com" style={{ fontSize: '0.88rem', fontWeight: 500, color: 'var(--teal,#1abc9c)', textDecoration: 'none' }}>technologs@gmail.com</a> },
-            { icon: <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 13a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.6 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 9.91a16 16 0 0 0 6.16 6.16l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/>, label: 'Phone', value: <a href="tel:09956351020" style={{ fontSize: '0.88rem', fontWeight: 500, color: 'var(--teal,#1abc9c)', textDecoration: 'none' }}>0995 635 1020</a> },
-            { icon: <><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></>, label: 'Business Hours', value: <span style={{ fontSize: '0.88rem', fontWeight: 500, color: 'rgba(220,230,240,0.9)' }}>Monday – Sunday, 7:00 AM – 7:00 PM</span> },
-          ].map(({ icon, label, value }, i) => (
-            <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-              <div style={{ width: 36, height: 36, borderRadius: 8, flexShrink: 0, background: 'rgba(26,188,156,0.1)', border: '1px solid rgba(26,188,156,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--teal,#1abc9c)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">{icon}</svg>
-              </div>
-              <div>
-                <div style={{ fontSize: '0.72rem', color: 'rgba(128,144,168,0.6)', marginBottom: 2 }}>{label}</div>
-                {value}
-              </div>
+      <div style={{borderRadius:12,border:'1px solid rgba(26,188,156,0.18)',background:'rgba(26,188,156,0.04)',padding:'24px 28px'}}>
+        <div style={{fontSize:'0.72rem',fontWeight:700,letterSpacing:'0.12em',textTransform:'uppercase',color:'rgba(13,31,26,0.4)',marginBottom:16,fontFamily:"'Orbitron', sans-serif"}}>Contact Support</div>
+        <div style={{display:'flex',flexDirection:'column',gap:14}}>
+          {[{icon:<path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>,label:'Email',value:<a href="mailto:technologs@gmail.com" style={{fontSize:'0.88rem',fontWeight:500,color:'#1abc9c',textDecoration:'none'}}>technologs@gmail.com</a>},{icon:<path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 13a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.6 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 9.91a16 16 0 0 0 6.16 6.16l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/>,label:'Phone',value:<a href="tel:09956351020" style={{fontSize:'0.88rem',fontWeight:500,color:'#1abc9c',textDecoration:'none'}}>0995 635 1020</a>},{icon:<><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></>,label:'Business Hours',value:<span style={{fontSize:'0.88rem',fontWeight:500,color:'#0a1c16'}}>Monday – Sunday, 7:00 AM – 7:00 PM</span>}]
+          .map(({icon,label,value},i)=>(
+            <div key={i} style={{display:'flex',alignItems:'center',gap:12}}>
+              <div style={{width:36,height:36,borderRadius:8,flexShrink:0,background:'rgba(26,188,156,0.08)',border:'1px solid rgba(26,188,156,0.18)',display:'flex',alignItems:'center',justifyContent:'center'}}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#1abc9c" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">{icon}</svg></div>
+              <div><div style={{fontSize:'0.72rem',color:'rgba(13,31,26,0.4)',marginBottom:2}}>{label}</div>{value}</div>
             </div>
           ))}
         </div>
@@ -539,68 +264,431 @@ function HelpSection() {
   );
 }
 
+// ── Doc Upload widget (reusable inside ShopRequestSection) ───────────────────
+function DocUpload({ label, fieldName, file, onChange, hint }) {
+  const hasFile = !!file;
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+      <label className={s.formLabel}>
+        {label} <span style={{ color: '#ef4444' }}>*</span>
+      </label>
+      {hint && (
+        <span style={{ fontSize: '0.70rem', color: 'rgba(13,31,26,0.38)', marginBottom: 2 }}>
+          {hint}
+        </span>
+      )}
+      <label style={{
+        display: 'flex', alignItems: 'center', gap: 10,
+        padding: '9px 13px', borderRadius: 9, cursor: 'pointer',
+        border: hasFile
+          ? '1.5px solid rgba(26,188,156,0.45)'
+          : '1.5px dashed rgba(13,31,26,0.16)',
+        background: hasFile
+          ? 'rgba(26,188,156,0.05)'
+          : 'rgba(13,31,26,0.02)',
+        transition: 'all 0.18s',
+      }}>
+        {/* File icon */}
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
+          stroke={hasFile ? '#1abc9c' : 'rgba(13,31,26,0.3)'}
+          strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+          <polyline points="14 2 14 8 20 8"/>
+          {hasFile
+            ? <><polyline points="9 12 12 15 15 12"/><line x1="12" y1="15" x2="12" y2="21"/></>
+            : <><line x1="12" y1="12" x2="12" y2="18"/><polyline points="9 15 12 12 15 15"/></>
+          }
+        </svg>
+
+        <span style={{
+          flex: 1, fontSize: '0.79rem',
+          color: hasFile ? '#0e8f6a' : 'rgba(13,31,26,0.4)',
+          fontFamily: "'DM Sans', sans-serif",
+          overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+        }}>
+          {hasFile ? file.name : 'Upload PDF, JPG or PNG (max 5 MB)'}
+        </span>
+
+        {/* Remove button */}
+        {hasFile && (
+          <button type="button"
+            onClick={e => { e.preventDefault(); onChange(fieldName, null); }}
+            style={{
+              background: 'none', border: 'none', cursor: 'pointer',
+              color: 'rgba(239,68,68,0.6)', fontSize: '1rem',
+              lineHeight: 1, padding: '0 2px', flexShrink: 0,
+            }}
+            title="Remove file"
+          >×</button>
+        )}
+
+        <input
+          type="file"
+          accept=".pdf,.jpg,.jpeg,.png"
+          style={{ display: 'none' }}
+          onChange={e => onChange(fieldName, e.target.files[0] ?? null)}
+        />
+      </label>
+    </div>
+  );
+}
+
+// ── Required document definitions ────────────────────────────────────────────
+const SHOP_DOCS = [
+  { field: 'dti_permit',      label: 'DTI Permit',               hint: 'Department of Trade and Industry registration' },
+  { field: 'nc3_certificate', label: 'NC3 Cleaning Certificate',  hint: 'TESDA National Certificate III' },
+  { field: 'bir_permit',      label: 'BIR Permit',               hint: 'Bureau of Internal Revenue certificate' },
+  { field: 'dit_permit',      label: 'DIT Permit',               hint: 'Department of Information Technology authorization' },
+  { field: 'ntc_permit',      label: 'NTC Permit',               hint: 'National Telecommunications Commission authority' },
+];
+
+// ── Shop Request Section ──────────────────────────────────────────────────────
+function ShopRequestSection() {
+  const [form, setForm] = useState({
+    shop_name: '', address: '', contact_number: '', description: '',
+  });
+  const [docs, setDocs] = useState({
+    dti_permit: null, nc3_certificate: null,
+    bir_permit: null, dit_permit: null, ntc_permit: null,
+  });
+
+  const [saving, setSaving]     = useState(false);
+  const [toast, setToast]       = useState(null);
+  const [status, setStatus]     = useState(null);
+  const [checking, setChecking] = useState(true);
+
+  const showToast = (msg, isError = false) => {
+    setToast({ msg, isError });
+    setTimeout(() => setToast(null), 4000);
+  };
+
+  // ── Check existing request on mount ────────────────────────────────────────
+  useEffect(() => {
+    fetch('/api/shop_requests.php', { credentials: 'include' })
+      .then(r => r.json())
+      .then(data => {
+        if (data.success && data.my_request) {
+          setStatus(data.my_request.status);
+          if (data.my_request.status === 'approved') {
+            fetch('/api/session.php', { credentials: 'include' })
+              .then(r => r.json())
+              .then(session => { if (session.role === 'owner') window.location.href = '/owner/dashboard'; })
+              .catch(() => {});
+          }
+        }
+      })
+      .catch(() => {})
+      .finally(() => setChecking(false));
+  }, []);
+
+  const handleDocChange = (field, file) => setDocs(d => ({ ...d, [field]: file }));
+
+  const allDocsUploaded = SHOP_DOCS.every(d => !!docs[d.field]);
+  const uploadedCount   = Object.values(docs).filter(Boolean).length;
+
+  // ── Submit ──────────────────────────────────────────────────────────────────
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+
+    if (!form.shop_name.trim() || !form.address.trim() || !form.contact_number.trim()) {
+      showToast('Shop name, address, and contact number are required.', true);
+      return;
+    }
+    if (!allDocsUploaded) {
+      showToast('Please upload all five required government documents.', true);
+      return;
+    }
+
+    setSaving(true);
+    try {
+      // Must use FormData — NOT JSON — because we have file uploads
+      const fd = new FormData();
+      fd.append('shop_name',      form.shop_name.trim());
+      fd.append('address',        form.address.trim());
+      fd.append('contact_number', form.contact_number.trim());
+      fd.append('description',    form.description.trim());
+      SHOP_DOCS.forEach(d => fd.append(d.field, docs[d.field]));
+
+      const res  = await fetch('/api/shop_requests.php', {
+        method: 'POST',
+        credentials: 'include',
+        // ⚠️ Do NOT set Content-Type header — browser adds it with boundary
+        body: fd,
+      });
+      const data = await res.json();
+
+      if (data.success) {
+        showToast(data.message);
+        setStatus('pending');
+        setForm({ shop_name: '', address: '', contact_number: '', description: '' });
+        setDocs({ dti_permit: null, nc3_certificate: null, bir_permit: null, dit_permit: null, ntc_permit: null });
+      } else {
+        showToast(data.message || 'Failed to submit.', true);
+      }
+    } catch {
+      showToast('Cannot connect to server.', true);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // ── Status screens (unchanged from original) ────────────────────────────────
+  if (checking) return (
+    <div className={s.tableSection}>
+      <Panel title="Register My Shop">
+        <div style={{ padding: '40px 24px', textAlign: 'center', color: 'rgba(13,31,26,0.4)', fontSize: '0.88rem' }}>
+          Checking status…
+        </div>
+      </Panel>
+    </div>
+  );
+
+  if (status === 'pending') return (
+    <div className={s.tableSection}>
+      <Panel title="Register My Shop">
+        <div style={{ padding: '48px 24px', textAlign: 'center' }}>
+          <div style={{ width: 56, height: 56, borderRadius: '50%', background: 'rgba(245,158,11,0.1)', border: '1px solid rgba(245,158,11,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px', color: '#b45309' }}>
+            <IconClock />
+          </div>
+          <div style={{ fontWeight: 700, fontSize: '1rem', color: '#0a1c16', marginBottom: 8 }}>Request Under Review</div>
+          <div style={{ fontSize: '0.85rem', color: 'rgba(13,31,26,0.5)', lineHeight: 1.6, maxWidth: 340, margin: '0 auto' }}>
+            Your shop registration request and documents have been submitted and are waiting for admin approval. You will receive a notification once reviewed.
+          </div>
+        </div>
+      </Panel>
+    </div>
+  );
+
+  if (status === 'approved') return (
+    <div className={s.tableSection}>
+      <Panel title="Register My Shop">
+        <div style={{ padding: '48px 24px', textAlign: 'center' }}>
+          <div style={{ width: 56, height: 56, borderRadius: '50%', background: 'rgba(26,188,156,0.1)', border: '1px solid rgba(26,188,156,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px', color: '#1abc9c' }}>
+            <IconCheckCircle />
+          </div>
+          <div style={{ fontWeight: 700, fontSize: '1rem', color: '#1abc9c', marginBottom: 8 }}>Shop Approved!</div>
+          <div style={{ fontSize: '0.85rem', color: 'rgba(13,31,26,0.5)', lineHeight: 1.6, marginBottom: 24, maxWidth: 340, margin: '0 auto 24px' }}>
+            Your shop has been approved. Click the button below to go to your Owner Dashboard.
+          </div>
+          <button
+            onClick={() => { fetch('/api/logout.php', { method: 'POST', credentials: 'include' }).finally(() => { window.location.href = '/login'; }); }}
+            style={{ background: '#1abc9c', color: '#fff', border: 'none', borderRadius: 9, padding: '11px 28px', fontWeight: 700, fontSize: '0.85rem', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 8, fontFamily: "'Orbitron', sans-serif", letterSpacing: '0.5px', boxShadow: '0 3px 12px rgba(26,188,156,0.28)', transition: 'background 0.18s, transform 0.18s' }}
+            onMouseEnter={e => { e.currentTarget.style.background = '#0aaa86'; e.currentTarget.style.transform = 'translateY(-1px)'; }}
+            onMouseLeave={e => { e.currentTarget.style.background = '#1abc9c'; e.currentTarget.style.transform = 'translateY(0)'; }}
+          >
+            <IconLogOut />Log out &amp; Sign in as Owner
+          </button>
+        </div>
+      </Panel>
+    </div>
+  );
+
+  if (status === 'rejected') return (
+    <div className={s.tableSection}>
+      <Panel title="Register My Shop">
+        <div style={{ padding: '48px 24px', textAlign: 'center' }}>
+          <div style={{ width: 56, height: 56, borderRadius: '50%', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px', color: '#ef4444' }}>
+            <IconXCircle />
+          </div>
+          <div style={{ fontWeight: 700, fontSize: '1rem', color: '#ef4444', marginBottom: 8 }}>Request Not Approved</div>
+          <div style={{ fontSize: '0.85rem', color: 'rgba(13,31,26,0.5)', lineHeight: 1.6, maxWidth: 340, margin: '0 auto 24px' }}>
+            Your shop registration request was not approved. You may submit a new request with updated documents.
+          </div>
+          {/* Allow re-submission on rejection */}
+          <button
+            onClick={() => setStatus(null)}
+            style={{ background: '#1abc9c', color: '#fff', border: 'none', borderRadius: 9, padding: '10px 24px', fontWeight: 700, fontSize: '0.84rem', cursor: 'pointer', fontFamily: "'Orbitron', sans-serif", boxShadow: '0 3px 12px rgba(26,188,156,0.25)' }}
+          >
+            Submit New Request
+          </button>
+        </div>
+      </Panel>
+    </div>
+  );
+
+  // ── Registration form ───────────────────────────────────────────────────────
+  return (
+    <div className={s.tableSection}>
+      <Panel title="Register My Shop">
+
+        {/* Info banner */}
+        <div style={{ margin: '0 20px 4px', padding: '12px 16px', borderRadius: 10, background: 'rgba(26,188,156,0.04)', border: '1px solid rgba(26,188,156,0.12)', fontSize: '0.82rem', color: 'rgba(13,31,26,0.5)', lineHeight: 1.65, display: 'flex', gap: 10, alignItems: 'flex-start' }}>
+          <span style={{ flexShrink: 0, marginTop: 2, color: '#1abc9c' }}><IconShop /></span>
+          <span>Want to offer repair services on <strong style={{ color: '#0a1c16', fontWeight: 600 }}>TechnoLogs</strong>? Fill in your shop details and upload all required government permits. Our admin team will review and notify you once approved.</span>
+        </div>
+
+        {/* Toast */}
+        {toast && (
+          <div style={{ margin: '12px 20px 0', padding: '11px 16px', borderRadius: 9, background: toast.isError ? 'rgba(239,68,68,0.07)' : 'rgba(26,188,156,0.08)', border: `1px solid ${toast.isError ? 'rgba(239,68,68,0.2)' : 'rgba(26,188,156,0.2)'}`, color: toast.isError ? '#ef4444' : '#0e8f6a', fontSize: '0.82rem', fontWeight: 500, display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span style={{ flexShrink: 0 }}>{toast.isError ? <IconAlertCircle /> : <IconCheckToast />}</span>
+            {toast.msg}
+          </div>
+        )}
+
+        <form onSubmit={handleSubmit} className={s.repairForm}>
+
+          {/* ── Shop details ── */}
+          <div className={s.formGroup}>
+            <label className={s.formLabel}>Shop Name <span style={{ color: '#ef4444' }}>*</span></label>
+            <input type="text" className={s.formInput} placeholder="e.g. TechFix Manila"
+              value={form.shop_name} onChange={e => setForm(f => ({ ...f, shop_name: e.target.value }))} />
+          </div>
+
+          <div className={s.formGroup}>
+            <label className={s.formLabel}>Address <span style={{ color: '#ef4444' }}>*</span></label>
+            <input type="text" className={s.formInput} placeholder="e.g. 123 Rizal Ave, Quezon City"
+              value={form.address} onChange={e => setForm(f => ({ ...f, address: e.target.value }))} />
+          </div>
+
+          <div className={s.formGroup}>
+            <label className={s.formLabel}>Contact Number <span style={{ color: '#ef4444' }}>*</span></label>
+            <input type="text" className={s.formInput} placeholder="e.g. 09171234567" maxLength={11}
+              value={form.contact_number}
+              onChange={e => setForm(f => ({ ...f, contact_number: e.target.value.replace(/\D/g, '') }))} />
+          </div>
+
+          <div className={s.formGroup}>
+            <label className={s.formLabel} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              Description
+              <span style={{ fontSize: '0.68rem', fontWeight: 500, color: 'rgba(13,31,26,0.3)', textTransform: 'none', letterSpacing: 0 }}>— optional</span>
+            </label>
+            <textarea className={s.formTextarea} placeholder="Tell us about your shop and the services you offer…" rows={3}
+              value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} />
+          </div>
+
+          {/* ── Document uploads ── */}
+          <div style={{ borderTop: '1px solid rgba(26,188,156,0.1)', paddingTop: 16, display: 'flex', flexDirection: 'column', gap: 12 }}>
+            {/* Progress bar */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
+              <span style={{ fontSize: '0.72rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'rgba(13,31,26,0.45)', fontFamily: "'Orbitron', sans-serif" }}>
+                Required Government Documents
+              </span>
+              <span style={{ fontSize: '0.76rem', fontWeight: 700, color: allDocsUploaded ? '#0e8f6a' : '#d97706', fontFamily: "'Orbitron', sans-serif" }}>
+                {uploadedCount}/{SHOP_DOCS.length} {allDocsUploaded ? '✓' : 'uploaded'}
+              </span>
+            </div>
+
+            {SHOP_DOCS.map(d => (
+              <DocUpload
+                key={d.field}
+                label={d.label}
+                fieldName={d.field}
+                file={docs[d.field]}
+                onChange={handleDocChange}
+                hint={d.hint}
+              />
+            ))}
+          </div>
+
+          {/* ── Submit row ── */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12, paddingTop: 4, borderTop: '1px solid rgba(26,188,156,0.08)', marginTop: 4 }}>
+            <span style={{ fontSize: '0.72rem', color: 'rgba(13,31,26,0.35)' }}>
+              Fields marked <span style={{ color: '#ef4444' }}>*</span> are required &nbsp;·&nbsp; All documents are kept confidential
+            </span>
+            <button type="submit" className={s.formSubmit} disabled={saving}
+              style={{ alignSelf: 'auto', minWidth: 170, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 7 }}>
+              {saving
+                ? <><IconLoader /> Submitting…</>
+                : <><IconSend /> Submit Request</>
+              }
+            </button>
+          </div>
+
+        </form>
+      </Panel>
+    </div>
+  );
+}
+
 // ── Repairs Table ─────────────────────────────────────────────────────────────
-function RepairsTable({ repairs, onReview, onChat }) {
-  return repairs.length === 0 ? (
-    <div className={s.emptyState}><IconEmpty /><p>No repair requests found.</p></div>
-  ) : (
-    <table className={s.table}>
-      <thead>
-        <tr>
-          <th>Job #</th><th>Device</th><th>Issue</th><th>Shop</th>
-          <th>Date</th><th>Status</th><th>Review</th><th>Chat</th>
-        </tr>
-      </thead>
-      <tbody>
-        {repairs.map(r => (
-          <tr key={repairId(r)}>
-            <td className={s.idCol}>#{repairId(r)}</td>
-            <td className={s.bold}>{deviceName(r)}</td>
-            <td>{issueText(r)}</td>
-            <td>{r.shop_name}</td>
-            <td className={s.muted}>{fmtDate(r.created_at)}</td>
-            <td><Badge status={normStatus(r.status)} label={statusLabel(r.status)} /></td>
-            <td>
-              {normStatus(r.status) === 'done' && !r.reviewed ? (
-                <button
-                  onClick={() => onReview(r)}
-                  style={{
-                    background: 'rgba(250,204,21,0.1)', border: '1px solid rgba(250,204,21,0.3)',
-                    color: '#facc15', fontSize: '0.76rem', fontWeight: 700,
-                    padding: '4px 12px', borderRadius: 6, cursor: 'pointer',
-                    whiteSpace: 'nowrap', transition: 'background 0.15s',
-                  }}
-                  onMouseEnter={e => e.currentTarget.style.background = 'rgba(250,204,21,0.2)'}
-                  onMouseLeave={e => e.currentTarget.style.background = 'rgba(250,204,21,0.1)'}
-                >★ Review</button>
-              ) : normStatus(r.status) === 'done' && r.reviewed ? (
-                <span style={{ fontSize: '0.76rem', color: '#4ade80', fontWeight: 600 }}>✓ Reviewed</span>
-              ) : (
-                <span style={{ fontSize: '0.76rem', color: 'rgba(128,144,168,0.4)' }}>—</span>
-              )}
-            </td>
-            <td>
-              <button
-                onClick={() => onChat(r)}
-                style={{
-                  background: 'rgba(59,130,246,0.1)', border: '1px solid rgba(59,130,246,0.3)',
-                  color: '#60a5fa', fontSize: '0.76rem', fontWeight: 700,
-                  padding: '4px 12px', borderRadius: 6, cursor: 'pointer',
-                  whiteSpace: 'nowrap', transition: 'background 0.15s',
-                }}
-                onMouseEnter={e => e.currentTarget.style.background = 'rgba(59,130,246,0.2)'}
-                onMouseLeave={e => e.currentTarget.style.background = 'rgba(59,130,246,0.1)'}
-              >💬 Chat</button>
-            </td>
-          </tr>
-        ))}
-      </tbody>
-    </table>
+// CHANGED: removed internal fetch loop; now receives perRepairUnread + clearRepair as props
+function RepairsTable({ repairs, onReview, onChat, perRepairUnread = {}, clearRepair }) {
+  if (!repairs.length) {
+    return <div className={s.emptyState}><IconEmpty /><p>No repair requests yet.</p></div>;
+  }
+
+  return (
+    <div className={s.tableWrapper}>
+      <table className={s.table}>
+        <thead>
+          <tr><th>#</th><th>Device</th><th>Issue</th><th>Shop</th><th>Date</th><th>Status</th><th>Review</th><th>Chat</th></tr>
+        </thead>
+        <tbody>
+          {repairs.map(r => {
+            const st     = normStatus(r.status ?? '');
+            const rid    = repairId(r);
+            const unread = perRepairUnread[rid] ?? 0;
+            return (
+              <tr key={rid}>
+                <td className={s.idCol}>#{rid}</td>
+                <td className={s.bold}>{deviceName(r) || '—'}</td>
+                <td className={s.muted} style={{maxWidth:160,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}} title={issueText(r)}>{issueText(r)||'—'}</td>
+                <td>{r.shop_name||'—'}</td>
+                <td className={s.muted}>{r.created_at?fmtDate(r.created_at):'—'}</td>
+                <td><Badge status={st} label={statusLabel(r.status??'')}/></td>
+                <td>
+                  {st==='done'?(r.reviewed?(<span style={{fontSize:'0.75rem',color:'rgba(13,31,26,0.35)',fontStyle:'italic'}}>Reviewed</span>):(<button onClick={()=>onReview(r)} style={{background:'rgba(245,158,11,0.1)',border:'1px solid rgba(245,158,11,0.3)',color:'#b45309',fontSize:'0.76rem',fontWeight:700,padding:'4px 12px',borderRadius:6,cursor:'pointer',whiteSpace:'nowrap',transition:'background 0.15s'}} onMouseEnter={e=>e.currentTarget.style.background='rgba(245,158,11,0.2)'} onMouseLeave={e=>e.currentTarget.style.background='rgba(245,158,11,0.1)'}>★ Review</button>)):(<span style={{fontSize:'0.75rem',color:'rgba(13,31,26,0.25)'}}>—</span>)}
+                </td>
+                <td>
+                  {/* ── Chat button with unread badge ── */}
+                  <button
+                    onClick={() => {
+                      onChat(r);
+                      clearRepair?.(rid);  // immediately clear the badge for this repair
+                    }}
+                    style={{
+                      position:'relative',
+                      background:'rgba(59,130,246,0.1)',
+                      border:'1px solid rgba(59,130,246,0.3)',
+                      color:'#60a5fa',fontSize:'0.76rem',fontWeight:700,
+                      padding:'4px 12px',borderRadius:6,cursor:'pointer',
+                      whiteSpace:'nowrap',transition:'background 0.15s',
+                    }}
+                    onMouseEnter={e=>e.currentTarget.style.background='rgba(59,130,246,0.2)'}
+                    onMouseLeave={e=>e.currentTarget.style.background='rgba(59,130,246,0.1)'}
+                  >
+                    💬 Chat
+                    {unread > 0 && (
+                      <span style={{
+                        position:'absolute',top:-6,right:-6,
+                        background:'#ef4444',color:'#fff',
+                        fontSize:'0.6rem',fontWeight:700,
+                        minWidth:16,height:16,borderRadius:'50%',
+                        display:'flex',alignItems:'center',justifyContent:'center',
+                        padding:'0 3px',lineHeight:1,
+                        boxShadow:'0 1px 4px rgba(239,68,68,0.4)',
+                        animation:'chatBtnBadgePop 0.25s ease',
+                      }}>
+                        {unread > 9 ? '9+' : unread}
+                      </span>
+                    )}
+                  </button>
+                  <style>{`@keyframes chatBtnBadgePop{0%{transform:scale(0.4);opacity:0}70%{transform:scale(1.2)}100%{transform:scale(1);opacity:1}}`}</style>
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
   );
 }
 
 // ── Main ──────────────────────────────────────────────────────────────────────
-export default function CustomerDashboard({username='Customer',userId,setPage,activeSection='dashboard',setActiveSection}){
+//
+// NEW PROP:
+//   onUnreadChatChange(count)
+//     — Called whenever the total unread chat count changes.
+//       Pass this down from App/DashboardLayout to feed <Topbar unreadChatCount>.
+//
+export default function CustomerDashboard({
+  username = 'Customer',
+  userId,
+  setPage,
+  activeSection = 'dashboard',
+  setActiveSection,
+  onUnreadChatChange,   // ← NEW
+}) {
   const [stats,setStats]               = useState(null);
   const [repairs,setRepairs]           = useState([]);
   const [transactions,setTransactions] = useState([]);
@@ -609,12 +697,20 @@ export default function CustomerDashboard({username='Customer',userId,setPage,ac
   const [txLoading,setTxLoading]       = useState(false);
   const [error,setError]               = useState(null);
   const [customerId,setCustomerId]     = useState(userId??null);
-  const [reviewTarget,setReviewTarget] = useState(null); // ← FIXED: restored
-  const [chatRepair,setChatRepair]     = useState(null); // ← chat modal
+  const [reviewTarget,setReviewTarget] = useState(null);
+  const [chatRepair,setChatRepair]     = useState(null);
 
   const { downloadReceipt, downloadAllReceipts } = useReceiptDownload({ name: 'TechnoLogs Repair' });
-
   const getSaleForReceipt = (sale) => enrichSale(sale, repairs);
+
+  // ── NEW: centralised unread chat counts ──────────────────────────────────
+  const { totalUnread, perRepairUnread, clearRepair } = useChatUnread(customerId, repairs);
+
+  // Bubble the total up so Topbar can show the badge
+  useEffect(() => {
+    onUnreadChatChange?.(totalUnread);
+  }, [totalUnread, onUnreadChatChange]);
+  // ────────────────────────────────────────────────────────────────────────
 
   const loadData = useCallback(() => {
     setLoading(true);
@@ -626,9 +722,7 @@ export default function CustomerDashboard({username='Customer',userId,setPage,ac
           setRepairs(data.repairs ?? []);
           setLatestRepair(data.latest_repair ?? (data.repairs?.length ? data.repairs[0] : null));
           if (data.stats?.customer_id) setCustomerId(data.stats.customer_id);
-        } else {
-          setError(data.message || 'Failed to load dashboard.');
-        }
+        } else { setError(data.message || 'Failed to load dashboard.'); }
       })
       .catch(() => setError('Cannot connect to server.'))
       .finally(() => setLoading(false));
@@ -651,9 +745,7 @@ export default function CustomerDashboard({username='Customer',userId,setPage,ac
     if (!reviewTarget) return;
     const id = repairId(reviewTarget);
     setRepairs(prev => prev.map(r => repairId(r) === id ? { ...r, reviewed: true } : r));
-    if (latestRepair && repairId(latestRepair) === id) {
-      setLatestRepair(prev => ({ ...prev, reviewed: true }));
-    }
+    if (latestRepair && repairId(latestRepair) === id) setLatestRepair(prev => ({ ...prev, reviewed: true }));
   };
 
   if (loading) return <div className={s.loadingState}>Loading dashboard…</div>;
@@ -665,26 +757,12 @@ export default function CustomerDashboard({username='Customer',userId,setPage,ac
 
   return (
     <>
-      {/* ── Review Modal ── */}
-      {reviewTarget && (
-        <ReviewModal
-          repair={reviewTarget}
-          onClose={() => setReviewTarget(null)}
-          onSubmitted={handleReviewed}
-        />
-      )}
+      {reviewTarget && <ReviewModal repair={reviewTarget} onClose={() => setReviewTarget(null)} onSubmitted={handleReviewed} />}
 
-      {/* ── Chat Modal ── */}
       {chatRepair && (
-        <ChatModal
-          repair={chatRepair}
-          customerId={customerId}
-          username={username}
-          onClose={() => setChatRepair(null)}
-        />
+        <ChatModal repair={chatRepair} customerId={customerId} username={username} onClose={() => setChatRepair(null)} />
       )}
 
-      {/* ── Dashboard ── */}
       {activeSection === 'dashboard' && (
         <>
           <div className={s.welcomeHeader}>
@@ -698,71 +776,44 @@ export default function CustomerDashboard({username='Customer',userId,setPage,ac
           </div>
           <div className={s.twoCol}>
             <Panel title="Submit Repair Request"><RepairRequestForm onSuccess={loadData}/></Panel>
-            <RepairTimeline repair={latestRepair}/>
+            <RepairTimeline currentRepair={latestRepair} />
           </div>
           <div className={s.tableSection}>
             <Panel title="My Repair Requests" metaLabel={`${repairs.length} total`} onMeta={setActiveSection ? () => setActiveSection('repairs') : null}>
-              <RepairsTable repairs={repairs} onReview={setReviewTarget} onChat={setChatRepair} />
+              <RepairsTable repairs={repairs} onReview={setReviewTarget} onChat={setChatRepair} perRepairUnread={perRepairUnread} clearRepair={clearRepair} />
             </Panel>
           </div>
         </>
       )}
 
-      {/* ── My Repairs ── */}
       {activeSection === 'repairs' && (
         <div className={s.tableSection}>
           <Panel title="All Repair Requests" metaLabel={`${repairs.length} total`}>
-            <RepairsTable repairs={repairs} onReview={setReviewTarget} onChat={setChatRepair} />
+            <RepairsTable repairs={repairs} onReview={setReviewTarget} onChat={setChatRepair} perRepairUnread={perRepairUnread} clearRepair={clearRepair} />
           </Panel>
         </div>
       )}
 
-      {/* ── My Transactions ── */}
       {activeSection === 'transactions' && (
         <div className={s.tableSection}>
           <Panel title="Transaction History" metaLabel={`${transactions.length} records`}>
             <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'10px 0 14px',borderBottom:'1px solid rgba(26,188,156,0.08)',marginBottom:4,flexWrap:'wrap',gap:10}}>
-              <span style={{color:'rgba(128,144,168,0.8)',fontSize:'0.78rem'}}>
-                {txLoading ? 'Loading transactions…' : transactions.length > 0 ? `${transactions.length} transaction${transactions.length !== 1 ? 's' : ''} found` : 'No transactions yet'}
-              </span>
-              <DownloadButton
-                onClick={() => downloadAllReceipts(transactions.map(t => getSaleForReceipt(t)))}
-                disabled={txLoading || transactions.length === 0}
-                label="Download All (PDF)"
-              />
+              <span style={{color:'rgba(128,144,168,0.8)',fontSize:'0.78rem'}}>{txLoading?'Loading transactions…':transactions.length>0?`${transactions.length} transaction${transactions.length!==1?'s':''} found`:'No transactions yet'}</span>
+              <DownloadButton onClick={()=>downloadAllReceipts(transactions.map(t=>getSaleForReceipt(t)))} disabled={txLoading||transactions.length===0} label="Download All (PDF)"/>
             </div>
-            {txLoading ? (<div className={s.emptyState}><p>Loading transactions…</p></div>)
-              : transactions.length === 0 ? (<div className={s.emptyState}><IconEmpty/><p>No transactions found.</p></div>)
-              : (
-                <table className={s.table}>
-                  <thead><tr><th>Sale #</th><th>Repair #</th><th>Amount</th><th>Method</th><th>Date</th><th>Receipt</th></tr></thead>
-                  <tbody>
-                    {transactions.map(t => (
-                      <tr key={t.saleId}>
-                        <td className={s.idCol}>SALE-{String(t.saleId).padStart(4, '0')}</td>
-                        <td>#{t.requestId}</td>
-                        <td className={s.bold}>₱{Number(t.amount).toLocaleString('en-PH', {minimumFractionDigits: 2})}</td>
-                        <td>{t.paymentMethod}</td>
-                        <td className={s.muted}>{fmtDate(t.soldAt)}</td>
-                        <td>
-                          <button onClick={() => downloadReceipt(getSaleForReceipt(t))} style={{background:'transparent',border:'1px solid rgba(26,188,156,0.3)',color:'var(--teal,#1abc9c)',fontSize:'0.72rem',fontWeight:700,padding:'3px 10px',borderRadius:6,cursor:'pointer'}}>
-                            PDF
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              )}
+            {txLoading?(<div className={s.emptyState}><p>Loading transactions…</p></div>):transactions.length===0?(<div className={s.emptyState}><IconEmpty/><p>No transactions found.</p></div>):(
+              <table className={s.table}>
+                <thead><tr><th>Sale #</th><th>Repair #</th><th>Amount</th><th>Method</th><th>Date</th><th>Receipt</th></tr></thead>
+                <tbody>{transactions.map(t=>(<tr key={t.saleId}><td className={s.idCol}>SALE-{String(t.saleId).padStart(4,'0')}</td><td>#{t.requestId}</td><td className={s.bold}>₱{Number(t.amount).toLocaleString('en-PH',{minimumFractionDigits:2})}</td><td>{t.paymentMethod}</td><td className={s.muted}>{fmtDate(t.soldAt)}</td><td><button onClick={()=>downloadReceipt(getSaleForReceipt(t))} style={{background:'transparent',border:'1px solid rgba(26,188,156,0.3)',color:'var(--teal,#1abc9c)',fontSize:'0.72rem',fontWeight:700,padding:'3px 10px',borderRadius:6,cursor:'pointer'}}>PDF</button></td></tr>))}</tbody>
+              </table>
+            )}
           </Panel>
         </div>
       )}
 
-      {/* ── Notifications ── */}
       {activeSection === 'notifications' && <NotificationsSection />}
-
-      {/* ── Help ── */}
-      {activeSection === 'help' && <HelpSection />}
+      {activeSection === 'help'          && <HelpSection />}
+      {activeSection === 'shop'          && <ShopRequestSection />}
     </>
   );
 }

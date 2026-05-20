@@ -39,7 +39,6 @@ if (empty($email) || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
 }
 
 try {
-    // ✅ column is `id`, not `user_id`
     $stmt = $pdo->prepare("SELECT user_id FROM users WHERE email = ? AND status = 'active' LIMIT 1");
     $stmt->execute([$email]);
     $user = $stmt->fetch();
@@ -62,9 +61,8 @@ try {
 
     // Generate a secure random token
     $rawToken  = bin2hex(random_bytes(32)); // 64-char hex
-    $expiresAt = date('Y-m-d H:i:s', strtotime('+1 hour'));
+    $expiresAt = gmdate('Y-m-d H:i:s', strtotime('+1 hour')); // UTC — avoids timezone mismatch with NOW()
 
-    // ✅ uses `token` column (not `token_hash`)
     $pdo->prepare(
         "INSERT INTO password_resets (user_id, token, expires_at, used) VALUES (?, ?, ?, false)"
     )->execute([$user['user_id'], $rawToken, $expiresAt]);
@@ -101,7 +99,7 @@ if (!$emailSent) {
 
 respond_ok();
 
-// ── Raw SMTP mailer (no Composer/library needed) ──────────────────────────────
+// ── Mailer ────────────────────────────────────────────────────────────────────
 function sendResetEmail(
     string $host, int $port,
     string $user, string $pass,
@@ -112,7 +110,6 @@ function sendResetEmail(
     $errno   = 0;
     $errstr  = '';
 
-    // MailHog uses plain TCP on 1025; Gmail uses STARTTLS on 587
     $useAuth     = !empty($user) && !empty($pass);
     $useStartTls = ($port === 587);
 
@@ -123,7 +120,6 @@ function sendResetEmail(
     }
     stream_set_timeout($socket, $timeout);
 
-    // Helper: read one SMTP response (may be multi-line)
     $read = function() use ($socket): string {
         $out = '';
         while ($line = fgets($socket, 515)) {
@@ -133,7 +129,6 @@ function sendResetEmail(
         return $out;
     };
 
-    // Helper: send command and return response
     $cmd = function(string $line) use ($socket, $read): string {
         fwrite($socket, $line . "\r\n");
         return $read();
@@ -147,7 +142,7 @@ function sendResetEmail(
         if ($useStartTls) {
             $cmd('STARTTLS');
             stream_socket_enable_crypto($socket, true, STREAM_CRYPTO_METHOD_TLS_CLIENT);
-            $cmd('EHLO technologs'); // re-greet after TLS upgrade
+            $cmd('EHLO technologs');
         }
 
         if ($useAuth) {
@@ -177,66 +172,129 @@ function sendResetEmail(
             "If you did not request this, you can safely ignore this email.\r\n" .
             "Your password will NOT be changed.";
 
+        // ── Light HTML email — matches system color scheme ────────────────────
+        // Colors: background #f0f6f3, card #ffffff, teal #1abc9c, text #0a1c16
         $htmlBody = <<<HTML
 <!DOCTYPE html>
-<html>
-<head><meta charset="UTF-8"></head>
-<body style="margin:0;padding:0;background:#0a1628;font-family:Inter,Arial,sans-serif;">
-  <table width="100%" cellpadding="0" cellspacing="0" style="background:#0a1628;padding:40px 0;">
-    <tr><td align="center">
-      <table width="480" cellpadding="0" cellspacing="0"
-        style="background:rgba(255,255,255,0.04);border:1px solid rgba(26,188,156,0.25);
-               border-radius:16px;overflow:hidden;">
-        <tr>
-          <td style="background:linear-gradient(135deg,#1abc9c,#16a085);padding:28px 36px;">
-            <h1 style="margin:0;color:#fff;font-size:20px;font-weight:700;letter-spacing:0.5px;">
-              🔐 Reset Your Password
-            </h1>
-          </td>
-        </tr>
-        <tr>
-          <td style="padding:32px 36px;">
-            <p style="margin:0 0 16px;color:rgba(255,255,255,0.75);font-size:15px;line-height:1.6;">
-              We received a request to reset the password for your
-              <strong style="color:#fff;">TechnoLogs</strong> account.
-            </p>
-            <p style="margin:0 0 28px;color:rgba(255,255,255,0.55);font-size:14px;line-height:1.6;">
-              Click the button below. This link expires in
-              <strong style="color:#1abc9c;">1 hour</strong>.
-            </p>
-            <table cellpadding="0" cellspacing="0" style="margin:0 auto 28px;">
-              <tr>
-                <td align="center"
-                  style="background:linear-gradient(135deg,#1abc9c,#16a085);
-                         border-radius:10px;padding:14px 32px;">
-                  <a href="$resetLink"
-                    style="color:#fff;font-size:15px;font-weight:600;text-decoration:none;">
-                    Reset Password
-                  </a>
-                </td>
-              </tr>
-            </table>
-            <p style="margin:0 0 6px;color:rgba(255,255,255,0.35);font-size:12px;">
-              Or copy this link into your browser:
-            </p>
-            <p style="margin:0 0 28px;word-break:break-all;">
-              <a href="$resetLink" style="color:#1abc9c;font-size:12px;">$resetLink</a>
-            </p>
-            <p style="margin:0;color:rgba(255,255,255,0.35);font-size:12px;line-height:1.6;">
-              If you didn't request this, ignore this email — your password won't change.
-            </p>
-          </td>
-        </tr>
-        <tr>
-          <td style="padding:20px 36px;border-top:1px solid rgba(255,255,255,0.06);">
-            <p style="margin:0;color:rgba(255,255,255,0.25);font-size:11px;text-align:center;">
-              © TechnoLogs · Automated message — do not reply.
-            </p>
-          </td>
-        </tr>
-      </table>
-    </td></tr>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Reset Your Password</title>
+</head>
+<body style="margin:0;padding:0;background-color:#f0f6f3;font-family:'DM Sans',Arial,sans-serif;">
+
+  <!-- Outer wrapper -->
+  <table width="100%" cellpadding="0" cellspacing="0" role="presentation"
+    style="background-color:#f0f6f3;padding:40px 16px;">
+    <tr>
+      <td align="center">
+
+        <!-- Card -->
+        <table width="100%" cellpadding="0" cellspacing="0" role="presentation"
+          style="max-width:480px;background:#ffffff;border:1px solid rgba(26,188,156,0.2);
+                 border-radius:18px;overflow:hidden;
+                 box-shadow:0 8px 32px rgba(13,31,26,0.08);">
+
+          <!-- Header bar -->
+          <tr>
+            <td style="background:linear-gradient(135deg,#0aaa86 0%,#1abc9c 100%);
+                       padding:28px 36px;">
+              <table width="100%" cellpadding="0" cellspacing="0" role="presentation">
+                <tr>
+                  <td>
+                    <p style="margin:0;font-size:13px;font-weight:600;
+                               letter-spacing:2px;text-transform:uppercase;
+                               color:rgba(255,255,255,0.75);">
+                      TechnoLogs
+                    </p>
+                    <h1 style="margin:6px 0 0;font-size:20px;font-weight:800;
+                                color:#ffffff;letter-spacing:0.3px;">
+                      🔐 Reset Your Password
+                    </h1>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <!-- Body -->
+          <tr>
+            <td style="padding:32px 36px;">
+
+              <p style="margin:0 0 10px;font-size:15px;line-height:1.65;color:#0a1c16;font-weight:500;">
+                Hi there,
+              </p>
+              <p style="margin:0 0 20px;font-size:14px;line-height:1.7;color:rgba(13,31,26,0.6);">
+                We received a request to reset the password for your
+                <strong style="color:#0a1c16;">TechnoLogs</strong> account.
+                Click the button below — this link expires in
+                <strong style="color:#1abc9c;">1 hour</strong>.
+              </p>
+
+              <!-- CTA button -->
+              <table cellpadding="0" cellspacing="0" role="presentation"
+                style="margin:28px auto;">
+                <tr>
+                  <td align="center"
+                    style="background:linear-gradient(135deg,#0aaa86 0%,#1abc9c 100%);
+                           border-radius:10px;">
+                    <a href="$resetLink"
+                      style="display:inline-block;padding:14px 36px;
+                             color:#ffffff;font-size:15px;font-weight:700;
+                             text-decoration:none;letter-spacing:0.5px;">
+                      Reset Password
+                    </a>
+                  </td>
+                </tr>
+              </table>
+
+              <!-- Fallback link -->
+              <p style="margin:0 0 6px;font-size:12px;color:rgba(13,31,26,0.4);">
+                Button not working? Copy this link into your browser:
+              </p>
+              <p style="margin:0 0 28px;word-break:break-all;">
+                <a href="$resetLink"
+                  style="color:#1abc9c;font-size:12px;text-decoration:none;">
+                  $resetLink
+                </a>
+              </p>
+
+              <!-- Divider -->
+              <table width="100%" cellpadding="0" cellspacing="0" role="presentation"
+                style="margin-bottom:20px;">
+                <tr>
+                  <td style="border-top:1px solid rgba(13,31,26,0.08);font-size:0;">&nbsp;</td>
+                </tr>
+              </table>
+
+              <!-- Security note -->
+              <p style="margin:0;font-size:12px;line-height:1.65;color:rgba(13,31,26,0.4);">
+                If you didn't request a password reset, you can safely ignore this email.
+                Your password will <strong style="color:rgba(13,31,26,0.55);">not</strong> be changed.
+              </p>
+
+            </td>
+          </tr>
+
+          <!-- Footer -->
+          <tr>
+            <td style="padding:16px 36px 24px;
+                       background:rgba(26,188,156,0.03);
+                       border-top:1px solid rgba(26,188,156,0.1);">
+              <p style="margin:0;font-size:11px;color:rgba(13,31,26,0.35);text-align:center;">
+                © TechnoLogs &nbsp;·&nbsp; This is an automated message — please do not reply.
+              </p>
+            </td>
+          </tr>
+
+        </table>
+        <!-- /Card -->
+
+      </td>
+    </tr>
   </table>
+
 </body>
 </html>
 HTML;

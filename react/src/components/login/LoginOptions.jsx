@@ -1,42 +1,29 @@
 export default function LoginOptions({ remember, setRemember, onForgot }) {
   return (
     <div className="flex items-center justify-between -mt-1">
-
-      {/* Remember me — clicking the whole label toggles state */}
       <label
-        className="remember flex items-center gap-[9px] text-[0.79rem] text-[rgba(255,255,255,0.55)] cursor-pointer select-none"
+        className="flex items-center gap-[9px] text-[0.79rem] text-[rgba(13,31,26,0.5)] cursor-pointer select-none"
         onClick={() => setRemember(v => !v)}
       >
-        {/* Custom checkbox driven by `remember` prop instead of hidden input */}
         <span
-          className="check-box"
+          className="flex items-center justify-center w-[16px] h-[16px] rounded-[4px] border-[1.5px] transition-[background,border-color] duration-200 flex-shrink-0"
           style={{
-            background:   remember ? '#1abc9c' : undefined,
-            borderColor:  remember ? '#1abc9c' : undefined,
+            background:  remember ? '#1abc9c' : 'transparent',
+            borderColor: remember ? '#1abc9c' : 'rgba(13,31,26,0.2)',
           }}
         >
-          {/* Inline tick so we don't rely on the CSS sibling selector at all */}
-          <span style={{
-            fontSize: '11px',
-            color: 'white',
-            opacity: remember ? 1 : 0,
-            transition: 'opacity 0.2s',
-          }}>
-            ✓
-          </span>
+          <span style={{ fontSize: '11px', color: '#fff', opacity: remember ? 1 : 0, transition: 'opacity 0.2s' }}>✓</span>
         </span>
         Remember me
       </label>
 
-      {/* Forgot password */}
       <a
         href="#"
         onClick={onForgot}
-        className="text-[0.77rem] text-teal no-underline tracking-[0.5px] font-medium transition-[color,text-shadow] duration-200 hover:text-white hover:shadow-[0_0_10px_#1abc9c]"
+        className="text-[0.77rem] text-[#1abc9c] no-underline tracking-[0.5px] font-semibold transition-colors duration-200 hover:text-[#0aaa86]"
       >
-        FORGOT PASSWORD?
+        Forgot password?
       </a>
-
     </div>
   );
 }

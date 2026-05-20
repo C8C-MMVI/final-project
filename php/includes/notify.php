@@ -1,51 +1,32 @@
 <?php
-/**
- * notify.php — Reusable notification helper
- *
- * Include this file in any PHP API file, then call:
- *   notify($pdo, $user_id, "Your repair status has been updated.");
- *
- * For multiple recipients:
- *   notifyMany($pdo, [1, 2, 3], "Shop request approved.");
- */
+require_once __DIR__ . '/../db_config.php';
 
-/**
- * Create a single notification for one user.
- */
-function notify(PDO $pdo, int $user_id, string $message): void {
+function notify(int $user_id, string $message): void {
     try {
+        global $pdo;
         $stmt = $pdo->prepare("
-            INSERT INTO notifications (user_id, message)
-            VALUES (?, ?)
+            INSERT INTO notifications (user_id, message, is_read, created_at)
+            VALUES (:uid, :msg, FALSE, NOW())
         ");
-        $stmt->execute([$user_id, $message]);
+        $stmt->execute([':uid' => $user_id, ':msg' => $message]);
     } catch (Exception $e) {
-        // Never let a notification failure break the main action
         error_log('notify() failed: ' . $e->getMessage());
     }
 }
 
-/**
- * Create a notification for multiple users at once.
- */
-function notifyMany(PDO $pdo, array $user_ids, string $message): void {
+function notifyMany(array $user_ids, string $message): void {
     foreach ($user_ids as $uid) {
-        notify($pdo, (int)$uid, $message);
+        notify((int) $uid, $message);
     }
 }
 
-/**
- * Notify all users with a given role.
- * e.g. notifyRole($pdo, 'admin', 'New shop request submitted.')
- */
-function notifyRole(PDO $pdo, string $role, string $message): void {
+function notifyRole(string $role, string $message): void {
     try {
-        $stmt = $pdo->prepare("
-            SELECT id FROM users WHERE role = ?
-        ");
+        global $pdo;
+        $stmt = $pdo->prepare("SELECT user_id FROM users WHERE role = ?");
         $stmt->execute([$role]);
         $ids = $stmt->fetchAll(PDO::FETCH_COLUMN);
-        notifyMany($pdo, $ids, $message);
+        notifyMany($ids, $message);
     } catch (Exception $e) {
         error_log('notifyRole() failed: ' . $e->getMessage());
     }

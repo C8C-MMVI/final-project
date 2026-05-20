@@ -1,4 +1,3 @@
-// src/components/shared/Panel.jsx
 import styles from './Panel.module.css';
 
 export default function Panel({ title, linkLabel = 'View all →', onLink, children, className = '' }) {

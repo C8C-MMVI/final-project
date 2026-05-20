@@ -21,21 +21,9 @@ export default function LoginSubmitButton({ loading }) {
       type="submit"
       disabled={loading}
       onClick={handleRipple}
-      className={[
-        'relative overflow-hidden w-full mt-1',
-        'py-[14px] border-none rounded-[10px]',
-        'text-white font-rajdhani text-[1rem] font-bold tracking-[3px] uppercase',
-        'cursor-pointer transition-[transform,box-shadow] duration-[150ms]',
-        'shadow-[0_6px_24px_rgba(26,188,156,0.35)]',
-        'hover:-translate-y-[2px] hover:shadow-[0_10px_32px_rgba(26,188,156,0.52)]',
-        'active:translate-y-0',
-        loading ? 'btn-loading' : '',
-      ].join(' ')}
-      style={{
-        background: 'linear-gradient(90deg, #0ea882 0%, #1abc9c 100%)',
-      }}
+      className={`login-btn-signin${loading ? ' loading' : ''}`}
     >
-      <span className="btn-text relative z-[1]">SIGN IN</span>
+      <span className="btn-text">SIGN IN</span>
       <span className="spinner" />
     </button>
   );

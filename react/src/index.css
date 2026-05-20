@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:wght@300;400;500&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;700;800&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;1,9..40,300&display=swap');
 
 *, *::before, *::after {
   box-sizing: border-box;
@@ -6,37 +6,29 @@
   padding: 0;
 }
 
-html {
-  scroll-behavior: smooth;
-}
+html { scroll-behavior: smooth; }
 
 body {
-  background: #07111f;
-  color: #fff;
+  background: #f0f6f3;
+  color: #0a1c16;
   font-family: 'DM Sans', sans-serif;
+  -webkit-font-smoothing: antialiased;
   overflow-x: hidden;
 }
-
-/* ── Keyframe animations used by home page components ── */
 
 @keyframes fadeUp {
   from { opacity: 0; transform: translateY(16px); }
   to   { opacity: 1; transform: translateY(0); }
 }
 
-@keyframes blobPulse {
-  0%, 100% { opacity: 0.8; transform: translateX(-50%) scale(1); }
-  50%       { opacity: 1;   transform: translateX(-50%) scale(1.06); }
-}
-
-@keyframes scrollPulse {
-  0%, 100% { opacity: 0.4; transform: scaleY(1); }
-  50%       { opacity: 1;   transform: scaleY(1.1); }
-}
-
 @keyframes scanShift {
-  from { background-position: 0 0; }
-  to   { background-position: 0 100px; }
+  from { background-position-y: 0; }
+  to   { background-position-y: 100px; }
+}
+
+@keyframes blobPulse {
+  0%, 100% { opacity: 0.8; transform: scale(1); }
+  50%       { opacity: 1;   transform: scale(1.06); }
 }
 
 @keyframes spin {

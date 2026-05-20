@@ -1,0 +1,624 @@
+/*
+ * auth.css  —  shared by Login and Register pages
+ *
+ * TWO FONT FAMILIES (satisfies instructor requirement):
+ *   1. Orbitron   — headings, logo, button labels  (display / tech feel)
+ *   2. DM Sans    — body copy, inputs, labels       (readable / clean)
+ *
+ * Import this file instead of the old login.css / register.css:
+ *   import '../assets/css/auth.css';
+ */
+
+ @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@700;900&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;1,9..40,400&display=swap');
+
+ *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+ 
+ /* ═══════════════════════════════════════
+    DESIGN TOKENS
+    ═══════════════════════════════════════ */
+ :root {
+   /* Brand */
+   --teal:          #1abc9c;
+   --teal-dark:     #0aaa86;
+ 
+   /* Surfaces */
+   --light-bg:      #f0f6f3;
+   --card-bg:       #ffffff;
+   --card-border:   rgba(26,188,156,0.18);
+   --left-bg-from:  #e6f5ef;
+   --left-bg-to:    #eaf4ee;
+ 
+   /* Typography */
+   --font-display:  'Orbitron', sans-serif;   /* font 1 — headings & labels */
+   --font-body:     'DM Sans', sans-serif;    /* font 2 — body & inputs      */
+ 
+   /* Text */
+   --text-main:     #0a1c16;
+   --text-muted:    rgba(13,31,26,0.48);
+   --text-hint:     rgba(13,31,26,0.32);
+ 
+   /* Inputs */
+   --input-bg:      rgba(13,31,26,0.03);
+   --input-border:  rgba(13,31,26,0.14);
+ 
+   /* State */
+   --error:         #ef4444;
+   --error-glow:    rgba(239,68,68,0.12);
+ }
+ 
+ /* ═══════════════════════════════════════
+    BASE
+    ═══════════════════════════════════════ */
+ html, body {
+   height: 100%;
+   font-family: var(--font-body);
+   background: var(--light-bg);
+   color: var(--text-main);
+   overflow: auto;
+   margin: 0;
+   padding: 0;
+   -webkit-font-smoothing: antialiased;
+ }
+ 
+ /* ═══════════════════════════════════════
+    PAGE WRAPPER
+    ═══════════════════════════════════════ */
+ .login-page {
+   position: relative;
+   z-index: 2;
+   display: flex;
+   align-items: center;
+   justify-content: center;
+   min-height: 100vh;
+   width: 100%;
+   padding: 32px 24px;
+   box-sizing: border-box;
+   background: var(--light-bg);
+   background-image:
+     radial-gradient(ellipse 80% 40% at 60% 0%,  rgba(26,188,156,0.09) 0%, transparent 60%),
+     radial-gradient(ellipse 50% 30% at 10% 80%, rgba(26,188,156,0.05) 0%, transparent 60%);
+ }
+ 
+ /* ═══════════════════════════════════════
+    CONTAINER CARD
+    ═══════════════════════════════════════ */
+ .login-container {
+   display: grid;
+   grid-template-columns: 1fr 1fr;
+   align-items: stretch;
+   width: min(1100px, 100%);
+   min-height: min(720px, 90vh);
+   height: auto;
+   background: var(--card-bg);
+   border: 1px solid var(--card-border);
+   border-radius: 22px;
+   overflow: hidden;
+   box-shadow:
+     0 16px 64px rgba(13,31,26,0.10),
+     0 2px 8px rgba(26,188,156,0.06);
+   animation: fadeUp 0.55s cubic-bezier(.22,.68,0,1.2) both;
+ }
+ 
+ /* ═══════════════════════════════════════
+    LEFT PANEL
+    ═══════════════════════════════════════ */
+ .login-left {
+   padding: clamp(36px, 6vh, 64px) clamp(32px, 4vw, 56px);
+   display: flex;
+   flex-direction: column;
+   justify-content: center;
+   align-items: flex-start;
+   background: linear-gradient(155deg, var(--left-bg-from) 0%, #f0f9f5 50%, var(--left-bg-to) 100%);
+   border-right: 1px solid rgba(26,188,156,0.15);
+   position: relative;
+   overflow: hidden;
+ }
+ 
+ /* Decorative blobs */
+ .login-left::before {
+   content: '';
+   position: absolute; top: -80px; left: -80px;
+   width: 300px; height: 300px; border-radius: 50%;
+   background: radial-gradient(circle, rgba(26,188,156,0.12) 0%, transparent 70%);
+   pointer-events: none;
+ }
+ .login-left::after {
+   content: '';
+   position: absolute; bottom: -60px; right: -60px;
+   width: 220px; height: 220px; border-radius: 50%;
+   background: radial-gradient(circle, rgba(26,188,156,0.08) 0%, transparent 70%);
+   pointer-events: none;
+ }
+ 
+ /* Old image logo — hidden if it somehow loads */
+ .login-logo-img { display: none !important; }
+ 
+ /* New logo component spacing */
+ .login-logo-component { animation: fadeUp 0.45s ease both; }
+ 
+ /* Left panel text */
+ .login-logo-subtitle {
+   /* kept for backward compat — hidden now that logo handles subtitle */
+   display: none;
+ }
+ 
+ .login-tagline {
+   font-family: var(--font-display);   /* Orbitron */
+   font-size: clamp(20px, 2.4vw, 26px);
+   font-weight: 900;
+   line-height: 1.3;
+   color: var(--text-main);
+   animation: fadeUp 0.5s ease 0.15s both;
+ }
+ .login-tagline span { color: var(--teal); }
+ 
+ .login-desc {
+   font-family: var(--font-body);      /* DM Sans */
+   font-size: 15px;
+   line-height: 1.8;
+   color: rgba(13,31,26,0.55);
+   margin-top: 14px;
+   animation: fadeUp 0.5s ease 0.25s both;
+ }
+ 
+ /* ═══════════════════════════════════════
+    RIGHT PANEL
+    ═══════════════════════════════════════ */
+ .login-right {
+   padding: clamp(36px, 6vh, 60px) clamp(32px, 4vw, 56px);
+   display: flex;
+   flex-direction: column;
+   justify-content: center;
+   overflow-y: auto;
+   background: var(--card-bg);
+ }
+ 
+ /* Welcome heading — Orbitron */
+ .login-welcome {
+   font-family: var(--font-display);   /* Orbitron */
+   font-size: clamp(1.3rem, 2.3vw, 1.8rem);
+   font-weight: 900;
+   color: var(--text-main);
+   margin-bottom: 6px;
+   letter-spacing: -0.5px;
+ }
+ 
+ /* Subheading — DM Sans */
+ .login-welcome-sub {
+   font-family: var(--font-body);      /* DM Sans */
+   font-size: 0.88rem;
+   color: var(--text-muted);
+   margin-bottom: clamp(20px, 3vh, 32px);
+ }
+ 
+ /* ═══════════════════════════════════════
+    FORM
+    ═══════════════════════════════════════ */
+ .login-form {
+   display: flex;
+   flex-direction: column;
+   gap: 18px;
+ }
+ 
+ /* Field group */
+ .login-field {
+   display: flex;
+   flex-direction: column;
+   gap: 7px;
+ }
+ 
+ /* Labels — Orbitron, small caps */
+ .login-field label {
+   font-family: var(--font-display);   /* Orbitron */
+   font-size: 0.6rem;
+   font-weight: 700;
+   letter-spacing: 2.5px;
+   text-transform: uppercase;
+   color: rgba(13,31,26,0.45);
+ }
+ 
+ /* ── Input wrapper ── */
+ .login-input-wrap { position: relative; }
+ 
+ .login-input-wrap input {
+   width: 100%;
+   padding: 13px 46px 13px 16px;
+   background: var(--input-bg);
+   border: 1px solid var(--input-border);
+   border-radius: 10px;
+   color: var(--text-main);
+   font-size: 0.92rem;
+   font-family: var(--font-body);      /* DM Sans */
+   outline: none;
+   transition: border-color 0.22s, box-shadow 0.22s, background 0.22s;
+ }
+ .login-input-wrap input::placeholder {
+   color: var(--text-hint);
+ }
+ .login-input-wrap input:focus {
+   border-color: var(--teal);
+   box-shadow: 0 0 0 3px var(--teal-glow);
+   background: rgba(26,188,156,0.03);
+ }
+ .login-input-wrap input.input-error {
+   border-color: var(--error);
+   box-shadow: 0 0 0 3px var(--error-glow);
+ }
+ 
+ /* Password toggle */
+ .login-toggle-pw {
+   position: absolute; right: 14px; top: 50%;
+   transform: translateY(-50%);
+   cursor: pointer;
+   color: var(--text-hint);
+   background: none; border: none;
+   font-size: 1rem; padding: 0; line-height: 1;
+   transition: color 0.2s;
+ }
+ .login-toggle-pw:hover { color: var(--teal); }
+ 
+ /* Field error */
+ .login-field-error {
+   font-size: 0.74rem;
+   color: var(--error);
+   display: none;
+   align-items: center;
+   gap: 5px;
+ }
+ .login-field-error.show { display: flex; }
+ 
+ /* ── Row: remember + forgot ── */
+ .login-row {
+   display: flex;
+   align-items: center;
+   justify-content: space-between;
+   margin-top: -2px;
+ }
+ 
+ /* Remember label */
+ .remember {
+   display: flex; align-items: center; gap: 9px;
+   font-size: 0.8rem;
+   font-family: var(--font-body);
+   color: var(--text-muted);
+   cursor: pointer; user-select: none;
+ }
+ 
+ /* Custom checkbox */
+ .check-box {
+   width: 16px; height: 16px; border-radius: 4px;
+   border: 1.5px solid rgba(13,31,26,0.2);
+   display: flex; align-items: center; justify-content: center;
+   transition: background 0.2s, border-color 0.2s;
+   flex-shrink: 0;
+ }
+ 
+ /* Forgot link — DM Sans */
+ .login-forgot {
+   font-family: var(--font-body);
+   font-size: 0.78rem;
+   color: var(--teal);
+   text-decoration: none;
+   letter-spacing: 0.3px;
+   font-weight: 600;
+   transition: color 0.2s;
+ }
+ .login-forgot:hover { color: var(--teal-dark); }
+ 
+ /* ── Submit button — Orbitron label ── */
+ .login-btn-signin {
+   position: relative; overflow: hidden;
+   width: 100%;
+   padding: 14px;
+   border: none; border-radius: 10px;
+   background: linear-gradient(90deg, var(--teal-dark) 0%, var(--teal) 100%);
+   color: #fff;
+   font-family: var(--font-display);   /* Orbitron */
+   font-size: 0.72rem;
+   font-weight: 700;
+   letter-spacing: 3px;
+   text-transform: uppercase;
+   cursor: pointer;
+   transition: transform 0.15s, box-shadow 0.2s, background 0.2s;
+   box-shadow: 0 4px 20px rgba(26,188,156,0.3);
+   margin-top: 4px;
+ }
+ .login-btn-signin:hover {
+   transform: translateY(-2px);
+   box-shadow: 0 10px 28px rgba(26,188,156,0.45);
+   background: linear-gradient(90deg, #099470 0%, #17a882 100%);
+ }
+ .login-btn-signin:active { transform: translateY(0); }
+ .login-btn-signin:disabled { opacity: 0.7; cursor: not-allowed; transform: none; }
+ 
+ .login-btn-signin .ripple {
+   position: absolute; border-radius: 50%;
+   background: rgba(255,255,255,0.28);
+   transform: scale(0);
+   animation: ripple 0.55s linear;
+   pointer-events: none;
+ }
+ .btn-text { position: relative; z-index: 1; }
+ .login-btn-signin.loading .btn-text { opacity: 0; }
+ 
+ /* Spinner */
+ .spinner {
+   position: absolute; top: 50%; left: 50%;
+   transform: translate(-50%, -50%);
+   width: 20px; height: 20px;
+   border: 2.5px solid rgba(255,255,255,0.3);
+   border-top-color: #fff;
+   border-radius: 50%;
+   display: none;
+   animation: spin 0.7s linear infinite;
+ }
+ .login-btn-signin.loading .spinner { display: block; }
+ 
+ /* ── Footer link — DM Sans ── */
+ .login-register {
+   text-align: center;
+   font-family: var(--font-body);
+   font-size: 0.8rem;
+   color: var(--text-muted);
+   margin-top: 4px;
+ }
+ .login-register a {
+   color: var(--teal);
+   text-decoration: none;
+   font-weight: 600;
+ }
+ .login-register a:hover { text-decoration: underline; }
+ 
+ /* ── Divider ── */
+ .login-divider {
+   display: flex; align-items: center; gap: 12px;
+   margin: 2px 0;
+ }
+ .login-divider-line { flex: 1; height: 1px; background: var(--input-border); }
+ .login-divider-text {
+   font-family: var(--font-body);
+   color: var(--text-hint);
+   font-size: 0.8rem;
+   white-space: nowrap;
+ }
+ 
+ /* ── Google button — DM Sans ── */
+ .login-google-btn {
+   width: 100%; padding: 12px 16px;
+   border: 1px solid var(--input-border);
+   border-radius: 10px;
+   background: #fff;
+   cursor: pointer;
+   display: flex; align-items: center; justify-content: center; gap: 10px;
+   font-family: var(--font-body);      /* DM Sans */
+   font-size: 0.88rem;
+   font-weight: 500;
+   color: #3c4043;
+   transition: box-shadow 0.2s, border-color 0.2s;
+   box-shadow: 0 1px 4px rgba(13,31,26,0.06);
+ }
+ .login-google-btn:hover {
+   box-shadow: 0 3px 12px rgba(13,31,26,0.12);
+   border-color: rgba(26,188,156,0.3);
+ }
+ 
+ /* ═══════════════════════════════════════
+    TOAST
+    ═══════════════════════════════════════ */
+ .login-toast {
+   position: fixed; bottom: 28px; left: 50%;
+   transform: translateX(-50%) translateY(80px);
+   background: #fff;
+   border: 1px solid rgba(26,188,156,0.2);
+   border-left: 3px solid var(--teal);
+   border-radius: 10px;
+   padding: 13px 22px;
+   font-family: var(--font-body);
+   font-size: 0.84rem;
+   color: var(--text-main);
+   box-shadow: 0 8px 32px rgba(13,31,26,0.12);
+   transition: transform 0.4s cubic-bezier(.22,.68,0,1.1), opacity 0.3s;
+   opacity: 0; z-index: 999; white-space: nowrap;
+ }
+ .login-toast.show { transform: translateX(-50%) translateY(0); opacity: 1; }
+ .login-toast.error-toast { border-left-color: var(--error); }
+ 
+ /* ═══════════════════════════════════════
+    FORGOT PASSWORD MODAL
+    ═══════════════════════════════════════ */
+ .login-modal-overlay {
+   position: fixed; inset: 0; z-index: 100;
+   background: rgba(13,31,26,0.35);
+   backdrop-filter: blur(6px);
+   display: flex; align-items: center; justify-content: center;
+   padding: 24px;
+   opacity: 0; pointer-events: none;
+   transition: opacity 0.3s ease;
+ }
+ .login-modal-overlay.show { opacity: 1; pointer-events: all; }
+ 
+ .login-modal-card {
+   position: relative;
+   width: min(420px, 100%);
+   background: var(--card-bg);
+   border: 1px solid rgba(26,188,156,0.2);
+   border-radius: 20px;
+   padding: clamp(28px,4vh,44px) clamp(24px,4vw,40px);
+   box-shadow: 0 24px 64px rgba(13,31,26,0.14);
+   transform: translateY(20px);
+   transition: transform 0.35s cubic-bezier(.22,.68,0,1.2);
+   color: var(--text-main);
+ }
+ .login-modal-overlay.show .login-modal-card { transform: translateY(0); }
+ 
+ .login-modal-close {
+   position: absolute; top: 16px; right: 18px;
+   background: none; border: none;
+   color: rgba(13,31,26,0.3);
+   font-size: 1.1rem; line-height: 1;
+   cursor: pointer; padding: 4px 8px;
+   transition: color 0.2s;
+ }
+ .login-modal-close:hover { color: var(--text-main); }
+ 
+ .login-modal-icon {
+   width: 48px; height: 48px; border-radius: 12px;
+   background: rgba(26,188,156,0.08);
+   border: 1px solid rgba(26,188,156,0.2);
+   display: flex; align-items: center; justify-content: center;
+   font-size: 22px; margin-bottom: 16px;
+ }
+ 
+ .login-modal-title {
+   font-family: var(--font-display);   /* Orbitron */
+   font-size: 1.1rem;
+   font-weight: 700;
+   color: var(--text-main);
+   margin-bottom: 6px;
+   letter-spacing: -0.3px;
+ }
+ 
+ .login-modal-sub {
+   font-family: var(--font-body);
+   font-size: 0.85rem;
+   color: var(--text-muted);
+   margin-bottom: 22px;
+   line-height: 1.65;
+ }
+ 
+ .login-modal-success {
+   display: flex; flex-direction: column;
+   align-items: center; text-align: center;
+   gap: 12px; padding: 10px 0;
+ }
+ .login-modal-success-icon { font-size: 2.4rem; }
+ .login-modal-email-highlight { color: var(--teal); font-weight: 600; }
+ 
+ .login-modal-local-note {
+   font-family: var(--font-body);
+   color: rgba(13,31,26,0.35);
+   font-size: 0.74rem;
+ }
+ .login-modal-local-note a { color: var(--teal); text-decoration: none; }
+ .login-modal-local-note a:hover { text-decoration: underline; }
+ 
+ .login-modal-back-btn {
+   background: none; border: none; cursor: pointer;
+   color: var(--teal);
+   font-family: var(--font-body);
+   font-size: 0.84rem; font-weight: 600;
+   padding: 0; transition: color 0.2s;
+ }
+ .login-modal-back-btn:hover { color: var(--teal-dark); }
+ 
+ /* ═══════════════════════════════════════
+    KEYFRAMES
+    ═══════════════════════════════════════ */
+ @keyframes fadeUp {
+   from { opacity: 0; transform: translateY(20px); }
+   to   { opacity: 1; transform: translateY(0); }
+ }
+ @keyframes spin {
+   to { transform: translate(-50%, -50%) rotate(360deg); }
+ }
+ @keyframes ripple {
+   to { transform: scale(4); opacity: 0; }
+ }
+ 
+ /* ═══════════════════════════════════════
+    TABLET  (641px – 1024px)
+    ═══════════════════════════════════════ */
+ @media (min-width: 641px) and (max-width: 1024px) {
+   .login-page { padding: 20px; }
+ 
+   .login-container {
+     grid-template-columns: 38fr 62fr;
+     min-height: auto;
+     border-radius: 18px;
+   }
+ 
+   .login-left  { padding: 36px 28px; }
+   .login-right { padding: 36px 28px 44px; overflow-y: auto; }
+ 
+   .login-welcome    { font-size: clamp(1.1rem, 2.4vw, 1.4rem); }
+   .login-form       { gap: 14px; }
+ 
+   .login-input-wrap input {
+     padding: 11px 42px 11px 14px;
+     font-size: 0.88rem;
+   }
+   .login-btn-signin { font-size: 0.65rem; letter-spacing: 2.5px; padding: 12px; }
+ }
+ 
+ /* ═══════════════════════════════════════
+    MOBILE  (≤ 640px)
+    ═══════════════════════════════════════ */
+ @media (max-width: 640px) {
+   .login-page {
+     padding: 0;
+     align-items: flex-start;
+     background-image:
+       linear-gradient(180deg, rgba(26,188,156,0.13) 0%, transparent 200px),
+       radial-gradient(ellipse 80% 40% at 60% 0%, rgba(26,188,156,0.09) 0%, transparent 60%);
+   }
+ 
+   .login-container {
+     grid-template-columns: 1fr;
+     width: 100%; min-height: 100vh;
+     border-radius: 0; border: none;
+     box-shadow: none; animation: none;
+   }
+ 
+   .login-left { display: none; }
+ 
+   .login-right {
+     padding: 52px 22px 64px;
+     min-height: 100vh; height: auto;
+     overflow-y: visible; justify-content: flex-start;
+   }
+ 
+   /* Teal accent bar */
+   .login-right::before {
+     content: '';
+     display: block;
+     width: 40px; height: 4px;
+     background: linear-gradient(90deg, var(--teal-dark), var(--teal));
+     border-radius: 2px;
+     margin-bottom: 28px;
+   }
+ 
+   .login-welcome    { font-size: 1.5rem; }
+   .login-form       { gap: 15px; }
+ 
+   /* Prevent iOS zoom */
+   .login-input-wrap input { font-size: 16px; padding: 13px 44px 13px 16px; }
+ 
+   .login-btn-signin { padding: 14px; font-size: 0.65rem; letter-spacing: 2.5px; }
+   .login-google-btn { padding: 13px 16px; }
+ 
+   /* Modal slides up from bottom */
+   .login-modal-overlay { align-items: flex-end; padding: 0; }
+   .login-modal-card {
+     width: 100%; border-radius: 24px 24px 0 0;
+     padding: 32px 24px 40px;
+     transform: translateY(100%);
+     max-height: 90vh; overflow-y: auto;
+   }
+   .login-modal-overlay.show .login-modal-card { transform: translateY(0); }
+ 
+   .login-toast {
+     width: calc(100% - 32px);
+     white-space: normal; text-align: center; bottom: 20px;
+   }
+ }
+ 
+ /* ═══════════════════════════════════════
+    VERY SMALL PHONES  (≤ 380px)
+    ═══════════════════════════════════════ */
+ @media (max-width: 380px) {
+   .login-right { padding: 44px 16px 56px; }
+   .login-welcome { font-size: 1.2rem; }
+   .login-form { gap: 13px; }
+   .login-input-wrap input { padding: 12px 40px 12px 13px; font-size: 15px; }
+   .login-btn-signin { padding: 13px; font-size: 0.6rem; letter-spacing: 2px; }
+ }

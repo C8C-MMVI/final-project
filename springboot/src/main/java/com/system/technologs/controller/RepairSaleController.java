@@ -25,20 +25,25 @@ public class RepairSaleController {
     // Body: { requestId, shopId, customerId, staffId, paymentMethod, items[] }
     @PostMapping
     public ResponseEntity<?> createSale(@RequestBody CreateSaleRequest req) {
-        try {
-            RepairSale created = saleService.createSale(req);
-            return ResponseEntity.status(HttpStatus.CREATED).body(created);
-        } catch (IllegalStateException e) {
-            // Duplicate sale for same repair
-            return ResponseEntity
-                .status(HttpStatus.CONFLICT)
-                .body(Map.of("error", e.getMessage()));
-        } catch (Exception e) {
-            return ResponseEntity
-                .status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(Map.of("error", "Failed to create sale: " + e.getMessage()));
-        }
+    try {
+        RepairSale created = saleService.createSale(req);
+        return ResponseEntity.status(HttpStatus.CREATED).body(created);
+    } catch (IllegalStateException e) {
+        // Duplicate sale
+        return ResponseEntity
+            .status(HttpStatus.CONFLICT)
+            .body(Map.of("error", e.getMessage()));
+    } catch (IllegalArgumentException e) {
+        // Missing / invalid fields — return 400 instead of 500
+        return ResponseEntity
+            .status(HttpStatus.BAD_REQUEST)
+            .body(Map.of("error", e.getMessage()));
+    } catch (Exception e) {
+        return ResponseEntity
+            .status(HttpStatus.INTERNAL_SERVER_ERROR)
+            .body(Map.of("error", "Failed to create sale: " + e.getMessage()));
     }
+}
 
     // ── GET /api/sales ────────────────────────────────────────────────────
     // All sales (admin use)

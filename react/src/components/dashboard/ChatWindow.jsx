@@ -1,4 +1,3 @@
-// src/components/dashboard/ChatWindow.jsx
 import { useEffect, useRef, useState, useCallback } from 'react';
 import SockJS from 'sockjs-client';
 import { Client } from '@stomp/stompjs';
@@ -11,6 +10,7 @@ export default function ChatWindow({
   currentUserId,
   currentUserName,
   technicianId,
+  customerId,
 }) {
   const [room,      setRoom]      = useState(null);
   const [messages,  setMessages]  = useState([]);
@@ -23,20 +23,45 @@ export default function ChatWindow({
   const bottomRef   = useRef(null);
   const typingTimer = useRef(null);
 
+  // ── Open / join chat room ─────────────────────────────────────────────────
   useEffect(() => {
     if (!repairId || !currentUserId) return;
+
+    let cancelled = false;
+
+    const resolvedCustomerId = customerId ?? currentUserId;
+
     fetch(`${API_BASE}/room`, {
       method:  'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ repairId, customerId: currentUserId, technicianId }),
+      body: JSON.stringify({
+        repairId,
+        customerId:   resolvedCustomerId,
+        technicianId,
+      }),
     })
-      .then(r => r.json())
-      .then(data => { setRoom(data.room); setMessages(data.messages ?? []); })
-      .catch(() => setError('Failed to open chat room.'));
-  }, [repairId, currentUserId, technicianId]);
+      .then(r => {
+        if (!r.ok) throw new Error(`Server responded with ${r.status}`);
+        return r.json();
+      })
+      .then(data => {
+        if (cancelled) return;
+        setRoom(data.room);
+        setMessages(data.messages ?? []);
+      })
+      .catch(err => {
+        if (cancelled) return;
+        console.error('Chat room error:', err);
+        setError('Failed to open chat room.');
+      });
 
+    return () => { cancelled = true; };
+  }, [repairId, currentUserId, technicianId, customerId]);
+
+  // ── WebSocket / STOMP connection ──────────────────────────────────────────
   useEffect(() => {
     if (!room) return;
+
     const client = new Client({
       webSocketFactory: () => new SockJS(WS_URL),
       reconnectDelay:   5000,
@@ -48,8 +73,12 @@ export default function ChatWindow({
             if (payload.senderId !== currentUserId) {
               setIsTyping(payload.isTyping ? { senderName: payload.senderName } : null);
               clearTimeout(typingTimer.current);
-              if (payload.isTyping) typingTimer.current = setTimeout(() => setIsTyping(null), 3000);
+              if (payload.isTyping) {
+                typingTimer.current = setTimeout(() => setIsTyping(null), 3000);
+              }
             }
+          } else if (payload.type === 'read_receipt') {
+            // ignore read receipts in message list
           } else {
             setMessages(prev => [...prev, payload]);
             if (document.visibilityState === 'visible') markRead(room.roomId);
@@ -60,23 +89,30 @@ export default function ChatWindow({
       onDisconnect: () => setConnected(false),
       onStompError: () => setError('Connection error. Please try again.'),
     });
+
     client.activate();
     stompRef.current = client;
-    return () => { client.deactivate(); stompRef.current = null; };
+    return () => {
+      client.deactivate();
+      stompRef.current = null;
+    };
   }, [room]);
 
+  // ── Auto-scroll ───────────────────────────────────────────────────────────
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, isTyping]);
 
-  const markRead = (roomId) => {
+  // ── Mark messages as read ─────────────────────────────────────────────────
+  const markRead = useCallback((roomId) => {
     fetch(`${API_BASE}/read`, {
       method:  'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ roomId, userId: currentUserId }),
     }).catch(() => {});
-  };
+  }, [currentUserId]);
 
+  // ── Typing indicator ──────────────────────────────────────────────────────
   const sendTyping = useCallback((isTypingNow) => {
     if (!stompRef.current?.connected || !room) return;
     stompRef.current.publish({
@@ -97,26 +133,33 @@ export default function ChatWindow({
     typingTimer.current = setTimeout(() => sendTyping(false), 1500);
   };
 
-  const sendMessage = () => {
+  // ── Send message ──────────────────────────────────────────────────────────
+  const sendMessage = useCallback(() => {
     const text = input.trim();
     if (!text || !stompRef.current?.connected || !room) return;
+
+    const resolvedCustomerId = customerId ?? currentUserId;
+    const role = currentUserId === resolvedCustomerId ? 'customer' : 'technician';
+
     stompRef.current.publish({
       destination: '/app/chat.send',
       body: JSON.stringify({
         roomId:     room.roomId,
         senderId:   currentUserId,
         senderName: currentUserName,
+        senderRole: role,
         message:    text,
       }),
     });
     setInput('');
     sendTyping(false);
-  };
+  }, [input, room, currentUserId, currentUserName, customerId, sendTyping]);
 
   const handleKeyDown = (e) => {
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
   };
 
+  // ── Helpers ───────────────────────────────────────────────────────────────
   const formatTime = (ts) => {
     if (!ts) return '';
     return new Date(ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -124,12 +167,11 @@ export default function ChatWindow({
 
   const getInitial = (name) => (name ?? '?').charAt(0).toUpperCase();
 
-  // ── Error ────────────────────────────────────────────────────────────────
+  // ── Error state ───────────────────────────────────────────────────────────
   if (error) return (
     <div style={{
       display: 'flex', flexDirection: 'column', alignItems: 'center',
-      justifyContent: 'center', height: '100%', gap: 12,
-      background: '#fff',
+      justifyContent: 'center', height: '100%', gap: 12, background: '#fff',
     }}>
       <div style={{
         width: 48, height: 48, borderRadius: '50%',
@@ -137,15 +179,23 @@ export default function ChatWindow({
         display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.3rem',
       }}>⚠️</div>
       <p style={{ color: '#e11d48', fontSize: '0.84rem', margin: 0 }}>{error}</p>
+      <button
+        onClick={() => { setError(null); setRoom(null); }}
+        style={{
+          padding: '6px 16px', borderRadius: 8, border: '1px solid #e2e8f0',
+          background: '#f8fafc', cursor: 'pointer', fontSize: '0.8rem', color: '#64748b',
+        }}
+      >
+        Retry
+      </button>
     </div>
   );
 
-  // ── Loading ───────────────────────────────────────────────────────────────
+  // ── Loading state ─────────────────────────────────────────────────────────
   if (!room) return (
     <div style={{
       display: 'flex', flexDirection: 'column', alignItems: 'center',
-      justifyContent: 'center', height: '100%', gap: 14,
-      background: '#fff',
+      justifyContent: 'center', height: '100%', gap: 14, background: '#fff',
     }}>
       <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
       <div style={{
@@ -157,7 +207,7 @@ export default function ChatWindow({
     </div>
   );
 
-  // ── Main ─────────────────────────────────────────────────────────────────
+  // ── Main render ───────────────────────────────────────────────────────────
   return (
     <div style={{
       display: 'flex', flexDirection: 'column', height: '100%',
@@ -182,10 +232,9 @@ export default function ChatWindow({
         .cmsg-bubble-them:hover { background: #f1f5f9 !important; }
       `}</style>
 
-      {/* Header */}
+      {/* ── Header ── */}
       <div style={{
-        padding: '13px 18px',
-        background: '#fff',
+        padding: '13px 18px', background: '#fff',
         borderBottom: '1.5px solid #e2e8f0',
         display: 'flex', alignItems: 'center',
         justifyContent: 'space-between', flexShrink: 0,
@@ -208,7 +257,6 @@ export default function ChatWindow({
             </div>
           </div>
         </div>
-
         <div style={{
           display: 'flex', alignItems: 'center', gap: 5,
           padding: '4px 10px', borderRadius: 20,
@@ -230,7 +278,7 @@ export default function ChatWindow({
         </div>
       </div>
 
-      {/* Messages */}
+      {/* ── Messages ── */}
       <div style={{
         flex: 1, overflowY: 'auto', padding: '16px 16px 8px',
         background: '#f8fafc',
@@ -259,14 +307,13 @@ export default function ChatWindow({
         )}
 
         {messages.map((msg, i) => {
-          const isMe      = msg.senderId === currentUserId;
-          const showName  = !isMe && (i === 0 || messages[i - 1]?.senderId !== msg.senderId);
+          const isMe     = msg.senderId === currentUserId;
+          const showName = !isMe && (i === 0 || messages[i - 1]?.senderId !== msg.senderId);
           return (
-            <div key={msg.messageId ?? i} className="cmsg" style={{
+            <div key={msg.messageId ?? msg.id ?? i} className="cmsg" style={{
               display: 'flex', alignItems: 'flex-end', gap: 7,
               flexDirection: isMe ? 'row-reverse' : 'row',
             }}>
-              {/* Avatar */}
               <div style={{
                 width: 26, height: 26, borderRadius: '50%', flexShrink: 0,
                 background: isMe ? '#1abc9c' : '#e2e8f0',
@@ -277,7 +324,6 @@ export default function ChatWindow({
               }}>
                 {getInitial(msg.senderName)}
               </div>
-
               <div style={{
                 display: 'flex', flexDirection: 'column',
                 alignItems: isMe ? 'flex-end' : 'flex-start',
@@ -293,22 +339,17 @@ export default function ChatWindow({
                 )}
                 <div className={isMe ? '' : 'cmsg-bubble-them'} style={{
                   padding: '9px 13px',
-                  borderRadius: isMe
-                    ? '16px 16px 4px 16px'
-                    : '16px 16px 16px 4px',
+                  borderRadius: isMe ? '16px 16px 4px 16px' : '16px 16px 16px 4px',
                   background: isMe ? '#1abc9c' : '#fff',
                   border: isMe ? 'none' : '1px solid #e2e8f0',
                   color: isMe ? '#fff' : '#1e293b',
-                  fontSize: '0.85rem',
-                  lineHeight: 1.55,
-                  wordBreak: 'break-word',
+                  fontSize: '0.85rem', lineHeight: 1.55, wordBreak: 'break-word',
                   transition: 'background 0.15s',
                 }}>
                   {msg.message}
                 </div>
                 <span style={{
-                  fontSize: '0.63rem', color: '#cbd5e1',
-                  paddingLeft: 3, paddingRight: 3,
+                  fontSize: '0.63rem', color: '#cbd5e1', paddingLeft: 3, paddingRight: 3,
                 }}>
                   {formatTime(msg.sentAt)}
                 </span>
@@ -317,11 +358,8 @@ export default function ChatWindow({
           );
         })}
 
-        {/* Typing indicator */}
         {isTyping && (
-          <div className="cmsg" style={{
-            display: 'flex', alignItems: 'flex-end', gap: 7,
-          }}>
+          <div className="cmsg" style={{ display: 'flex', alignItems: 'flex-end', gap: 7 }}>
             <div style={{
               width: 26, height: 26, borderRadius: '50%',
               background: '#e2e8f0', flexShrink: 0,
@@ -337,29 +375,24 @@ export default function ChatWindow({
             }}>
               {[0, 1, 2].map(i => (
                 <div key={i} style={{
-                  width: 6, height: 6, borderRadius: '50%',
-                  background: '#1abc9c',
+                  width: 6, height: 6, borderRadius: '50%', background: '#1abc9c',
                   animation: `bounce 1.2s ease-in-out ${i * 0.2}s infinite`,
                 }} />
               ))}
             </div>
           </div>
         )}
-
         <div ref={bottomRef} />
       </div>
 
-      {/* Input */}
+      {/* ── Input ── */}
       <div style={{
-        padding: '12px 14px 10px',
-        background: '#fff',
-        borderTop: '1px solid #e2e8f0',
-        flexShrink: 0,
+        padding: '12px 14px 10px', background: '#fff',
+        borderTop: '1px solid #e2e8f0', flexShrink: 0,
       }}>
         <div className="cinput-wrap" style={{
           display: 'flex', alignItems: 'flex-end', gap: 8,
-          background: '#f8fafc',
-          border: '1.5px solid #e2e8f0',
+          background: '#f8fafc', border: '1.5px solid #e2e8f0',
           borderRadius: 12, padding: '8px 8px 8px 14px',
           transition: 'border-color 0.2s',
         }}>

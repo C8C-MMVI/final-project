@@ -1,27 +1,9 @@
 <?php
-/**
- * api/notifications.php  —  MongoDB version
- *
- * WHAT CHANGED FROM THE ORIGINAL:
- *   - Notifications now stored in MongoDB collection "notifications".
- *   - All GET / PATCH / POST logic preserved exactly — same response shape.
- *   - PostgreSQL is no longer needed in this file.
- *
- * MongoDB document shape:
- * {
- *   _id             : ObjectId,
- *   user_id         : int,
- *   message         : string,
- *   is_read         : bool,
- *   created_at      : UTCDateTime
- * }
- */
-
 require_once '../includes/auth.php';
-require_once '../mongo_config.php';     // replaces db_config.php
+require_once '../db_config.php';
 
 header('Content-Type: application/json');
-header('Access-Control-Allow-Origin: http://localhost:5173');
+header('Access-Control-Allow-Origin: http://localhost:3000');
 header('Access-Control-Allow-Credentials: true');
 header('Access-Control-Allow-Methods: GET, POST, PATCH, OPTIONS');
 header('Access-Control-Allow-Headers: Content-Type');
@@ -31,35 +13,82 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     exit;
 }
 
+$method = $_SERVER['REQUEST_METHOD'];
+$action = $_GET['action'] ?? '';
+
+if ($method === 'POST') {
+    $body        = json_decode(file_get_contents('php://input'), true);
+    $service_key = trim($body['_service_key'] ?? '');
+
+    $expected_key    = getenv('APP_SERVICE_KEY') ?: '';
+    $is_service_call = $expected_key !== '' && hash_equals($expected_key, $service_key);
+
+    if (!$is_service_call) {
+        authRequireRole(['admin', 'owner', 'technician', 'customer']);
+    }
+
+    $target_user_id = (int)  ($body['target_user_id'] ?? 0);
+    $message        = trim($body['message'] ?? '');
+    $link           = isset($body['link']) ? trim($body['link']) : null;
+
+    if (!$target_user_id || !$message) {
+        http_response_code(400);
+        echo json_encode(['success' => false, 'message' => 'target_user_id and message are required']);
+        exit;
+    }
+
+    try {
+        $stmt = $pdo->prepare("
+            INSERT INTO notifications (user_id, message, link, is_read, created_at)
+            VALUES (:uid, :msg, :link, FALSE, NOW())
+            RETURNING notification_id
+        ");
+        $stmt->execute([
+            ':uid'  => $target_user_id,
+            ':msg'  => $message,
+            ':link' => $link,
+        ]);
+        $row = $stmt->fetch();
+
+        echo json_encode([
+            'success'         => true,
+            'notification_id' => (int) $row['notification_id'],
+        ]);
+    } catch (PDOException $e) {
+        error_log('Notifications POST error: ' . $e->getMessage());
+        http_response_code(500);
+        echo json_encode(['success' => false, 'message' => 'Server error.']);
+    }
+    exit;
+}
+
 authRequireRole(['admin', 'owner', 'technician', 'customer']);
 
 $user_id = (int) $_SESSION['user_id'];
-$method  = $_SERVER['REQUEST_METHOD'];
-$action  = $_GET['action'] ?? '';
-
-$mongo      = getMongoDb();
-$collection = $mongo->notifications;
 
 try {
 
-    // ── GET — fetch notifications for logged-in user ───────────────────────
     if ($method === 'GET') {
-        $cursor = $collection->find(
-            ['user_id' => $user_id],
-            ['sort' => ['created_at' => -1], 'limit' => 50]
-        );
+        $stmt = $pdo->prepare("
+            SELECT notification_id, message, link, is_read,
+                   TO_CHAR(created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD\"T\"HH24:MI:SS\"Z\"') AS created_at
+            FROM   notifications
+            WHERE  user_id = :uid
+              AND  LOWER(message) NOT LIKE '%sent you a message%'
+              AND  LOWER(message) NOT LIKE '%new message%'
+              AND  LOWER(message) NOT LIKE '%chat%'
+            ORDER  BY created_at DESC
+            LIMIT  50
+        ");
+        $stmt->execute([':uid' => $user_id]);
+        $notifications = $stmt->fetchAll();
 
-        $notifications = [];
-        foreach ($cursor as $doc) {
-            $notifications[] = [
-                'notification_id' => (string) $doc['_id'],
-                'message'         => $doc['message']    ?? '',
-                'is_read'         => (bool)  ($doc['is_read'] ?? false),
-                'created_at'      => isset($doc['created_at'])
-                    ? $doc['created_at']->toDateTime()->format('Y-m-d H:i:s')
-                    : null,
-            ];
+        foreach ($notifications as &$n) {
+            $n['notification_id'] = (int)   $n['notification_id'];
+            $n['is_read']         = (bool)  $n['is_read'];
+            $n['link']            = $n['link'] ?: null;
         }
+        unset($n);
 
         $unread_count = count(array_filter($notifications, fn($n) => !$n['is_read']));
 
@@ -70,64 +99,33 @@ try {
         ]);
     }
 
-    // ── PATCH ?action=read&id=X — mark one as read ────────────────────────
     elseif ($method === 'PATCH' && $action === 'read') {
-        $raw_id = $_GET['id'] ?? '';
-        if (!$raw_id) {
+        $id = (int) ($_GET['id'] ?? 0);
+        if (!$id) {
             http_response_code(400);
             echo json_encode(['success' => false, 'message' => 'Missing notification id']);
             exit;
         }
 
-        try {
-            $oid = new \MongoDB\BSON\ObjectId($raw_id);
-        } catch (\Exception $e) {
-            http_response_code(400);
-            echo json_encode(['success' => false, 'message' => 'Invalid notification id']);
-            exit;
-        }
-
-        $collection->updateOne(
-            ['_id' => $oid, 'user_id' => $user_id],
-            ['$set' => ['is_read' => true]]
-        );
+        $stmt = $pdo->prepare("
+            UPDATE notifications
+            SET    is_read = TRUE
+            WHERE  notification_id = :id AND user_id = :uid
+        ");
+        $stmt->execute([':id' => $id, ':uid' => $user_id]);
 
         echo json_encode(['success' => true]);
     }
 
-    // ── PATCH ?action=read_all — mark all as read ─────────────────────────
     elseif ($method === 'PATCH' && $action === 'read_all') {
-        $collection->updateMany(
-            ['user_id' => $user_id, 'is_read' => false],
-            ['$set'    => ['is_read' => true]]
-        );
+        $stmt = $pdo->prepare("
+            UPDATE notifications
+            SET    is_read = TRUE
+            WHERE  user_id = :uid AND is_read = FALSE
+        ");
+        $stmt->execute([':uid' => $user_id]);
 
         echo json_encode(['success' => true]);
-    }
-
-    // ── POST — create a notification ──────────────────────────────────────
-    elseif ($method === 'POST') {
-        $body           = json_decode(file_get_contents('php://input'), true);
-        $target_user_id = (int)   ($body['target_user_id'] ?? 0);
-        $message        = trim($body['message'] ?? '');
-
-        if (!$target_user_id || !$message) {
-            http_response_code(400);
-            echo json_encode(['success' => false, 'message' => 'target_user_id and message are required']);
-            exit;
-        }
-
-        $result = $collection->insertOne([
-            'user_id'    => $target_user_id,
-            'message'    => $message,
-            'is_read'    => false,
-            'created_at' => new \MongoDB\BSON\UTCDateTime(),
-        ]);
-
-        echo json_encode([
-            'success'         => true,
-            'notification_id' => (string) $result->getInsertedId(),
-        ]);
     }
 
     else {
@@ -135,8 +133,8 @@ try {
         echo json_encode(['success' => false, 'message' => 'Method not allowed']);
     }
 
-} catch (\Exception $e) {
-    error_log('MongoDB notifications error: ' . $e->getMessage());
+} catch (PDOException $e) {
+    error_log('Notifications error: ' . $e->getMessage());
     http_response_code(500);
-    echo json_encode(['success' => false, 'message' => $e->getMessage()]);
+    echo json_encode(['success' => false, 'message' => 'Server error.']);
 }

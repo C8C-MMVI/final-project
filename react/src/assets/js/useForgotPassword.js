@@ -1,45 +1,48 @@
-import { useState } from "react";
+import { useState } from 'react';
 
 export default function useForgotPassword() {
-  const [email, setEmail] = useState("");
+  const [email,   setEmail]   = useState('');
   const [loading, setLoading] = useState(false);
-  const [message, setMessage] = useState("");
-  const [error, setError] = useState("");
+  const [sent,    setSent]    = useState(false);   // true once API returns success
+  const [error,   setError]   = useState('');
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setLoading(true);
-    setMessage("");
-    setError("");
+    setError('');
 
+    // Client-side guard
+    if (!email.trim() || !/\S+@\S+\.\S+/.test(email)) {
+      setError('Please enter a valid email address.');
+      return;
+    }
+
+    setLoading(true);
     try {
-      const res = await fetch("http://localhost:8000/api/forgot_password.php", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email }),
+      const res  = await fetch('/api/forgot_password.php', {   // relative — works in all envs
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ email: email.trim() }),
       });
 
-      const data = await res.json();
-
-      if (data.success) {
-        setMessage(data.message);
+      // Backend always returns 200 for valid requests (prevents enumeration)
+      if (res.ok) {
+        setSent(true);
       } else {
-        setError(data.message || "Something went wrong.");
+        const data = await res.json().catch(() => ({}));
+        setError(data.message || 'Something went wrong. Please try again.');
       }
-    } catch (err) {
-      console.error(err);
-      setError("Failed to send request.");
+    } catch {
+      setError('Cannot connect to the server. Please check your connection.');
     } finally {
       setLoading(false);
     }
   };
 
-  return {
-    email,
-    setEmail,
-    loading,
-    message,
-    error,
-    handleSubmit,
+  const reset = () => {
+    setSent(false);
+    setError('');
+    setEmail('');
   };
+
+  return { email, setEmail, loading, sent, error, handleSubmit, reset };
 }

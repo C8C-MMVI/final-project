@@ -1,23 +1,8 @@
 <?php
 /**
- * api/system_logs.php  —  MongoDB version
- *
- * WHAT CHANGED FROM THE ORIGINAL:
- *   - Logs are now stored in MongoDB collection "system_logs" instead of PostgreSQL.
- *   - PostgreSQL $pdo is still required only for the user lookup (JOIN users).
- *   - GET  /api/system_logs          — admin: fetch last 50 logs
- *   - POST /api/system_logs          — any authenticated user: write a log entry
- *
- * MongoDB document shape:
- * {
- *   _id        : ObjectId,
- *   user_id    : int,
- *   username   : string,          // denormalised from PostgreSQL users table
- *   action     : string,
- *   log_type   : "info"|"warn"|"danger",
- *   ip_address : string,
- *   created_at : UTCDateTime
- * }
+ * api/system_logs.php
+ * Admin only — reads system logs from PostgreSQL.
+ * POST: any authenticated user can write a log entry.
  */
 
 session_start();
@@ -29,15 +14,21 @@ if (!isset($_SESSION['user_id'])) {
     exit;
 }
 
-require_once __DIR__ . '/../db_config.php';       // PostgreSQL $pdo
-require_once __DIR__ . '/../mongo_config.php';     // MongoDB getMongoDb()
+require_once __DIR__ . '/../db_config.php';
+require_once __DIR__ . '/../includes/log.php';
 
 $userId = (int) $_SESSION['user_id'];
 $role   = $_SESSION['role'] ?? '';
 $method = $_SERVER['REQUEST_METHOD'];
 
-$mongo      = getMongoDb();
-$collection = $mongo->system_logs;
+// ── FIX #4: Resolve real client IP (handles Docker gateway / reverse proxy) ──
+$ip = null;
+if (!empty($_SERVER['HTTP_X_FORWARDED_FOR'])) {
+    // X-Forwarded-For can be a comma-separated list; take the first (original client)
+    $ip = trim(explode(',', $_SERVER['HTTP_X_FORWARDED_FOR'])[0]);
+} elseif (!empty($_SERVER['REMOTE_ADDR'])) {
+    $ip = $_SERVER['REMOTE_ADDR'];
+}
 
 // ── GET: admin fetches logs ────────────────────────────────────────────────
 if ($method === 'GET') {
@@ -48,42 +39,61 @@ if ($method === 'GET') {
     }
 
     try {
-        $cursor = $collection->find(
-            [],
-            [
-                'sort'  => ['created_at' => -1],
-                'limit' => 50,
-            ]
-        );
+        // ── Optional filters via query string ─────────────────────────────
+        $conditions = [];
+        $bindings   = [];
 
-        $logs = [];
-        foreach ($cursor as $doc) {
-            $logs[] = [
-                'log_id'     => (string) $doc['_id'],
-                'user_id'    => $doc['user_id']    ?? null,
-                'username'   => $doc['username']   ?? null,
-                'action'     => $doc['action']     ?? '',
-                'log_type'   => $doc['log_type']   ?? 'info',
-                'ip_address' => $doc['ip_address'] ?? null,
-                'created_at' => isset($doc['created_at'])
-                    ? $doc['created_at']->toDateTime()->format('Y-m-d H:i:s')
-                    : null,
-            ];
+        if (!empty($_GET['log_type'])) {
+            $allowed = ['info', 'warn', 'danger'];
+            if (in_array($_GET['log_type'], $allowed, true)) {
+                $conditions[] = 'sl.log_type = ?';
+                $bindings[]   = $_GET['log_type'];
+            }
         }
 
+        if (!empty($_GET['search'])) {
+            $conditions[] = '(sl.action ILIKE ? OR u.username ILIKE ?)';
+            $term         = '%' . $_GET['search'] . '%';
+            $bindings[]   = $term;
+            $bindings[]   = $term;
+        }
+
+        $where = $conditions ? 'WHERE ' . implode(' AND ', $conditions) : '';
+
+        $stmt = $pdo->prepare("
+            SELECT
+                sl.log_id,
+                sl.user_id,
+                u.username,
+                sl.action,
+                sl.log_type,
+                sl.ip_address,
+                sl.created_at
+            FROM system_logs sl
+            LEFT JOIN users u ON u.user_id = sl.user_id
+            {$where}
+            ORDER BY sl.created_at DESC
+            LIMIT 100
+        ");
+        $stmt->execute($bindings);
+
+        $logs = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
         echo json_encode(['success' => true, 'logs' => $logs]);
-    } catch (\Exception $e) {
-        error_log('MongoDB system_logs GET error: ' . $e->getMessage());
-        echo json_encode(['success' => true, 'logs' => []]);
+
+    } catch (PDOException $e) {
+        error_log('system_logs GET error: ' . $e->getMessage());
+        http_response_code(500);
+        echo json_encode(['success' => false, 'message' => 'Failed to fetch logs.']);
     }
     exit;
 }
 
 // ── POST: write a log entry ────────────────────────────────────────────────
 if ($method === 'POST') {
-    $body     = json_decode(file_get_contents('php://input'), true) ?? [];
-    $action   = trim($body['action']   ?? '');
-    $logType  = trim($body['log_type'] ?? 'info');
+    $body    = json_decode(file_get_contents('php://input'), true) ?? [];
+    $action  = trim($body['action']   ?? '');
+    $logType = trim($body['log_type'] ?? 'info');
 
     if (!$action) {
         http_response_code(400);
@@ -91,37 +101,18 @@ if ($method === 'POST') {
         exit;
     }
 
-    $allowedTypes = ['info', 'warn', 'danger'];
-    if (!in_array($logType, $allowedTypes, true)) {
-        $logType = 'info';
+    // ── FIX #2: Validate log_type on POST before writing ──────────────────
+    $allowed = ['info', 'warn', 'danger'];
+    if (!in_array($logType, $allowed, true)) {
+        $logType = 'info'; // safe fallback instead of rejecting
     }
 
-    // Fetch username from PostgreSQL (denormalise into Mongo document)
-    $username = null;
+    // ── FIX #3: Wrap write_log in try/catch so errors return proper JSON ──
     try {
-        $stmt = $pdo->prepare("SELECT username FROM users WHERE user_id = ?");
-        $stmt->execute([$userId]);
-        $username = $stmt->fetchColumn() ?: null;
-    } catch (\PDOException $e) {
-        // non-fatal — log without username
-    }
-
-    try {
-        $result = $collection->insertOne([
-            'user_id'    => $userId,
-            'username'   => $username,
-            'action'     => $action,
-            'log_type'   => $logType,
-            'ip_address' => $_SERVER['REMOTE_ADDR'] ?? null,
-            'created_at' => new \MongoDB\BSON\UTCDateTime(),
-        ]);
-
-        echo json_encode([
-            'success' => true,
-            'log_id'  => (string) $result->getInsertedId(),
-        ]);
-    } catch (\Exception $e) {
-        error_log('MongoDB system_logs POST error: ' . $e->getMessage());
+        write_log($pdo, $userId, $action, $logType, $ip);
+        echo json_encode(['success' => true, 'message' => 'Log entry written.']);
+    } catch (PDOException $e) {
+        error_log('system_logs POST error: ' . $e->getMessage());
         http_response_code(500);
         echo json_encode(['success' => false, 'message' => 'Failed to write log.']);
     }

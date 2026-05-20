@@ -26,6 +26,7 @@ $email            = trim($data['email']            ?? '');
 $phone            = trim($data['phone']            ?? '');
 $password         = $data['password']              ?? '';
 $confirm_password = $data['confirm_password']      ?? '';
+$terms_accepted   = $data['terms_accepted']        ?? false;
 
 $errors = [];
 
@@ -59,6 +60,11 @@ if ($password !== $confirm_password) {
     $errors[] = 'Passwords do not match.';
 }
 
+// --- T&C validation ---
+if (!$terms_accepted) {
+    $errors[] = 'You must accept the Terms & Conditions to register.';
+}
+
 if (!empty($errors)) {
     http_response_code(422);
     echo json_encode(['success' => false, 'message' => implode(' ', $errors)]);
@@ -84,10 +90,12 @@ try {
         exit;
     }
 
-    // Insert user
+    // Insert user with terms_accepted
     $hashedPassword = password_hash($password, PASSWORD_BCRYPT);
     $stmt = $pdo->prepare(
-        'INSERT INTO users (username, email, phone, password) VALUES (?, ?, ?, ?) RETURNING user_id'
+        'INSERT INTO users (username, email, phone, password, terms_accepted, terms_accepted_at)
+         VALUES (?, ?, ?, ?, TRUE, NOW())
+         RETURNING user_id'
     );
     $stmt->execute([$username, $email, $phone, $hashedPassword]);
     $newUser = $stmt->fetch();

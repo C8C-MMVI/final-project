@@ -211,6 +211,9 @@ export function useLogin() {
           if (data.djangoToken) {
             localStorage.setItem('django_token', data.djangoToken);
           }
+          if (data.avatar) {
+            localStorage.setItem('user_avatar', data.avatar);
+          }
       
         } catch { }
       

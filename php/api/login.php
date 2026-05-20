@@ -35,7 +35,7 @@ if (empty($username) || empty($password)) {
 }
 
 // users.user_id is the correct PK column name
-$stmt = $pdo->prepare('SELECT user_id, username, password, role FROM users WHERE username = ? LIMIT 1');
+$stmt = $pdo->prepare('SELECT user_id, username, password, role, avatar FROM users WHERE username = ? LIMIT 1');
 $stmt->execute([$username]);
 $user = $stmt->fetch();
 
@@ -48,6 +48,7 @@ if (!$user || !password_verify($password, $user['password'])) {
 $_SESSION['user_id']  = $user['user_id'];
 $_SESSION['username'] = $user['username'];
 $_SESSION['role']     = $user['role'];
+$_SESSION['avatar']   = $user['avatar'];
 
 $redirect = match($user['role']) {
     'admin'      => '/admin/dashboard',
@@ -80,4 +81,5 @@ echo json_encode([
     'role'        => $user['role'],
     'redirect'    => $redirect,
     'djangoToken' => $djangoToken,
+    'avatar'      => $user['avatar'],
 ]);

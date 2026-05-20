@@ -10,6 +10,7 @@ if (!isset($_SESSION['user_id'])) {
 
 require_once __DIR__ . '/../db_config.php';
 require_once __DIR__ . '/../includes/notify.php';
+require_once __DIR__ . '/../includes/log.php';
 
 $method = $_SERVER['REQUEST_METHOD'];
 $role   = $_SESSION['role'];
@@ -93,30 +94,17 @@ if ($method === 'POST') {
     $stmt->execute([$shopId, $customerId, $userId, $totalAmount, $paymentMethod]);
     $transactionId = (int) $pdo->lastInsertId();
 
-    // ── Fetch shop name for the notification message ──────────────────────
     $shopStmt = $pdo->prepare("SELECT shop_name FROM shops WHERE shop_id = ?");
     $shopStmt->execute([$shopId]);
     $shopName = $shopStmt->fetchColumn() ?: 'the shop';
 
     $formattedAmount = number_format($totalAmount, 2);
 
-    // ── Notify customer their payment was recorded ────────────────────────
-    notify($pdo, $customerId,
+    notify($customerId,
         "Payment of ₱$formattedAmount via $paymentMethod has been recorded at $shopName. Transaction #$transactionId."
     );
 
-    // ── Audit log ─────────────────────────────────────────────────────────
-    try {
-        $logStmt = $pdo->prepare("
-            INSERT INTO system_logs (user_id, action, log_type, ip_address, created_at)
-            VALUES (?, ?, 'info', ?, NOW())
-        ");
-        $logStmt->execute([
-            $userId,
-            "Transaction #$transactionId recorded: ₱{$formattedAmount} via $paymentMethod at $shopName (customer ID: $customerId)",
-            $_SERVER['REMOTE_ADDR'] ?? null,
-        ]);
-    } catch (PDOException $e) {}
+    write_log($pdo, $userId, "Transaction #$transactionId recorded: ₱{$formattedAmount} via $paymentMethod at $shopName (customer ID: $customerId)", 'info', $_SERVER['REMOTE_ADDR'] ?? null);
 
     echo json_encode([
         'success'        => true,

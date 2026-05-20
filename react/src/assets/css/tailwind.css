@@ -5,7 +5,7 @@
   --font-inter:    'Inter', sans-serif;
   --font-koho:     'KoHo', sans-serif;
   --font-rajdhani: 'Rajdhani', sans-serif;
-  --font-syne:     'Syne', sans-serif;
+  --font-syne:     'Orbitron', sans-serif;
   --font-dm:       'DM Sans', sans-serif;
 
   /* ── Brand colours ── */
@@ -34,7 +34,6 @@ body {
   margin: 0;
   padding: 0;
   background: #07111f;
-  color: #ffffff;
   font-family: 'DM Sans', sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;

@@ -10,8 +10,8 @@ services:
     volumes:
       - mongo_data:/data/db
     environment:
-      MONGO_INITDB_ROOT_USERNAME: ""
-      MONGO_INITDB_ROOT_PASSWORD: ""
+      MONGO_INITDB_ROOT_USERNAME: "technologs_user"
+      MONGO_INITDB_ROOT_PASSWORD: "Techn0L0gs@2025"
 
   # ── PostgreSQL ──
   db:
@@ -48,7 +48,11 @@ services:
       MONGO_HOST: mongo
       MONGO_PORT: 27017
       MONGO_DB: technologs_mongo
-      SPRING_DATA_MONGODB_URI: mongodb://mongo:27017/technologs_mongo
+      MONGO_USER: technologs_user
+      MONGO_PASSWORD: "Techn0L0gs@2025"
+      SPRING_DATA_MONGODB_URI: mongodb://technologs_user:Techn0L0gs%402025@mongo:27017/technologs_mongo?authSource=admin
+      APP_PHP_BASE_URL: http://php:8000
+      APP_SERVICE_KEY: tEcHn0L0gs-Chat-2025-xK9mPqR
 
   # ── Django ──
   django:
@@ -73,6 +77,8 @@ services:
       MONGO_HOST: mongo
       MONGO_PORT: 27017
       MONGO_DB: technologs_mongo
+      MONGO_USER: technologs_user
+      MONGO_PASSWORD: "Techn0L0gs@2025"
     healthcheck:
       test: ["CMD-SHELL", "python -c \"import socket; s=socket.socket(); s.connect(('localhost', 8000)); s.close()\""]
       interval: 10s
@@ -102,18 +108,22 @@ services:
       MONGO_HOST: mongo
       MONGO_PORT: 27017
       MONGO_DB: technologs_mongo
+      MONGO_USER: technologs_user
+      MONGO_PASSWORD: "Techn0L0gs@2025"
       MAIL_HOST: smtp.gmail.com
       MAIL_PORT: 587
       MAIL_USERNAME: hannahjoy.bagoyen@lorma.edu
       MAIL_PASSWORD: wqrfpvmjftaunfcr
       MAIL_FROM: hannahjoy.bagoyen@lorma.edu
       MAIL_FROM_NAME: TechnoLogs
-      APP_URL: http://localhost:5173
+      APP_URL: http://localhost:3000
+      APP_SERVICE_KEY: tEcHn0L0gs-Chat-2025-xK9mPqR
     volumes:
       - ./php:/var/www/html
+      - uploads_data:/var/www/html/uploads
     ports:
       - "8080:8000"
-    command: php -S 0.0.0.0:8000 -t /var/www/html
+    command: php -S 0.0.0.0:8000 -t /var/www/html /var/www/html/router.php
 
   # ── Gateway ──
   gateway:
@@ -141,11 +151,15 @@ services:
     shm_size: '256m'
     volumes:
       - ./react:/app
+      - /app/node_modules
     ports:
-      - "5173:5173"
+      - "3000:5173"
     depends_on:
       - gateway
-    command: sh -c "npm install && npm run dev -- --host"
+    environment:
+      - VITE_GOOGLE_CLIENT_ID=1073352016763-jn24hcdbgcioiidgji6ls93fhrk27akq.apps.googleusercontent.com
+      - VITE_API_BASE=http://localhost:9090
+    command: sh -c "npm install && npm run dev -- --host 0.0.0.0 --port 5173"
 
   # ── MailHog ──
   mailhog:
@@ -158,3 +172,4 @@ services:
 volumes:
   postgres_data:
   mongo_data:
+  uploads_data:

@@ -8,7 +8,8 @@ CREATE TABLE IF NOT EXISTS reviews (
     customer_id BIGINT     REFERENCES users(user_id) ON DELETE SET NULL,
     rating      SMALLINT   NOT NULL CHECK (rating BETWEEN 1 AND 5),
     comment     TEXT,
-    created_at  TIMESTAMP  DEFAULT CURRENT_TIMESTAMP
+    created_at  TIMESTAMP  DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT uq_reviews_request_customer UNIQUE (request_id, customer_id)
 );
 
 CREATE INDEX IF NOT EXISTS idx_reviews_request_id

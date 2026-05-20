@@ -25,7 +25,7 @@ public class RepairSale {
     @Column(name = "customer_id", nullable = false)
     private Long customerId;
 
-    @Column(name = "staff_id", nullable = false)
+    @Column(name = "staff_id")
     private Long staffId;
 
     // Auto-calculated from sum of item subtotals

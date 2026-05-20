@@ -1,8 +1,8 @@
 // src/components/layout/Topbar.jsx
 import { useState, useRef, useEffect, useCallback } from 'react';
 import styles from './Topbar.module.css';
+import SearchDropdown from './SearchDropdown';
 
-// ── Role config ───────────────────────────────────────────────────────────
 const roleLabels = {
   admin:      'System Admin',
   owner:      'Shop Owner',
@@ -10,21 +10,21 @@ const roleLabels = {
   customer:   'Customer',
 };
 
-// ── Page title + breadcrumb maps ──────────────────────────────────────────
 const titleMap = {
-  dashboard:      { admin: 'Admin Dashboard', owner: 'Dashboard',    technician: 'My Dashboard', customer: 'My Dashboard'   },
-  repairs:        { admin: 'Repair Jobs',     owner: 'Repair Jobs',  technician: 'My Jobs',      customer: 'My Repairs'     },
-  userManagement: { admin: 'User Management', owner: '',             technician: '',             customer: ''               },
-  shopRequests:   { admin: 'Shop Requests',   owner: '',             technician: '',             customer: ''               },
-  systemLogs:     { admin: 'System Logs',     owner: '',             technician: '',             customer: ''               },
-  members:        { admin: 'Members',         owner: 'Customers',    technician: '',             customer: ''               },
-  reports:        { admin: 'Reports',         owner: 'Analytics',    technician: '',             customer: ''               },
-  transactions:   { admin: 'Transactions',    owner: 'Transactions', technician: '',             customer: 'My Transactions' },
-  reviews:        { admin: '',                owner: '',             technician: 'Reviews',      customer: ''               },
-  profile:        { admin: 'My Profile',      owner: 'My Profile',   technician: 'My Profile',   customer: 'My Profile'     },
-  customers:      { admin: '',               owner: 'Customers',     technician: '',             customer: ''               },
-  notifications:  { admin: 'Notifications',   owner: 'Notifications', technician: 'Notifications', customer: 'Notifications' },
-  help:           { admin: 'Help & FAQs',      owner: 'Help & FAQs',   technician: 'Help & FAQs',   customer: 'Help & FAQs'   },
+  dashboard:      { admin: 'Admin Dashboard', owner: 'Dashboard',    technician: 'My Jobs',        customer: 'My Dashboard'    },
+  repairs:        { admin: 'Repair Jobs',     owner: 'Repair Jobs',  technician: 'My Jobs',        customer: 'My Repairs'      },
+  userManagement: { admin: 'User Management', owner: '',             technician: '',               customer: ''               },
+  shopRequests:   { admin: 'Shop Requests',   owner: '',             technician: '',               customer: ''               },
+  systemLogs:     { admin: 'System Logs',     owner: '',             technician: '',               customer: ''               },
+  members:        { admin: 'Members',         owner: 'Members',      technician: '',               customer: ''               },
+  reports:        { admin: 'Reports',         owner: 'Analytics',    technician: '',               customer: ''               },
+  transactions:   { admin: 'Transactions',    owner: 'Transactions', technician: '',               customer: 'My Transactions' },
+  reviews:        { admin: '',               owner: '',             technician: 'Reviews',        customer: ''               },
+  profile:        { admin: 'My Profile',      owner: 'My Profile',   technician: 'My Profile',     customer: 'My Profile'      },
+  customers:      { admin: '',               owner: 'Customers',    technician: '',               customer: ''               },
+  notifications:  { admin: 'Notifications',   owner: 'Notifications', technician: 'Notifications', customer: 'Notifications'   },
+  help:           { admin: 'Help & FAQs',     owner: 'Help & FAQs',  technician: 'Help & FAQs',    customer: 'Help & FAQs'     },
+  shop:           { admin: '',               owner: '',             technician: '',               customer: 'Register My Shop' },
 };
 
 const breadcrumbMap = {
@@ -41,50 +41,12 @@ const breadcrumbMap = {
   customers:      'TechnoLogs / Customers',
   notifications:  'TechnoLogs / Notifications',
   help:           'TechnoLogs / Help & FAQs',
+  shop:           'TechnoLogs / Register My Shop',
 };
 
-// ── Quick-links per role ──────────────────────────────────────────────────
-const roleNavLinks = {
-  admin: [
-    { label: 'Dashboard',       page: 'dashboard'      },
-    { label: 'User Management', page: 'userManagement' },
-    { label: 'Shop Requests',   page: 'shopRequests'   },
-    { label: 'System Logs',     page: 'systemLogs'     },
-  ],
-  owner: [
-    { label: 'Dashboard',            page: 'dashboard' },
-    { label: 'Repairs / Job Orders', page: 'repairs'   },
-    { label: 'Customers',            page: 'members'   },
-    { label: 'Reports / Analytics',  page: 'reports'   },
-  ],
-  technician: [
-    { label: 'Dashboard',       page: 'dashboard' },
-    { label: 'Repair Requests', page: 'repairs'   },
-    { label: 'My Jobs',         page: 'repairs'   },
-  ],
-  customer: [
-    { label: 'My Dashboard',    page: 'dashboard'    },
-    { label: 'My Repairs',      page: 'repairs'      },
-    { label: 'My Transactions', page: 'transactions' },
-    { label: 'Notifications',   page: 'notifications'},
-    { label: 'Help & FAQs',     page: 'help'         },
-  ],
-};
-
-// ── Helpers ───────────────────────────────────────────────────────────────
-
-/**
- * timeAgo — converts a UTC timestamp string from PHP into a relative
- * "X ago" label using the browser's LOCAL timezone automatically.
- * No manual offset needed — Date.parse() handles UTC correctly.
- */
 function timeAgo(dateStr) {
-  // PHP returns "2024-04-22 10:00:00" without a timezone suffix.
-  // Appending " UTC" tells the browser to treat it as UTC so it
-  // converts correctly to local time before calculating the diff.
   const normalized = dateStr.includes('T') ? dateStr : dateStr.replace(' ', 'T') + 'Z';
   const diff = Math.floor((Date.now() - new Date(normalized).getTime()) / 1000);
-
   if (diff < 5)     return 'just now';
   if (diff < 60)    return `${diff}s ago`;
   if (diff < 3600)  return `${Math.floor(diff / 60)}m ago`;
@@ -92,33 +54,54 @@ function timeAgo(dateStr) {
   return `${Math.floor(diff / 86400)}d ago`;
 }
 
-// ── SVG Icons ─────────────────────────────────────────────────────────────
+function Avatar({ src, initials, size = 32, className = '' }) {
+  const [imgErr, setImgErr] = useState(false);
+  useEffect(() => { setImgErr(false); }, [src]);
+  const showImg = src && !imgErr;
+  const base = {
+    width: size, height: size, borderRadius: '50%',
+    overflow: 'hidden', flexShrink: 0,
+    display: 'flex', alignItems: 'center', justifyContent: 'center',
+    background: 'rgba(13,31,26,0.08)',
+    fontSize: size * 0.38, fontWeight: 600,
+    color: 'rgba(13,31,26,0.6)',
+    userSelect: 'none',
+  };
+  return (
+    <div style={base} className={className}>
+      {showImg
+        ? <img src={src} alt="avatar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} onError={() => setImgErr(true)} />
+        : <span>{initials}</span>
+      }
+    </div>
+  );
+}
+
 const IconSearch = () => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
   </svg>
 );
+
 const IconBell = () => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
     <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
   </svg>
 );
+
 const IconChevronDown = () => (
   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
     <polyline points="6 9 12 15 18 9"/>
   </svg>
 );
-const IconChevronRight = () => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <polyline points="9 18 15 12 9 6"/>
-  </svg>
-);
+
 const IconUser = () => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
   </svg>
 );
+
 const IconLogout = () => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
@@ -127,131 +110,103 @@ const IconLogout = () => (
   </svg>
 );
 
-// ── Search Dropdown ───────────────────────────────────────────────────────
-function SearchDropdown({ role, onNavigate, onClose }) {
-  const [query, setQuery] = useState('');
-  const inputRef          = useRef(null);
+const IconMenu = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <line x1="3" y1="6" x2="21" y2="6"/>
+    <line x1="3" y1="12" x2="21" y2="12"/>
+    <line x1="3" y1="18" x2="21" y2="18"/>
+  </svg>
+);
 
-  useEffect(() => {
-    const t = setTimeout(() => inputRef.current?.focus(), 50);
-    return () => clearTimeout(t);
-  }, []);
-
-  const links    = roleNavLinks[role] ?? roleNavLinks.admin;
-  const filtered = query.trim()
-    ? links.filter(l => l.label.toLowerCase().includes(query.toLowerCase()))
-    : links;
-
-  const handleSelect = (page) => {
-    onNavigate?.(page);
-    onClose();
-  };
+function NotifDropdown({ notifs, loading, unreadChatCount, onMarkAllRead, onMarkOneRead, onViewAll, onClose }) {
+  const systemUnread = notifs.filter(n => !n.is_read).length;
+  // Total unread = system notifications + unread chat messages
+  const totalUnread  = systemUnread + unreadChatCount;
 
   return (
-    <div className={`${styles.dropdown} ${styles.searchDropdown}`}>
-      <div className={styles.searchInputWrap}>
-        <span className={styles.searchIcon}><IconSearch /></span>
-        <input
-          ref={inputRef}
-          type="text"
-          className={styles.searchInput}
-          placeholder="Search pages…"
-          value={query}
-          onChange={e => setQuery(e.target.value)}
-        />
-      </div>
-      <div className={styles.dropdownLabel}>Quick Links</div>
-      <div>
-        {filtered.length === 0 ? (
-          <div className={styles.noResults}>No results found</div>
-        ) : (
-          filtered.map((l, i) => (
-            <button key={i} className={styles.searchItem} onClick={() => handleSelect(l.page)}>
-              <span className={styles.searchItemIcon}><IconChevronRight /></span>
-              {l.label}
-            </button>
-          ))
-        )}
-      </div>
-    </div>
-  );
-}
-
-// ── Notifications Dropdown ────────────────────────────────────────────────
-function NotifDropdown({ notifs, loading, onMarkAllRead, onMarkOneRead, onViewAll, onClose }) {
-  const unread = notifs.filter(n => !n.is_read);
-
-  return (
-    <div
-      className={`${styles.dropdown} ${styles.notifDropdown}`}
-      // FIX: wider dropdown so long messages don't get cut off
-      style={{ width: '360px' }}
-    >
+    <div className={`${styles.dropdown} ${styles.notifDropdown}`}>
       <div className={styles.dropdownHeader}>
         <span className={styles.dropdownTitle}>
           Notifications
-          {unread.length > 0 && (
-            <span className={styles.notifHeaderBadge}>{unread.length} new</span>
+          {totalUnread > 0 && (
+            <span className={styles.notifHeaderBadge}>{totalUnread} new</span>
           )}
         </span>
-        {unread.length > 0 && (
-          <button className={styles.markReadBtn} onClick={onMarkAllRead}>
-            Mark all read
-          </button>
+        {systemUnread > 0 && (
+          <button className={styles.markReadBtn} onClick={onMarkAllRead}>Mark all read</button>
         )}
       </div>
 
       <div className={styles.notifList}>
         {loading ? (
           <div className={styles.notifEmpty}>Loading…</div>
-        ) : notifs.length === 0 ? (
-          <div className={styles.notifEmpty}>No notifications yet</div>
         ) : (
-          notifs.map((n) => (
-            <div
-              key={n.notification_id}
-              className={`${styles.notifItem} ${!n.is_read ? styles.unread : ''}`}
-              onClick={() => !n.is_read && onMarkOneRead(n.notification_id)}
-              style={{ cursor: n.is_read ? 'default' : 'pointer' }}
-            >
-              {/* Unread dot */}
-              <div className={styles.notifIcon}>
-                <span style={{
-                  display: 'block',
-                  width: '8px',
-                  height: '8px',
-                  borderRadius: '50%',
-                  flexShrink: 0,
-                  marginTop: '4px',
-                  background: n.is_read ? 'rgba(255,255,255,0.12)' : '#1abc9c',
-                  boxShadow: n.is_read ? 'none' : '0 0 6px rgba(26,188,156,0.6)',
-                }} />
+          <>
+            {/* ── Unread chat messages summary item ── */}
+            {unreadChatCount > 0 && (
+              <div
+                className={`${styles.notifItem} ${styles.unread}`}
+                style={{ cursor: 'pointer' }}
+                onClick={() => { onClose(); }}
+              >
+                <div className={styles.notifIcon}>
+                  <span style={{
+                    display: 'block', width: 8, height: 8, borderRadius: '50%',
+                    flexShrink: 0, marginTop: 4,
+                    background: '#3b82f6',
+                    boxShadow: '0 0 6px rgba(59,130,246,0.5)',
+                  }} />
+                </div>
+                <div className={styles.notifContent} style={{ minWidth: 0 }}>
+                  <div className={styles.notifDesc} style={{
+                    color: '#0a1c16', whiteSpace: 'normal',
+                    wordBreak: 'break-word', lineHeight: '1.45', fontWeight: 500,
+                  }}>
+                    💬 You have {unreadChatCount} unread chat message{unreadChatCount !== 1 ? 's' : ''} — go to your repairs to reply
+                  </div>
+                </div>
               </div>
+            )}
 
-              {/* FIX: white-space normal + word-break so long messages wrap */}
-              <div className={styles.notifContent} style={{ minWidth: 0 }}>
+            {/* ── System notifications ── */}
+            {notifs.length === 0 && unreadChatCount === 0 ? (
+              <div className={styles.notifEmpty}>No notifications yet</div>
+            ) : notifs.length === 0 ? null : (
+              notifs.map((n) => (
                 <div
-                  className={styles.notifDesc}
-                  style={{
-                    color: n.is_read ? 'rgba(255,255,255,0.45)' : 'rgba(255,255,255,0.88)',
-                    whiteSpace: 'normal',
-                    wordBreak: 'break-word',
-                    lineHeight: '1.45',
-                  }}
+                  key={n.notification_id}
+                  className={`${styles.notifItem} ${!n.is_read ? styles.unread : ''}`}
+                  onClick={() => !n.is_read && onMarkOneRead(n.notification_id)}
+                  style={{ cursor: n.is_read ? 'default' : 'pointer' }}
                 >
-                  {n.message}
+                  <div className={styles.notifIcon}>
+                    <span style={{
+                      display: 'block', width: 8, height: 8, borderRadius: '50%',
+                      flexShrink: 0, marginTop: 4,
+                      background: n.is_read ? 'rgba(13,31,26,0.15)' : '#1abc9c',
+                      boxShadow: n.is_read ? 'none' : '0 0 6px rgba(26,188,156,0.5)',
+                    }} />
+                  </div>
+                  <div className={styles.notifContent} style={{ minWidth: 0 }}>
+                    <div className={styles.notifDesc} style={{
+                      color: n.is_read ? 'rgba(13,31,26,0.4)' : '#0a1c16',
+                      whiteSpace: 'normal', wordBreak: 'break-word',
+                      lineHeight: '1.45', fontWeight: n.is_read ? 400 : 500,
+                    }}>
+                      {n.message}
+                    </div>
+                    <div className={styles.notifTime} style={{ marginTop: 3 }}>
+                      {timeAgo(n.created_at)}
+                    </div>
+                  </div>
                 </div>
-                <div className={styles.notifTime} style={{ marginTop: '3px' }}>
-                  {timeAgo(n.created_at)}
-                </div>
-              </div>
-            </div>
-          ))
+              ))
+            )}
+          </>
         )}
       </div>
 
       <div className={styles.dropdownFooter}>
-        {/* FIX: calls onViewAll which sets section to 'notifications' via DashboardLayout */}
         <button
           className={styles.footerLink}
           style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
@@ -264,17 +219,12 @@ function NotifDropdown({ notifs, loading, onMarkAllRead, onMarkOneRead, onViewAl
   );
 }
 
-// ── Profile Dropdown ──────────────────────────────────────────────────────
-function ProfileDropdown({ username, initials, roleLabel, onLogout, onNavigate, onClose }) {
-  const handleProfile = () => {
-    onNavigate?.('profile');
-    onClose();
-  };
-
+function ProfileDropdown({ username, initials, avatar, roleLabel, onLogout, onNavigate, onClose }) {
+  const handleProfile = () => { onNavigate?.('profile'); onClose(); };
   return (
     <div className={`${styles.dropdown} ${styles.profileDropdown}`}>
       <div className={styles.profileInfo}>
-        <div className={`${styles.avatar} ${styles.avatarLg}`}>{initials}</div>
+        <Avatar src={avatar} initials={initials} size={48} className={styles.avatarLg} />
         <div>
           <div className={styles.profileInfoName}>{username}</div>
           <div className={styles.profileInfoRole}>{roleLabel}</div>
@@ -295,14 +245,22 @@ function ProfileDropdown({ username, initials, roleLabel, onLogout, onNavigate, 
   );
 }
 
-// ── Main Topbar ───────────────────────────────────────────────────────────
 const POLL_MS = 30_000;
 
-export default function Topbar({ role, username, currentPage = 'dashboard', onLogout, onNavigate }) {
+export default function Topbar({
+  role,
+  username,
+  avatar,
+  currentPage = 'dashboard',
+  onLogout,
+  onNavigate,
+  onMenuToggle,
+  unreadChatCount = 0,   // passed from DashboardLayout → useChatUnread
+}) {
   const initials   = (username ?? '??').slice(0, 2).toUpperCase();
   const roleLabel  = roleLabels[role] ?? 'User';
-  const pageTitle  = titleMap[currentPage]?.[role]  ?? 'Dashboard';
-  const breadcrumb = breadcrumbMap[currentPage]      ?? 'TechnoLogs / Dashboard';
+  const pageTitle  = titleMap[currentPage]?.[role]  ?? '';
+  const breadcrumb = breadcrumbMap[currentPage]      ?? 'TechnoLogs';
 
   const [open,    setOpen]    = useState('');
   const [notifs,  setNotifs]  = useState([]);
@@ -311,13 +269,12 @@ export default function Topbar({ role, username, currentPage = 'dashboard', onLo
   const rightRef = useRef(null);
   const pollRef  = useRef(null);
 
-  // ── Fetch notifications ───────────────────────────────────────────────
   const fetchNotifs = useCallback(async () => {
     try {
       const res  = await fetch('/api/notifications.php', { credentials: 'include' });
       const data = await res.json();
       if (data.success) setNotifs(data.notifications ?? []);
-    } catch { /* ignore */ }
+    } catch { }
     finally { setLoading(false); }
   }, []);
 
@@ -327,35 +284,22 @@ export default function Topbar({ role, username, currentPage = 'dashboard', onLo
     return () => clearInterval(pollRef.current);
   }, [fetchNotifs]);
 
-  // ── Mark one read ─────────────────────────────────────────────────────
   const markOneRead = useCallback(async (id) => {
     setNotifs(prev => prev.map(n => n.notification_id === id ? { ...n, is_read: true } : n));
     try {
-      await fetch(`/api/notifications.php?action=read&id=${id}`, {
-        method: 'PATCH', credentials: 'include',
-      });
-    } catch { /* ignore */ }
+      await fetch(`/api/notifications.php?action=read&id=${id}`, { method: 'PATCH', credentials: 'include' });
+    } catch { }
   }, []);
 
-  // ── Mark all read ─────────────────────────────────────────────────────
   const markAllRead = useCallback(async () => {
     setNotifs(prev => prev.map(n => ({ ...n, is_read: true })));
     try {
-      await fetch('/api/notifications.php?action=read_all', {
-        method: 'PATCH', credentials: 'include',
-      });
-    } catch { /* ignore */ }
+      await fetch('/api/notifications.php?action=read_all', { method: 'PATCH', credentials: 'include' });
+    } catch { }
   }, []);
 
-  // ── FIX: "View all notifications" navigates to the notifications section
-  // onNavigate in DashboardLayout accepts a pageKey — 'notifications' maps
-  // to setSection('notifications') which renders the notifications view.
-  const handleViewAll = useCallback(() => {
-    onNavigate?.('notifications');
-  }, [onNavigate]);
-
-  // ── Outside click + Escape ────────────────────────────────────────────
-  const closeAll = useCallback(() => setOpen(''), []);
+  const handleViewAll = useCallback(() => { onNavigate?.('notifications'); }, [onNavigate]);
+  const closeAll      = useCallback(() => setOpen(''), []);
 
   useEffect(() => {
     const handler = (e) => {
@@ -372,33 +316,34 @@ export default function Topbar({ role, username, currentPage = 'dashboard', onLo
   }, [closeAll]);
 
   const toggle = (panel) => setOpen(prev => prev === panel ? '' : panel);
-  const unreadCount = notifs.filter(n => !n.is_read).length;
 
-  // ── Logout ────────────────────────────────────────────────────────────
+  // Bell badge = unread system notifications + unread chat messages
+  const systemUnread = notifs.filter(n => !n.is_read).length;
+  const bellCount    = systemUnread + unreadChatCount;
+
   const handleLogout = async () => {
     closeAll();
     try {
-      const res  = await fetch('/api/logout.php', { method: 'POST', credentials: 'include' });
-      const data = await res.json();
-      if (!data.success) console.warn('Logout API returned success: false');
+      await fetch('/api/logout.php', { method: 'POST', credentials: 'include' });
     } catch (err) {
       console.error('Logout request failed:', err);
     }
-    if (typeof onLogout === 'function') {
-      onLogout();
-    } else {
-      window.location.href = '/login';
-    }
+    if (typeof onLogout === 'function') onLogout();
+    else window.location.href = '/login';
   };
 
-  // ── Render ────────────────────────────────────────────────────────────
   return (
     <header className={styles.topbar}>
 
       {/* Left */}
       <div className={styles.left}>
-        <span className={styles.pageTitle}>{pageTitle}</span>
-        <span className={styles.breadcrumb}>{breadcrumb}</span>
+        <button className={styles.hamburger} onClick={onMenuToggle} aria-label="Open menu">
+          <IconMenu />
+        </button>
+        <div className={styles.leftText}>
+          <span className={styles.pageTitle}>{pageTitle}</span>
+          <span className={styles.breadcrumb}>{breadcrumb}</span>
+        </div>
       </div>
 
       {/* Right */}
@@ -408,8 +353,7 @@ export default function Topbar({ role, username, currentPage = 'dashboard', onLo
         <div className={styles.dropdownWrapper}>
           <button
             className={`${styles.iconBtn} ${open === 'search' ? styles.iconBtnActive : ''}`}
-            aria-label="Search"
-            aria-expanded={open === 'search'}
+            aria-label="Search" aria-expanded={open === 'search'}
             onClick={() => toggle('search')}
           >
             <IconSearch />
@@ -419,18 +363,17 @@ export default function Topbar({ role, username, currentPage = 'dashboard', onLo
           )}
         </div>
 
-        {/* Notifications */}
+        {/* Bell — shows system notifs + unread chat count combined */}
         <div className={styles.dropdownWrapper}>
           <button
             className={`${styles.iconBtn} ${open === 'notifs' ? styles.iconBtnActive : ''}`}
-            aria-label="Notifications"
-            aria-expanded={open === 'notifs'}
+            aria-label="Notifications" aria-expanded={open === 'notifs'}
             onClick={() => toggle('notifs')}
           >
             <IconBell />
-            {unreadCount > 0 && (
+            {bellCount > 0 && (
               <span className={styles.badge}>
-                {unreadCount > 99 ? '99+' : unreadCount}
+                {bellCount > 99 ? '99+' : bellCount}
               </span>
             )}
           </button>
@@ -438,6 +381,7 @@ export default function Topbar({ role, username, currentPage = 'dashboard', onLo
             <NotifDropdown
               notifs={notifs}
               loading={loading}
+              unreadChatCount={unreadChatCount}
               onMarkAllRead={markAllRead}
               onMarkOneRead={markOneRead}
               onViewAll={handleViewAll}
@@ -450,11 +394,10 @@ export default function Topbar({ role, username, currentPage = 'dashboard', onLo
         <div className={styles.dropdownWrapper}>
           <button
             className={`${styles.profileBtn} ${open === 'profile' ? styles.profileBtnActive : ''}`}
-            aria-label="Profile menu"
-            aria-expanded={open === 'profile'}
+            aria-label="Profile menu" aria-expanded={open === 'profile'}
             onClick={() => toggle('profile')}
           >
-            <div className={styles.avatar}>{initials}</div>
+            <Avatar src={avatar} initials={initials} size={32} className={styles.avatar} />
             <div className={styles.profileMeta}>
               <span className={styles.profileName}>{username}</span>
               <span className={styles.profileRole}>{roleLabel}</span>
@@ -463,10 +406,12 @@ export default function Topbar({ role, username, currentPage = 'dashboard', onLo
               <IconChevronDown />
             </span>
           </button>
+
           {open === 'profile' && (
             <ProfileDropdown
               username={username}
               initials={initials}
+              avatar={avatar}
               roleLabel={roleLabel}
               onLogout={handleLogout}
               onNavigate={onNavigate}

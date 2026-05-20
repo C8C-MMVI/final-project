@@ -1,17 +1,23 @@
-/* src/components/dashboard/StatCard.module.css */
-
 .card {
-  background: var(--navy-mid, #0d1f38);
-  border: 0.5px solid var(--navy-border, rgba(26,188,156,0.14));
-  border-radius: 12px;
-  padding: 16px 18px;
+  background: #fff;
+  border: 1px solid rgba(26,188,156,0.14);
+  border-radius: 14px;
+  padding: 18px 20px;
+  transition: border-color 0.2s, transform 0.2s, box-shadow 0.2s;
+  box-shadow: 0 2px 8px rgba(13,31,26,0.05);
+}
+
+.card:hover {
+  border-color: rgba(26,188,156,0.3);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(26,188,156,0.1);
 }
 
 .header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 10px;
+  margin-bottom: 12px;
 }
 
 .label {
@@ -19,38 +25,36 @@
   font-weight: 600;
   letter-spacing: 0.8px;
   text-transform: uppercase;
-  color: rgba(255,255,255,0.45);
+  color: rgba(13,31,26,0.45);
 }
 
 .icon {
   width: 34px;
   height: 34px;
-  border-radius: 8px;
+  border-radius: 9px;
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
 }
 
-/* Color variants — matched to your navy theme */
-.orange { background: rgba(249,115,22,0.12);  color: #f97316; }
-.teal   { background: rgba(26,188,156,0.12);  color: #1abc9c; }
-.blue   { background: rgba(59,130,246,0.12);  color: #60a5fa; }
-.purple { background: rgba(168,85,247,0.12);  color: #c084fc; }
+.orange { background: rgba(249,115,22,0.1);  color: #f97316; }
+.teal   { background: rgba(26,188,156,0.1);  color: #1abc9c; }
+.blue   { background: rgba(59,130,246,0.1);  color: #3b82f6; }
+.purple { background: rgba(168,85,247,0.1);  color: #a855f7; }
 
 .value {
-  font-size: 1.6rem;
-  font-weight: 700;
-  color: #fff;
+  font-family: 'Orbitron', sans-serif;
+  font-size: 1.7rem;
+  font-weight: 800;
+  color: #0a1c16;
   line-height: 1;
   margin-bottom: 6px;
-  font-family: 'Rajdhani', sans-serif;
-  letter-spacing: 0.5px;
 }
 
 .sub {
   font-size: 0.72rem;
-  color: rgba(255,255,255,0.4);
+  color: rgba(13,31,26,0.4);
 }
 
 .highlight {

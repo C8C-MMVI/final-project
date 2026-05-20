@@ -1,7 +1,6 @@
-import '../assets/css/login.css';
-import Background from '../components/shared/Background';
-import RegisterLeftPanel from '../components/register/RegisterLeftPanel';
+import '../assets/css/auth.css';
 import Toast from '../components/shared/Toast';
+import RegisterLeftPanel from '../components/register/RegisterLeftPanel';
 import RegisterFields from '../components/register/RegisterFields';
 import RegisterSubmitButton from '../components/register/RegisterSubmitButton';
 import { useRegister } from '../assets/js/useRegister';
@@ -13,30 +12,22 @@ export default function Register() {
     phone, setPhone,
     password, setPassword,
     confirmPassword, setConfirmPassword,
+    termsAccepted, setTermsAccepted,       // ← new
     showPassword, togglePassword,
     showConfirmPassword, toggleConfirmPassword,
-    strength,
-    errors,
-    loading,
-    handleSubmit,
-    toast,
+    strength, errors, loading,
+    handleSubmit, toast,
   } = useRegister();
 
   return (
     <>
-      <Background />
-
       <div className="login-page">
         <div className="login-container">
           <RegisterLeftPanel logoSrc="/images/Logo.png" />
 
           <div className="login-right">
-            <div style={{ fontSize: 'clamp(1.4rem, 2.5vw, 2rem)', fontWeight: '700', marginBottom: '5px', color: 'white' }}>
-              Create an Account
-            </div>
-            <div style={{ fontSize: '0.87rem', color: 'rgba(255,255,255,0.55)', marginBottom: 'clamp(18px,3vh,28px)' }}>
-              Fill in your details to get started with TechnoLogs.
-            </div>
+            <div className="login-welcome">Create an Account</div>
+            <div className="login-welcome-sub">Fill in your details to get started with TechnoLogs.</div>
 
             <form className="login-form" onSubmit={handleSubmit} noValidate autoComplete="off">
               <RegisterFields
@@ -49,6 +40,7 @@ export default function Register() {
                 showConfirmPassword={showConfirmPassword} toggleConfirmPassword={toggleConfirmPassword}
                 strength={strength}
                 errors={errors}
+                termsAccepted={termsAccepted} setTermsAccepted={setTermsAccepted}   // ← new
               />
               <RegisterSubmitButton loading={loading} />
             </form>

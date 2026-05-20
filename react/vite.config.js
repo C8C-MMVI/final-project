@@ -22,7 +22,7 @@ export default defineConfig({
       '/ws': {
         target: 'http://gateway:9090',
         changeOrigin: true,
-        ws: true,                          // ← enables WebSocket proxying
+        ws: true,
       },
       '/images': {
         target: 'http://gateway:9090',
@@ -35,6 +35,11 @@ export default defineConfig({
         cookieDomainRewrite: 'localhost',
       },
       '/django': {
+        target: 'http://gateway:9090',
+        changeOrigin: true,
+        cookieDomainRewrite: 'localhost',
+      },
+      '/uploads': {
         target: 'http://gateway:9090',
         changeOrigin: true,
         cookieDomainRewrite: 'localhost',

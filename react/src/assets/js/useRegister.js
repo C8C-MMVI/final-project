@@ -22,11 +22,13 @@ export function useRegister() {
   const [phone,           setPhoneRaw]           = useState('');
   const [password,        setPasswordRaw]        = useState('');
   const [confirmPassword, setConfirmPasswordRaw] = useState('');
+  const [termsAccepted,   setTermsAcceptedRaw]   = useState(false);   // ← new
   const [showPassword,        setShowPassword]        = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [strength, setStrength] = useState(null);
   const [errors,   setErrors]   = useState({
     username: '', email: '', phone: '', password: '', confirmPassword: '',
+    termsAccepted: '',                                                  // ← new
   });
   const [loading, setLoading] = useState(false);
   const [toast,   setToast]   = useState(null);
@@ -69,6 +71,10 @@ export function useRegister() {
     if (val !== pw) return 'Passwords do not match.';
     return '';
   }
+  function validateTerms(val) {
+    if (!val) return 'You must accept the Terms & Conditions.';
+    return '';
+  }
 
   // Setters with live validation
   const setUsername = useCallback((val) => {
@@ -101,6 +107,12 @@ export function useRegister() {
     setErrors(e => ({ ...e, confirmPassword: validateConfirm(val, password) }));
   }, [password]);
 
+  // Terms setter with live validation
+  const setTermsAccepted = useCallback((val) => {
+    setTermsAcceptedRaw(val);
+    setErrors(e => ({ ...e, termsAccepted: validateTerms(val) }));
+  }, []);
+
   // Full validation on submit
   function validateAll() {
     const u  = validateUsername(username.trim());
@@ -108,8 +120,9 @@ export function useRegister() {
     const p  = validatePhone(phone.trim());
     const w  = validatePassword(password);
     const c  = validateConfirm(confirmPassword, password);
-    setErrors({ username: u, email: em, phone: p, password: w, confirmPassword: c });
-    return !u && !em && !p && !w && !c;
+    const t  = validateTerms(termsAccepted);
+    setErrors({ username: u, email: em, phone: p, password: w, confirmPassword: c, termsAccepted: t });
+    return !u && !em && !p && !w && !c && !t;
   }
 
   // Submit
@@ -133,6 +146,7 @@ export function useRegister() {
           phone:            phone.trim(),
           password,
           confirm_password: confirmPassword,
+          terms_accepted:   termsAccepted,      // ← sent to backend
         }),
       });
 
@@ -168,6 +182,7 @@ export function useRegister() {
     phone,           setPhone,
     password,        setPassword,
     confirmPassword, setConfirmPassword,
+    termsAccepted,   setTermsAccepted,        // ← exposed
     showPassword,        togglePassword,
     showConfirmPassword, toggleConfirmPassword,
     strength,

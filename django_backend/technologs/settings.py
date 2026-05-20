@@ -10,7 +10,6 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/6.0/ref/settings/
 """
 import os
-
 from pathlib import Path
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -19,23 +18,31 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
 
-CORS_ALLOW_ALL_ORIGINS = True
-
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/6.0/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-bvw6n&4)^cvh96n-v5n=d_e&*kpoo-_cpavwy)%r0iwv3uhabn'
+SECRET_KEY = os.getenv('DJANGO_SECRET_KEY', 'fallback-for-local-dev-only')
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
 ALLOWED_HOSTS = ['*']
 
+# ── CORS ──────────────────────────────────────────────────────────────────────
+# Lock down to known origins. Do NOT use CORS_ALLOW_ALL_ORIGINS = True.
+CORS_ALLOW_ALL_ORIGINS = False
+CORS_ALLOWED_ORIGINS = [
+    'http://localhost:5173',
+    'http://localhost:9090',
+]
+CORS_ALLOW_CREDENTIALS = True  # required for session cookie to be sent cross-origin
 
+# ── REST Framework ────────────────────────────────────────────────────────────
+# TokenAuthentication removed — auth is handled via HttpOnly session cookie.
+# SessionAuthentication enforces CSRF automatically for unsafe methods.
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [
-        'rest_framework.authentication.TokenAuthentication',
         'rest_framework.authentication.SessionAuthentication',
     ],
     'DEFAULT_PERMISSION_CLASSES': [
@@ -43,8 +50,12 @@ REST_FRAMEWORK = {
     ],
 }
 
-# Application definition
+# ── Session cookie hardening ──────────────────────────────────────────────────
+SESSION_COOKIE_HTTPONLY = True   # JS cannot read the cookie (XSS protection)
+SESSION_COOKIE_SAMESITE = 'Lax' # sent on same-site + top-level cross-site GETs
+SESSION_COOKIE_SECURE   = False  # set True in production (requires HTTPS)
 
+# Application definition
 INSTALLED_APPS = [
     'django.contrib.admin',
     'django.contrib.auth',
@@ -61,8 +72,7 @@ INSTALLED_APPS = [
     'repair_timeline',
 ]
 
-# 2. Add MongoDB settings (reads from environment / docker-compose):
-import os
+# ── MongoDB settings ──────────────────────────────────────────────────────────
 MONGO_HOST     = os.getenv('MONGO_HOST', 'mongo')
 MONGO_PORT     = int(os.getenv('MONGO_PORT', 27017))
 MONGO_DB       = os.getenv('MONGO_DB', 'technologs_mongo')
@@ -72,7 +82,7 @@ MONGO_PASSWORD = os.getenv('MONGO_PASSWORD', '')
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
-    'corsheaders.middleware.CorsMiddleware',        # add this
+    'corsheaders.middleware.CorsMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
@@ -99,25 +109,21 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'technologs.wsgi.application'
 
-
-# Database
-# https://docs.djangoproject.com/en/6.0/ref/settings/#databases
-
+# ── Database ──────────────────────────────────────────────────────────────────
+# Reads from environment variables — never hardcode credentials here.
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'technologs_db',
-        'USER': 'postgres',
-        'PASSWORD': '1234',
-        'HOST': 'db',       # Docker service name
-        'PORT': '5432',
+        'NAME':     os.getenv('DB_NAME',     'technologs_db'),
+        'USER':     os.getenv('DB_USER',     'postgres'),
+        'PASSWORD': os.getenv('DB_PASSWORD', '1234'),
+        'HOST':     os.getenv('DB_HOST',     'db'),
+        'PORT':     os.getenv('DB_PORT',     '5432'),
     }
 }
 
-
 # Password validation
 # https://docs.djangoproject.com/en/6.0/ref/settings/#auth-password-validators
-
 AUTH_PASSWORD_VALIDATORS = [
     {
         'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator',
@@ -133,20 +139,13 @@ AUTH_PASSWORD_VALIDATORS = [
     },
 ]
 
-
 # Internationalization
 # https://docs.djangoproject.com/en/6.0/topics/i18n/
-
 LANGUAGE_CODE = 'en-us'
-
 TIME_ZONE = 'UTC'
-
 USE_I18N = True
-
 USE_TZ = True
-
 
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/6.0/howto/static-files/
-
 STATIC_URL = 'static/'

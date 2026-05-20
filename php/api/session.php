@@ -10,13 +10,18 @@ session_start();
 
 header('Content-Type: application/json');
 
-echo json_encode(
-    isset($_SESSION['role'])
-        ? [
-            'loggedIn' => true,
-            'username' => $_SESSION['username'],
-            'role'     => $_SESSION['role'],
-            'userId'   => $_SESSION['user_id'],
-          ]
-        : ['loggedIn' => false]
-);
+if (!isset($_SESSION['role'])) {
+    echo json_encode(['loggedIn' => false]);
+    exit;
+}
+
+echo json_encode([
+    'loggedIn' => true,
+    'username' => $_SESSION['username'] ?? '',
+    'role'     => $_SESSION['role'],
+    'userId'   => $_SESSION['user_id'],
+    'email'    => $_SESSION['email']    ?? '',
+    // DB column is "phone" but frontend uses "contact" — map it here
+    'contact'  => $_SESSION['phone']    ?? $_SESSION['contact'] ?? '',
+    'avatar'   => $_SESSION['avatar']   ?? null,
+]);

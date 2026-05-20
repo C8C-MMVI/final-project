@@ -1,6 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
-import './assets/css/login.css';
+import './assets/css/auth.css';
 import './assets/css/tailwind.css';
 
 import Home                from './pages/Home';
@@ -18,15 +18,17 @@ import TechnicianDashboard from './pages/TechnicianDashboard';
 import RepairsPage         from './pages/RepairsPage';
 import MembersPage         from './pages/MembersPage';
 import ProfilePage         from './pages/ProfilePage';
+import NotificationsPage   from './pages/NotificationsPage';
 
-const customerPages   = { dashboard: CustomerDashboard,   repairs: RepairsPage, profile: ProfilePage };
-const adminPages      = { dashboard: AdminDashboard,      repairs: RepairsPage, members: MembersPage, profile: ProfilePage };
-const ownerPages      = { dashboard: OwnerDashboard,      repairs: RepairsPage, members: MembersPage, profile: ProfilePage };
-const technicianPages = { dashboard: TechnicianDashboard, repairs: RepairsPage, profile: ProfilePage };
+const customerPages   = { dashboard: CustomerDashboard, repairs: RepairsPage, profile: ProfilePage, notifications: NotificationsPage, shop: CustomerDashboard };
+const adminPages      = { dashboard: AdminDashboard,    repairs: AdminDashboard,  members: MembersPage, profile: ProfilePage, notifications: NotificationsPage };
+const ownerPages      = { dashboard: OwnerDashboard,    repairs: RepairsPage,     members: MembersPage, profile: ProfilePage, notifications: NotificationsPage };
+const technicianPages = { dashboard: TechnicianDashboard, repairs: TechnicianDashboard, profile: ProfilePage, notifications: NotificationsPage };
 
 export default function App() {
   const [userRole, setUserRole] = useState(null);
   const [username, setUsername] = useState('');
+  const [avatar,   setAvatar]   = useState(null);
   const [userId,   setUserId]   = useState(null);
   const [loading,  setLoading]  = useState(true);
 
@@ -37,7 +39,8 @@ export default function App() {
         if (data.loggedIn) {
           setUserRole(data.role);
           setUsername(data.username ?? '');
-          setUserId(data.userId ?? null);
+          setAvatar(data.avatar    ?? null);
+          setUserId(data.userId    ?? null);
         }
       })
       .catch(() => {})
@@ -47,17 +50,40 @@ export default function App() {
   const handleLogout = () => {
     setUserRole(null);
     setUsername('');
+    setAvatar(null);
     setUserId(null);
+  };
+
+  const handleProfileUpdate = (newUsername, newAvatarUrl) => {
+    if (newUsername) setUsername(newUsername);
+    if (newAvatarUrl !== undefined && newAvatarUrl !== null) setAvatar(newAvatarUrl);
   };
 
   const withLayout = (role, pageMap) => (
     <DashboardLayout
       role={role}
       username={username}
+      avatar={avatar}
       userId={userId}
       pageMap={pageMap}
       onLogout={handleLogout}
+      onProfileUpdate={handleProfileUpdate}
     />
+  );
+
+  if (loading) return (
+    <div style={{
+      minHeight: '100vh',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      background: '#f0f6f3',
+      fontFamily: "'DM Sans', sans-serif",
+      color: 'rgba(13,31,26,0.4)',
+      fontSize: '0.9rem',
+    }}>
+      Loading…
+    </div>
   );
 
   return (
@@ -67,7 +93,7 @@ export default function App() {
         <Route
           path="/login"
           element={
-            !loading && userRole
+            userRole
               ? <Navigate to={`/${userRole}/dashboard`} replace />
               : <Login />
           }

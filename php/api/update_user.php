@@ -22,6 +22,7 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 }
 
 require_once __DIR__ . '/../db_config.php';
+require_once __DIR__ . '/../includes/log.php';
 
 $data = json_decode(file_get_contents('php://input'), true);
 
@@ -31,44 +32,68 @@ if (!$data) {
     exit;
 }
 
-$userId = (int) ($data['user_id'] ?? 0);
-$action = $data['action'] ?? '';
-$value  = $data['value']  ?? '';
+$targetId  = (int) ($data['user_id'] ?? 0);
+$action    = $data['action'] ?? '';
+$value     = $data['value']  ?? '';
+$adminId   = (int) $_SESSION['user_id'];
 
-if (!$userId) {
+if (!$targetId) {
     http_response_code(400);
     echo json_encode(['success' => false, 'message' => 'Invalid user ID.']);
     exit;
 }
 
-if ($userId === (int) $_SESSION['user_id']) {
+if ($targetId === $adminId) {
     http_response_code(403);
     echo json_encode(['success' => false, 'message' => 'You cannot modify your own account.']);
     exit;
 }
 
+// ── Fetch target user for audit log ──────────────────────────────────────
+$fetchUser = $pdo->prepare("SELECT username, role, status FROM users WHERE user_id = ?");
+$fetchUser->execute([$targetId]);
+$targetUser = $fetchUser->fetch(PDO::FETCH_ASSOC);
+
+if (!$targetUser) {
+    http_response_code(404);
+    echo json_encode(['success' => false, 'message' => 'User not found.']);
+    exit;
+}
+
+// ── Role update ───────────────────────────────────────────────────────────
 if ($action === 'role') {
-    $allowedRoles = ['owner', 'technician', 'customer'];
-    if (!in_array($value, $allowedRoles)) {
+    $allowedRoles = ['admin', 'owner', 'technician', 'customer'];
+    if (!in_array($value, $allowedRoles, true)) {
         http_response_code(422);
         echo json_encode(['success' => false, 'message' => 'Invalid role.']);
         exit;
     }
+
     $stmt = $pdo->prepare('UPDATE users SET role = ? WHERE user_id = ?');
-    $stmt->execute([$value, $userId]);
+    $stmt->execute([$value, $targetId]);
+
+    // ── Audit log ─────────────────────────────────────────────────────────
+    write_log($pdo, $adminId, "Admin changed role of '{$targetUser['username']}' from '{$targetUser['role']}' to '{$value}'", 'info', $_SERVER['REMOTE_ADDR'] ?? null);
+
     echo json_encode(['success' => true, 'message' => 'Role updated successfully.']);
     exit;
 }
 
+// ── Status update ─────────────────────────────────────────────────────────
 if ($action === 'status') {
     $allowedStatuses = ['active', 'inactive'];
-    if (!in_array($value, $allowedStatuses)) {
+    if (!in_array($value, $allowedStatuses, true)) {
         http_response_code(422);
         echo json_encode(['success' => false, 'message' => 'Invalid status.']);
         exit;
     }
+
     $stmt = $pdo->prepare('UPDATE users SET status = ? WHERE user_id = ?');
-    $stmt->execute([$value, $userId]);
+    $stmt->execute([$value, $targetId]);
+
+    // ── Audit log ─────────────────────────────────────────────────────────
+    write_log($pdo, $adminId, "Admin changed status of '{$targetUser['username']}' from '{$targetUser['status']}' to '{$value}'", 'info', $_SERVER['REMOTE_ADDR'] ?? null);
+
     echo json_encode(['success' => true, 'message' => 'Status updated successfully.']);
     exit;
 }

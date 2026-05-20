@@ -16,12 +16,16 @@ export const springApi = (path, options = {}) =>
 
 // ── Django backend (booking, repair, shop) ────────────────────────────────
 // Vite proxy forwards /django/... → gateway:9090 → django:8001
+//
+// Auth is handled via an HttpOnly session cookie set by Django on login
+// (using django.contrib.sessions + SessionAuthentication in DRF settings).
+// Do NOT read or store the token in localStorage — it is XSS-vulnerable.
+// credentials: 'include' is all that's needed for the cookie to be sent.
 export const djangoApi = (path, options = {}) =>
     fetch(path, {
         credentials: 'include',
         headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Token ${localStorage.getItem('django_token') ?? ''}`,
             ...(options.headers ?? {}),
         },
         ...options,

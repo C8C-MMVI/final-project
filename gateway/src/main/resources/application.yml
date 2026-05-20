@@ -1,17 +1,29 @@
 server:
   port: 9090
+
 spring:
   application:
     name: technologs-gateway
+
   cloud:
     gateway:
       globalcors:
         cors-configurations:
           '[/**]':
-            allowedOrigins:
-              - "http://localhost:5173"
-              - "http://localhost:8080"
-              - "http://localhost:3000"
+            # Allow any origin during development so any device on the
+            # same WiFi (phone, tablet, another laptop) can connect
+            # without having to hardcode every possible LAN IP.
+            # ─────────────────────────────────────────────────────────
+            # IMPORTANT: allowCredentials: true is INCOMPATIBLE with
+            # allowedOrigins: "*" in Spring — so we use
+            # allowedOriginPatterns instead, which supports wildcards
+            # WITH credentials.
+            allowedOriginPatterns:
+              - "http://localhost:*"
+              - "http://127.0.0.1:*"
+              - "http://192.168.*.*:*"    # any LAN device on 192.168.x.x
+              - "http://10.*.*.*:*"       # common Docker / VPN subnet
+              - "http://172.*.*.*:*"      # Docker bridge default subnet
             allowedMethods:
               - GET
               - POST
@@ -26,8 +38,10 @@ spring:
             exposedHeaders:
               - "Authorization"
             allowCredentials: true
+
       default-filters:
         - DedupeResponseHeader=Access-Control-Allow-Credentials Access-Control-Allow-Origin
+
       routes:
         # ── Spring Boot Backend ──────────────────────────────────────────────
         - id: springboot-sales-route
@@ -59,7 +73,7 @@ spring:
             - StripPrefix=0
 
         # ── PHP Backend ──────────────────────────────────────────────────────
-        # Catch-all for /api/** — keep this LAST among /api routes
+        # Catch-all for /api/** — must stay LAST among /api routes
         - id: php-route
           uri: http://php:8000
           predicates:
@@ -70,6 +84,12 @@ spring:
           uri: http://php:8000
           predicates:
             - Path=/images/**
+
+        # ── Uploads (avatars, user-uploaded files served by PHP) ─────────────
+        - id: uploads-route
+          uri: http://php:8000
+          predicates:
+            - Path=/uploads/**
 
         # ── Django Backend ───────────────────────────────────────────────────
         - id: django-route
